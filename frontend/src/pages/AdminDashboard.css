@@ -1,0 +1,81 @@
+.admin-container {
+  padding: 40px;
+  font-family: 'Segoe UI', sans-serif;
+  text-align: center;
+  color: #333;
+}
+
+.admin-container h1 {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 25px;
+  margin-top: 40px;
+  padding: 0 10px;
+}
+
+.admin-card {
+  border-radius: 14px;
+  padding: 24px;
+  text-align: center;
+  text-decoration: none;
+  color: #000;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.07);
+  transition: 0.3s ease;
+  background-color: #fdfdfd;
+  border-left: 6px solid transparent;
+}
+
+.admin-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.admin-card h3 {
+  margin: 10px 0 5px;
+  font-size: 1.3rem;
+  font-weight: bold;
+}
+
+.admin-card p {
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.emoji {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 10px;
+}
+
+/* Color themes */
+.admin-card.red {
+  background: #fff3f3;
+  border-left-color: #ff5b5b;
+}
+
+.admin-card.red:hover {
+  background: #ffe1e1;
+}
+
+.admin-card.blue {
+  background: #eef6ff;
+  border-left-color: #4d91ff;
+}
+
+.admin-card.blue:hover {
+  background: #d5eaff;
+}
+
+.admin-card.green {
+  background: #ecfff1;
+  border-left-color: #39b46a;
+}
+
+.admin-card.green:hover {
+  background: #d6ffe2;
+}
