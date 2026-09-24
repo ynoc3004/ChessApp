@@ -118,3 +118,17 @@ h2 { font-family: Georgia, 'Times New Roman', serif; margin: 0; }
   .advancedGrid { grid-template-columns: 1fr; }
   .analysisButtons { grid-template-columns: 1fr; }
 }
+
+
+.confidencePanel { margin-bottom: 14px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: #fffaf2; }
+.confidenceSummary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.confidenceSummary > div { border: 1px solid var(--line); border-radius: 9px; padding: 10px; background: #fff; }
+.confidenceSummary strong { display: block; font-size: 1.35rem; margin-top: 3px; }
+.uncertainList { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.uncertainList button { border: 1px solid #e0b299; background: #fff5ec; color: #783711; border-radius: 8px; padding: 7px 9px; font-weight: 800; display: inline-flex; gap: 6px; align-items: baseline; }
+.uncertainList button:hover { background: #ffe9d7; }
+.uncertainList small { font-weight: 600; opacity: .72; }
+
+@media (max-width: 520px) {
+  .confidenceSummary { grid-template-columns: 1fr; }
+}
