@@ -8,7 +8,7 @@ import {
   type PieceDropHandlerArgs,
   type SquareHandlerArgs,
 } from "react-chessboard";
-import { API_BASE } from "@/lib/api";
+import { API_BASE, type Position, type UploadResponse } from "@/lib/api";
 import {
   PIECE_TO_UNICODE,
   buildFen,
@@ -48,6 +48,8 @@ type RecognitionResult = {
     blackBottom: Record<string, number>;
   };
   warnings: string[];
+  savedFen?: string | null;
+  savedAt?: number | null;
 };
 
 const START_PLACEMENT = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
@@ -96,6 +98,9 @@ export default function AnalysisClient({
   const [lines, setLines] = useState<EngineLine[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [engineAvailable, setEngineAvailable] = useState<boolean | null>(null);
+  const [bookPositions, setBookPositions] = useState<Position[]>([]);
+  const [savedFen, setSavedFen] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const fen = useMemo(
     () => buildFen(placement, sideToMove, castling, enPassant),
