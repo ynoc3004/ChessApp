@@ -347,6 +347,60 @@ export default function AnalysisClient({
     setMessage("Đã khôi phục vị trí AI nhận dạng.");
   }
 
+  async function saveCurrentPosition() {
+    if (!jobId || positionId < 1) {
+      setMessage("Không có mã thế cờ để lưu.");
+      return;
+    }
+    if (!isLegal) {
+      setMessage("Chỉ lưu được thế cờ hợp lệ.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/books/${jobId}/positions/${positionId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fen }),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail ?? "Không lưu được thế cờ");
+      setSavedFen(data.fen);
+      if (data.fen && data.fen !== fen) {
+        applyFullFen(data.fen);
+      }
+      setMessage("Đã lưu bản thế cờ đã sửa.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Không lưu được thế cờ");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeSavedPosition() {
+    if (!jobId || positionId < 1 || !savedFen) return;
+
+    setSaving(true);
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/books/${jobId}/positions/${positionId}`,
+        { method: "DELETE" },
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail ?? "Không xóa được bản lưu");
+      setSavedFen(null);
+      setMessage("Đã bỏ bản FEN đã lưu. Kết quả AI vẫn còn nguyên.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Không xóa được bản lưu");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function copyFen() {
     try {
       await navigator.clipboard.writeText(fen);
