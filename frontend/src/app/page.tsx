@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { API_BASE, Position, UploadResponse } from "@/lib/api";
 
@@ -11,6 +11,27 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [filename, setFilename] = useState("");
+  const [restoring, setRestoring] = useState(false);
+
+  useEffect(() => {
+    const savedJobId = window.localStorage.getItem("chessBookReader:lastJobId");
+    if (!savedJobId) return;
+
+    setRestoring(true);
+    void fetch(`${API_BASE}/api/books/${savedJobId}`)
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail ?? "Không khôi phục được lần quét trước");
+        const result = data as UploadResponse;
+        setJobId(result.jobId);
+        setFilename(result.filename);
+        setPositions(result.positions);
+      })
+      .catch(() => {
+        window.localStorage.removeItem("chessBookReader:lastJobId");
+      })
+      .finally(() => setRestoring(false));
+  }, []);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -31,6 +52,7 @@ export default function HomePage() {
       setFilename(result.filename);
       setJobId(result.jobId);
       setPositions(result.positions);
+      window.localStorage.setItem("chessBookReader:lastJobId", result.jobId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
     } finally {
@@ -62,6 +84,7 @@ export default function HomePage() {
           {loading ? "Đang quét sách…" : "Tìm các thế cờ"}
         </button>
         {file && <p className="subtle">Đã chọn: {file.name}</p>}
+        {restoring && <p className="subtle">Đang khôi phục lần quét gần nhất…</p>}
         {error && <p className="error">{error}</p>}
       </form>
 
@@ -72,7 +95,17 @@ export default function HomePage() {
               <p className="eyebrow">KẾT QUẢ</p>
               <h2>Tìm thấy {positions.length} hình cờ</h2>
             </div>
-            <p className="subtle">{filename}</p>
+            <div className="resultHeaderActions">
+              <p className="subtle">{filename}</p>
+              {jobId && (
+                <a
+                  className="button"
+                  href={`${API_BASE}/api/books/${jobId}/download`}
+                >
+                  Tải tất cả ảnh (.zip)
+                </a>
+              )}
+            </div>
           </div>
 
           <div className="grid">
