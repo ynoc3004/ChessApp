@@ -16,7 +16,8 @@
     "react-dom": "19.2.0",
     "@scoriiu/fenshot": "0.1.4",
     "onnxruntime-web": "1.26.0",
-    "stockfish": "19.0.0"
+    "stockfish": "19.0.0",
+    "html-to-image": "1.11.13"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
