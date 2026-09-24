@@ -4,11 +4,13 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
 } from "react";
 import Link from "next/link";
 import { Chess } from "chess.js";
+import { toPng } from "html-to-image";
 import {
   Chessboard,
   type PieceDropHandlerArgs,
@@ -63,6 +65,7 @@ type RecognitionResult = {
 type PanelTab = "edit" | "fen" | "engine";
 
 const START_PLACEMENT = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+const START_FEN = buildFen(START_PLACEMENT, "w", "KQkq", "-");
 const PIECE_ORDER = ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"];
 
 function strictLegalFen(fen: string): boolean {
@@ -72,6 +75,34 @@ function strictLegalFen(fen: string): boolean {
   } catch {
     return false;
   }
+}
+
+function whitePerspective(line: LocalEngineLine | undefined, fen: string) {
+  if (!line) return { score: 0, mate: null as number | null };
+
+  let turn: "w" | "b" = "w";
+  try {
+    turn = parseFen(fen).sideToMove;
+  } catch {}
+
+  return {
+    score: turn === "w" ? line.evaluation : -line.evaluation,
+    mate:
+      line.mate === null
+        ? null
+        : turn === "w"
+          ? line.mate
+          : -line.mate,
+  };
+}
+
+function scoreToWhitePercent(score: number, mate: number | null) {
+  if (mate !== null) {
+    if (mate > 0) return 98;
+    if (mate < 0) return 2;
+    return 50;
+  }
+  return Math.max(3, Math.min(97, 50 + 47 * Math.tanh(score / 4)));
 }
 
 export default function AnalysisClient({
@@ -87,9 +118,7 @@ export default function AnalysisClient({
   const [sideToMove, setSideToMove] = useState<"w" | "b">("w");
   const [castling, setCastling] = useState("-");
   const [enPassant, setEnPassant] = useState("-");
-  const [fenInput, setFenInput] = useState(
-    buildFen(START_PLACEMENT, "w", "KQkq", "-"),
-  );
+  const [fenInput, setFenInput] = useState(START_FEN);
 
   const [boardOrientation, setBoardOrientation] = useState<"white" | "black">("white");
   const [imageOrientation, setImageOrientation] = useState<"white" | "black">("white");
@@ -109,16 +138,36 @@ export default function AnalysisClient({
   const [lines, setLines] = useState<LocalEngineLine[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [engineDepth, setEngineDepth] = useState(16);
+  const [engineFen, setEngineFen] = useState(START_FEN);
+  const [engineAuto, setEngineAuto] = useState(true);
 
   const [bookPositions, setBookPositions] = useState<Position[]>([]);
   const [savedFen, setSavedFen] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const boardCaptureRef = useRef<HTMLDivElement | null>(null);
+  const engineRequestRef = useRef(0);
 
   const fen = useMemo(
     () => buildFen(placement, sideToMove, castling, enPassant),
     [placement, sideToMove, castling, enPassant],
   );
   const isLegal = useMemo(() => strictLegalFen(fen), [fen]);
+  const engineLegal = useMemo(() => strictLegalFen(engineFen), [engineFen]);
+
+  const topEngineLine = lines[0];
+  const engineEval = useMemo(
+    () => whitePerspective(topEngineLine, engineFen),
+    [topEngineLine, engineFen],
+  );
+  const whitePercent = useMemo(
+    () => scoreToWhitePercent(engineEval.score, engineEval.mate),
+    [engineEval],
+  );
+  const evalLabel =
+    engineEval.mate !== null
+      ? `M${engineEval.mate}`
+      : `${engineEval.score >= 0 ? "+" : ""}${engineEval.score.toFixed(2)}`;
 
   useEffect(() => {
     setFenInput(fen);
@@ -140,6 +189,12 @@ export default function AnalysisClient({
       })
       .catch(() => {});
   }, [jobId]);
+
+  useEffect(() => {
+    if (activeTab !== "engine") return;
+    setEngineFen(fen);
+    setLines([]);
+  }, [activeTab, fen]);
 
   function commitPlacement(next: string, addHistory = true) {
     if (next === placement) return;
@@ -408,6 +463,19 @@ export default function AnalysisClient({
     }
   }
 
+  function onEnginePieceDrop({ sourceSquare, targetSquare }: PieceDropHandlerArgs) {
+    if (!targetSquare || sourceSquare === targetSquare) return false;
+    try {
+      const game = new Chess(engineFen);
+      game.move({ from: sourceSquare, to: targetSquare, promotion: "q" });
+      setEngineFen(game.fen());
+      setLines([]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   function choosePaintPiece(piece: string | null) {
     setEditMode(true);
     setPaintPiece(piece);
@@ -465,46 +533,81 @@ export default function AnalysisClient({
     }
   }
 
-  function openLichess() {
-    if (!isLegal) return;
-    window.open(lichessAnalysisUrl(fen), "_blank", "noopener,noreferrer");
+  async function downloadBoardImage() {
+    if (!boardCaptureRef.current) return;
+    try {
+      setMessage("Đang tạo ảnh bàn cờ…");
+      const dataUrl = await toPng(boardCaptureRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#1c1b18",
+      });
+      const link = document.createElement("a");
+      link.download = `chess-position-${positionId || "current"}.png`;
+      link.href = dataUrl;
+      link.click();
+      setMessage("Đã tải ảnh bàn cờ hiện tại.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Không tạo được ảnh bàn cờ.");
+    }
   }
 
-  async function openChessCom() {
-    if (!isLegal) return;
-    window.open(chessComAnalysisUrl(fen), "_blank", "noopener,noreferrer");
+  function openLichess(targetFen = fen) {
+    if (!strictLegalFen(targetFen)) return;
+    window.open(lichessAnalysisUrl(targetFen), "_blank", "noopener,noreferrer");
+  }
+
+  async function openChessCom(targetFen = fen) {
+    if (!strictLegalFen(targetFen)) return;
+    window.open(chessComAnalysisUrl(targetFen), "_blank", "noopener,noreferrer");
     try {
-      await navigator.clipboard.writeText(fen);
+      await navigator.clipboard.writeText(targetFen);
     } catch {}
   }
 
-  async function analyzeLocal() {
-    if (!isLegal) {
-      setMessage("Hãy sửa thế cờ thành vị trí hợp lệ trước.");
-      return;
-    }
+  const runEngine = useCallback(
+    async (targetFen: string, quiet = false) => {
+      if (!strictLegalFen(targetFen)) {
+        if (!quiet) setMessage("Thế cờ phân tích chưa hợp lệ.");
+        return;
+      }
 
-    setAnalyzing(true);
-    setLines([]);
-    setActiveTab("engine");
-    setMessage("Stockfish 19 đang tính ngay trên máy…");
+      const requestId = ++engineRequestRef.current;
+      setAnalyzing(true);
+      if (!quiet) setMessage("Stockfish 19 đang tính ngay trên máy…");
 
-    try {
-      const result = await analyzeWithBrowserStockfish(fen, engineDepth, 3);
-      setLines(result);
-      setMessage(
-        result.length
-          ? "Stockfish local đã phân tích xong."
-          : "Stockfish không trả về biến thể.",
-      );
-    } catch (err) {
-      setMessage(
-        err instanceof Error ? err.message : "Không chạy được Stockfish local.",
-      );
-    } finally {
-      setAnalyzing(false);
-    }
-  }
+      try {
+        const result = await analyzeWithBrowserStockfish(targetFen, engineDepth, 3);
+        if (requestId !== engineRequestRef.current) return;
+        setLines(result);
+        if (!quiet) {
+          setMessage(
+            result.length
+              ? "Stockfish local đã phân tích xong."
+              : "Stockfish không trả về biến thể.",
+          );
+        }
+      } catch (err) {
+        if (requestId !== engineRequestRef.current) return;
+        if (!quiet) {
+          setMessage(
+            err instanceof Error ? err.message : "Không chạy được Stockfish local.",
+          );
+        }
+      } finally {
+        if (requestId === engineRequestRef.current) setAnalyzing(false);
+      }
+    },
+    [engineDepth],
+  );
+
+  useEffect(() => {
+    if (activeTab !== "engine" || !engineAuto || !engineLegal) return;
+    const timer = window.setTimeout(() => {
+      void runEngine(engineFen, true);
+    }, 320);
+    return () => window.clearTimeout(timer);
+  }, [activeTab, engineAuto, engineFen, engineLegal, engineDepth, runEngine]);
 
   const squareStyles: Record<string, CSSProperties> = {};
   for (const square of uncertainSquares) {
@@ -518,7 +621,14 @@ export default function AnalysisClient({
     };
   }
 
+  const fixedBoardStyle: CSSProperties = {
+    width: "100%",
+    height: "auto",
+    aspectRatio: "1 / 1",
+  };
+
   const boardOptions = {
+    id: "main-position-board",
     position: fen,
     boardOrientation,
     onPieceDrop,
@@ -526,7 +636,21 @@ export default function AnalysisClient({
     allowDragging: true,
     allowDrawingArrows: !editMode,
     showNotation: true,
+    showAnimations: false,
+    boardStyle: fixedBoardStyle,
     squareStyles,
+  } as const;
+
+  const engineBoardOptions = {
+    id: "engine-analysis-board",
+    position: engineFen,
+    boardOrientation,
+    onPieceDrop: onEnginePieceDrop,
+    allowDragging: true,
+    allowDrawingArrows: true,
+    showNotation: true,
+    showAnimations: false,
+    boardStyle: fixedBoardStyle,
   } as const;
 
   const selectedPiece = selectedSquare
@@ -657,7 +781,9 @@ export default function AnalysisClient({
           </div>
 
           <div className="boardStage">
-            <Chessboard options={boardOptions} />
+            <div className="boardCapture" ref={boardCaptureRef}>
+              <Chessboard options={boardOptions} />
+            </div>
           </div>
 
           <div className="boardQuickbar">
@@ -675,16 +801,24 @@ export default function AnalysisClient({
                 Đen đi
               </button>
             </div>
-            <button
-              className="button compactButton"
-              onClick={() =>
-                setBoardOrientation((value) =>
-                  value === "white" ? "black" : "white",
-                )
-              }
-            >
-              Lật bàn
-            </button>
+            <div className="boardQuickActions">
+              <button
+                className="button compactButton"
+                onClick={() => void downloadBoardImage()}
+              >
+                Tải hình bàn cờ
+              </button>
+              <button
+                className="button compactButton"
+                onClick={() =>
+                  setBoardOrientation((value) =>
+                    value === "white" ? "black" : "white",
+                  )
+                }
+              >
+                Lật bàn
+              </button>
+            </div>
           </div>
         </section>
 
@@ -880,6 +1014,41 @@ export default function AnalysisClient({
 
             {activeTab === "engine" && (
               <div className="compactToolSection engineTools">
+                <div className="engineBoardShell">
+                  <div className="evalBar" aria-label={`Đánh giá ${evalLabel}`}>
+                    <div
+                      className="evalWhite"
+                      style={{ height: `${whitePercent}%` }}
+                    />
+                    <span className={engineEval.score >= 0 ? "evalTop" : "evalBottom"}>
+                      {evalLabel}
+                    </span>
+                  </div>
+                  <div className="engineMiniBoard">
+                    <Chessboard options={engineBoardOptions} />
+                  </div>
+                </div>
+
+                <div className="engineBoardActions">
+                  <button
+                    className="button compactButton"
+                    onClick={() => {
+                      setEngineFen(fen);
+                      setLines([]);
+                    }}
+                  >
+                    Về thế gốc
+                  </button>
+                  <label className="engineAutoToggle">
+                    <input
+                      type="checkbox"
+                      checked={engineAuto}
+                      onChange={(event) => setEngineAuto(event.target.checked)}
+                    />
+                    Tự phân tích
+                  </label>
+                </div>
+
                 <div className="engineControlRow">
                   <label>
                     <span>Depth</span>
@@ -896,21 +1065,25 @@ export default function AnalysisClient({
                   </label>
                   <button
                     className="primary"
-                    onClick={() => void analyzeLocal()}
-                    disabled={analyzing || !isLegal}
+                    onClick={() => void runEngine(engineFen)}
+                    disabled={analyzing || !engineLegal}
                   >
                     {analyzing ? "Đang tính…" : "Stockfish 19 local"}
                   </button>
                 </div>
 
                 <div className="externalActions">
-                  <button className="button" onClick={openLichess} disabled={!isLegal}>
+                  <button
+                    className="button"
+                    onClick={() => openLichess(engineFen)}
+                    disabled={!engineLegal}
+                  >
                     Lichess ↗
                   </button>
                   <button
                     className="button"
-                    onClick={() => void openChessCom()}
-                    disabled={!isLegal}
+                    onClick={() => void openChessCom(engineFen)}
+                    disabled={!engineLegal}
                   >
                     Chess.com ↗
                   </button>
@@ -919,7 +1092,8 @@ export default function AnalysisClient({
                 <div className="compactEngineLines">
                   {lines.length === 0 ? (
                     <p className="subtle">
-                      Stockfish chạy ngay trong trình duyệt, không cần cài file .exe.
+                      Kéo quân trên bàn nhỏ để thử nước. Thanh bên trái cập nhật ưu thế
+                      Trắng/Đen sau khi Stockfish tính xong.
                     </p>
                   ) : (
                     lines.map((line, index) => (
