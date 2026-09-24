@@ -119,6 +119,21 @@ export default function AnalysisClient({
       .catch(() => setEngineAvailable(false));
   }, []);
 
+  useEffect(() => {
+    if (!jobId) return;
+    void fetch(`${API_BASE}/api/books/${jobId}`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return (await response.json()) as UploadResponse;
+      })
+      .then((book) => {
+        if (book) setBookPositions(book.positions ?? []);
+      })
+      .catch(() => {
+        // Navigation is optional while a book is still being scanned.
+      });
+  }, [jobId]);
+
   function commitPlacement(next: string, addHistory = true) {
     if (next === placement) return;
     if (addHistory) {
