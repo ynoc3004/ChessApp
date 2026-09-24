@@ -494,6 +494,21 @@ def recognize_position(req: RecognizeRequest):
     return _attach_saved_position(req.jobId, req.positionId, payload)
 
 
+@app.get("/api/books/{job_id}/positions/{position_id}")
+def get_corrected_position(job_id: str, position_id: int):
+    saved_path = _saved_position_path(job_id, position_id)
+    if not saved_path.exists():
+        return {"savedFen": None, "savedAt": None}
+    try:
+        saved = json.loads(saved_path.read_text(encoding="utf-8"))
+        return {
+            "savedFen": saved.get("fen"),
+            "savedAt": saved.get("savedAt"),
+        }
+    except (json.JSONDecodeError, OSError) as exc:
+        raise HTTPException(status_code=500, detail="Could not read saved FEN") from exc
+
+
 @app.put("/api/books/{job_id}/positions/{position_id}")
 def save_corrected_position(job_id: str, position_id: int, req: SavePositionRequest):
     try:
