@@ -136,3 +136,13 @@ CI: frontend production build + backend Python syntax check chạy tự động 
 - Kết quả quét sách mới được lưu metadata ở backend; frontend tự khôi phục lần quét gần nhất sau khi refresh.
 - Có nút **Tải tất cả ảnh (.zip)** để tải toàn bộ diagram của một quyển sách.
 - Recognition cache cũ tự được nâng cấp lại khi thiếu dữ liệu confidence.
+
+
+## Lịch sử sách & export
+
+- Backend lưu `book.json` cho mỗi job mới.
+- Trang chủ tự khôi phục job gần nhất sau khi refresh.
+- Có danh sách tối đa 20 sách quét gần đây trên máy local.
+- Có thể tải toàn bộ diagram thành ZIP.
+- Có thể tải `recognized-positions.json` chứa các thế cờ đã mở qua AI, kèm FEN, page, confidence và các ô confidence thấp.
+- Có thể xóa toàn bộ dữ liệu của một job từ giao diện.
