@@ -496,6 +496,20 @@ export default function AnalysisClient({
     ? squareConfidence[selectedSquare]
     : undefined;
 
+  const currentPositionIndex = bookPositions.findIndex(
+    (position) => position.id === positionId,
+  );
+  const previousPosition =
+    currentPositionIndex > 0 ? bookPositions[currentPositionIndex - 1] : null;
+  const nextPosition =
+    currentPositionIndex >= 0 && currentPositionIndex < bookPositions.length - 1
+      ? bookPositions[currentPositionIndex + 1]
+      : null;
+
+  function analysisHref(position: Position) {
+    return `/analysis?job=${jobId}&position=${position.id}&image=${encodeURIComponent(position.imageUrl)}`;
+  }
+
   return (
     <main className="shell">
       <div className="sectionHeading">
@@ -503,7 +517,19 @@ export default function AnalysisClient({
           <p className="eyebrow">PHASE 2.1 · AI + POSITION EDITOR + ANALYSIS</p>
           <h1>Đọc thế cờ, sửa trực tiếp và phân tích</h1>
         </div>
-        <Link className="button" href="/">← Quay lại</Link>
+        <div className="analysisNav">
+          {previousPosition ? (
+            <Link className="button" href={analysisHref(previousPosition)}>
+              ← Thế trước
+            </Link>
+          ) : null}
+          {nextPosition ? (
+            <Link className="button" href={analysisHref(nextPosition)}>
+              Thế sau →
+            </Link>
+          ) : null}
+          <Link className="button" href="/">Gallery</Link>
+        </div>
       </div>
 
       <section className="analysisLayout">
@@ -766,6 +792,26 @@ export default function AnalysisClient({
               <button className="button" onClick={() => void copyFen()}>
                 Copy FEN
               </button>
+              <button
+                className="button saveButton"
+                onClick={() => void saveCurrentPosition()}
+                disabled={!isLegal || saving}
+              >
+                {saving
+                  ? "Đang lưu…"
+                  : savedFen === fen
+                    ? "✓ Đã lưu bản sửa"
+                    : "Lưu thế đã sửa"}
+              </button>
+              {savedFen && (
+                <button
+                  className="button"
+                  onClick={() => void removeSavedPosition()}
+                  disabled={saving}
+                >
+                  Bỏ bản đã lưu
+                </button>
+              )}
               <button
                 className="button"
                 onClick={() =>
