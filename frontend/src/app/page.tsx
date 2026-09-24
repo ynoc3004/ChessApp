@@ -7,6 +7,7 @@ import { API_BASE, Position, UploadResponse } from "@/lib/api";
 export default function HomePage() {
   const [file, setFile] = useState<File | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
+  const [jobId, setJobId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [filename, setFilename] = useState("");
@@ -17,6 +18,7 @@ export default function HomePage() {
     setLoading(true);
     setError("");
     setPositions([]);
+    setJobId("");
 
     const body = new FormData();
     body.append("file", file);
@@ -27,6 +29,7 @@ export default function HomePage() {
       if (!response.ok) throw new Error(data.detail ?? "Upload failed");
       const result = data as UploadResponse;
       setFilename(result.filename);
+      setJobId(result.jobId);
       setPositions(result.positions);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
@@ -38,17 +41,17 @@ export default function HomePage() {
   return (
     <main className="shell">
       <section className="hero">
-        <p className="eyebrow">CHESS BOOK READER · MVP 1</p>
-        <h1>Biến sách cờ thành các thế cờ có thể luyện trực tiếp.</h1>
+        <p className="eyebrow">CHESS BOOK READER · PHASE 2</p>
+        <h1>Biến sách cờ thành các thế cờ có thể phân tích trực tiếp.</h1>
         <p className="subtle">
-          Upload PDF hoặc DOCX. Hệ thống quét tài liệu, tìm các vùng giống bàn cờ và tách chúng thành ảnh riêng.
+          Upload PDF hoặc DOCX. Hệ thống tìm diagram; khi bạn mở một thế cờ, AI sẽ đọc 64 ô và tự tạo FEN.
         </p>
       </section>
 
       <form className="uploadCard" onSubmit={submit}>
         <label className="dropzone">
           <span className="dropTitle">Chọn sách PDF / DOCX</span>
-          <span className="subtle">Bản MVP xử lý file trên backend local.</span>
+          <span className="subtle">File được xử lý trên backend local của bạn.</span>
           <input
             type="file"
             accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -76,19 +79,23 @@ export default function HomePage() {
             {positions.map((position) => (
               <article className="card" key={position.id}>
                 <div className="imageWrap">
-                  {/* Using a normal img because the image is served by the local FastAPI server. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={position.imageUrl} alt={`Chess position ${position.id}`} />
                 </div>
                 <div className="cardBody">
                   <div>
                     <strong>Thế #{position.id}</strong>
-                    <p className="subtle">Trang / ảnh nguồn: {position.page} · độ tin cậy {(position.confidence * 100).toFixed(0)}%</p>
+                    <p className="subtle">
+                      Trang / ảnh nguồn: {position.page} · độ tin cậy detector {(position.confidence * 100).toFixed(0)}%
+                    </p>
                   </div>
                   <div className="actions">
                     <a className="button" href={position.imageUrl} download target="_blank" rel="noreferrer">Tải ảnh</a>
-                    <Link className="button primaryLink" href={`/analysis?image=${encodeURIComponent(position.imageUrl)}`}>
-                      Phân tích
+                    <Link
+                      className="button primaryLink"
+                      href={`/analysis?job=${jobId}&position=${position.id}&image=${encodeURIComponent(position.imageUrl)}`}
+                    >
+                      AI đọc FEN & phân tích
                     </Link>
                   </div>
                 </div>
