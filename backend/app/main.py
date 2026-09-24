@@ -381,11 +381,22 @@ def download_recognized_positions(job_id: str):
         except (ValueError, IndexError, json.JSONDecodeError, OSError):
             continue
 
+        saved_fen = None
+        saved_path = job_dir / f"position-{position_id:04d}.user.json"
+        if saved_path.exists():
+            try:
+                saved_data = json.loads(saved_path.read_text(encoding="utf-8"))
+                saved_fen = saved_data.get("fen")
+            except (json.JSONDecodeError, OSError):
+                saved_fen = None
+
         recognized.append(
             {
                 "positionId": position_id,
                 "page": page_by_id.get(position_id),
-                "fen": data.get("fen"),
+                "fen": saved_fen or data.get("fen"),
+                "aiFen": data.get("fen"),
+                "corrected": bool(saved_fen),
                 "piecePlacement": data.get("piecePlacement"),
                 "suggestedOrientation": data.get("suggestedOrientation"),
                 "averageConfidence": data.get("averageConfidence"),
