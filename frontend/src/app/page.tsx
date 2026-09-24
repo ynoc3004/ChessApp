@@ -190,18 +190,20 @@ export default function HomePage() {
             <div className="resultHeaderActions">
               <p className="subtle">{filename}</p>
               {jobId && (
-                <a
-                  className="button"
-                  href={`${API_BASE}/api/books/${jobId}/download`}
-                >
-                  Tải tất cả ảnh (.zip)
-                </a>
-                <a
-                  className="button"
-                  href={`${API_BASE}/api/books/${jobId}/recognized.json`}
-                >
-                  Xuất FEN đã nhận (.json)
-                </a>
+                <>
+                  <a
+                    className="button"
+                    href={`${API_BASE}/api/books/${jobId}/download`}
+                  >
+                    Tải tất cả ảnh (.zip)
+                  </a>
+                  <a
+                    className="button"
+                    href={`${API_BASE}/api/books/${jobId}/recognized.json`}
+                  >
+                    Xuất FEN đã nhận (.json)
+                  </a>
+                </>
               )}
             </div>
           </div>
