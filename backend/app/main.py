@@ -91,12 +91,40 @@ def _job_dir(job_id: str) -> Path:
 
 
 def _write_json_atomic(path: Path, payload: dict) -> None:
-    tmp_path = path.with_name(path.name + ".tmp")
-    tmp_path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2),
-        encoding="utf-8",
+    """Write JSON safely, including on Windows where replace can be transiently locked."""
+    data = json.dumps(payload, ensure_ascii=False, indent=2)
+    tmp_path = path.with_name(
+        f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
     )
-    tmp_path.replace(path)
+
+    last_error: OSError | None = None
+    for attempt in range(8):
+        try:
+            tmp_path.write_text(data, encoding="utf-8")
+            os.replace(tmp_path, path)
+            return
+        except PermissionError as exc:
+            last_error = exc
+            # Windows/antivirus/browser polling may briefly hold the destination.
+            time.sleep(0.04 * (attempt + 1))
+        except OSError as exc:
+            last_error = exc
+            time.sleep(0.03 * (attempt + 1))
+
+    # Final fallback for Windows: avoid rename and update the file in place.
+    # Readers already tolerate a transient malformed status and will retry.
+    try:
+        path.write_text(data, encoding="utf-8")
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        return
+    except OSError:
+        if last_error is not None:
+            raise last_error
+        raise
 
 
 def _scan_book_job(
@@ -273,10 +301,18 @@ def get_scan_job(job_id: str):
     if not status_path.exists():
         raise HTTPException(status_code=404, detail="Scan status not found")
 
-    try:
-        return json.loads(status_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as exc:
-        raise HTTPException(status_code=500, detail="Could not read scan status") from exc
+    last_error: Exception | None = None
+    for attempt in range(6):
+        try:
+            return json.loads(status_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, PermissionError, OSError) as exc:
+            last_error = exc
+            time.sleep(0.02 * (attempt + 1))
+
+    raise HTTPException(
+        status_code=503,
+        detail="Scan status is being updated; please retry.",
+    ) from last_error
 
 
 @app.post("/api/books")
