@@ -2,7 +2,13 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { API_BASE, Position, UploadResponse } from "@/lib/api";
+import {
+  API_BASE,
+  type BookListResponse,
+  type BookSummary,
+  type Position,
+  type UploadResponse,
+} from "@/lib/api";
 
 export default function HomePage() {
   const [file, setFile] = useState<File | null>(null);
@@ -12,8 +18,27 @@ export default function HomePage() {
   const [error, setError] = useState("");
   const [filename, setFilename] = useState("");
   const [restoring, setRestoring] = useState(false);
+  const [recentBooks, setRecentBooks] = useState<BookSummary[]>([]);
+
+  function openBook(book: UploadResponse) {
+    setJobId(book.jobId);
+    setFilename(book.filename);
+    setPositions(book.positions);
+    window.localStorage.setItem("chessBookReader:lastJobId", book.jobId);
+  }
+
+  async function loadRecentBooks() {
+    try {
+      const response = await fetch(`${API_BASE}/api/books`);
+      const data = (await response.json()) as BookListResponse;
+      if (response.ok) setRecentBooks(data.books ?? []);
+    } catch {
+      // History is optional; uploads still work if this request fails.
+    }
+  }
 
   useEffect(() => {
+    void loadRecentBooks();
     const savedJobId = window.localStorage.getItem("chessBookReader:lastJobId");
     if (!savedJobId) return;
 
@@ -23,9 +48,7 @@ export default function HomePage() {
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail ?? "Không khôi phục được lần quét trước");
         const result = data as UploadResponse;
-        setJobId(result.jobId);
-        setFilename(result.filename);
-        setPositions(result.positions);
+        openBook(result);
       })
       .catch(() => {
         window.localStorage.removeItem("chessBookReader:lastJobId");
@@ -49,14 +72,37 @@ export default function HomePage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail ?? "Upload failed");
       const result = data as UploadResponse;
-      setFilename(result.filename);
-      setJobId(result.jobId);
-      setPositions(result.positions);
-      window.localStorage.setItem("chessBookReader:lastJobId", result.jobId);
+      openBook(result);
+      await loadRecentBooks();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function deleteBook(book: BookSummary) {
+    const confirmed = window.confirm(
+      `Xóa dữ liệu đã quét của "${book.filename}" khỏi máy? Các diagram của job này cũng sẽ bị xóa.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/api/books/${book.jobId}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail ?? "Không xóa được");
+
+      if (jobId === book.jobId) {
+        setJobId("");
+        setFilename("");
+        setPositions([]);
+        window.localStorage.removeItem("chessBookReader:lastJobId");
+      }
+      await loadRecentBooks();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không xóa được");
     }
   }
 
@@ -87,6 +133,46 @@ export default function HomePage() {
         {restoring && <p className="subtle">Đang khôi phục lần quét gần nhất…</p>}
         {error && <p className="error">{error}</p>}
       </form>
+
+      {recentBooks.length > 0 && (
+        <section className="recentBooks">
+          <div className="sectionHeading">
+            <div>
+              <p className="eyebrow">LỊCH SỬ LOCAL</p>
+              <h2>Các sách đã quét gần đây</h2>
+            </div>
+            <p className="subtle">Dữ liệu nằm trên máy đang chạy backend.</p>
+          </div>
+
+          <div className="recentBookList">
+            {recentBooks.map((book) => (
+              <article className="recentBookItem" key={book.jobId}>
+                <div>
+                  <strong>{book.filename}</strong>
+                  <p className="subtle">{book.count} hình cờ</p>
+                </div>
+                <div className="actions">
+                  <button className="button" onClick={() => openBook(book)}>
+                    Mở gallery
+                  </button>
+                  <a
+                    className="button"
+                    href={`${API_BASE}/api/books/${book.jobId}/download`}
+                  >
+                    Tải ZIP
+                  </a>
+                  <button
+                    className="button dangerButton"
+                    onClick={() => void deleteBook(book)}
+                  >
+                    Xóa
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       {positions.length > 0 && (
         <section className="results">
