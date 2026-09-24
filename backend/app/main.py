@@ -149,7 +149,12 @@ def recognize_position(req: RecognizeRequest):
 
     if cache_path.exists() and not req.force:
         try:
-            return json.loads(cache_path.read_text(encoding="utf-8"))
+            cached = json.loads(cache_path.read_text(encoding="utf-8"))
+            # Older Phase 2 caches did not include per-square confidence.
+            # Re-run recognition once so the frontend always receives the
+            # current response shape after an app update.
+            if "confidenceCandidates" in cached:
+                return cached
         except (json.JSONDecodeError, OSError):
             pass
 
