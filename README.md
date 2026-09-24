@@ -127,3 +127,12 @@ Lichess là lựa chọn không cần cài thêm engine trên máy.
 
 
 CI: frontend production build + backend Python syntax check chạy tự động trên mỗi push vào `main`.
+
+
+## Các tiện ích đã thêm
+
+- AI model được giữ trong RAM sau lần nhận dạng đầu tiên, nên mở thế cờ thứ 2 trở đi nhanh hơn.
+- AI trả confidence theo từng ô; các ô dưới ngưỡng 72% được viền cảnh báo và liệt kê để click kiểm tra nhanh.
+- Kết quả quét sách mới được lưu metadata ở backend; frontend tự khôi phục lần quét gần nhất sau khi refresh.
+- Có nút **Tải tất cả ảnh (.zip)** để tải toàn bộ diagram của một quyển sách.
+- Recognition cache cũ tự được nâng cấp lại khi thiếu dữ liệu confidence.
