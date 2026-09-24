@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { Chess } from "chess.js";
 import {
@@ -370,7 +370,7 @@ export default function AnalysisClient({
     }
   }
 
-  const squareStyles: Record<string, React.CSSProperties> = {};
+  const squareStyles: Record<string, CSSProperties> = {};
 
   for (const square of uncertainSquares) {
     squareStyles[square] = {
