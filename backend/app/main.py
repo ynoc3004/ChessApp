@@ -461,7 +461,7 @@ def recognize_position(req: RecognizeRequest):
             # Re-run recognition once so the frontend always receives the
             # current response shape after an app update.
             if "confidenceCandidates" in cached:
-                return cached
+                return _attach_saved_position(req.jobId, req.positionId, cached)
         except (json.JSONDecodeError, OSError):
             pass
 
@@ -480,7 +480,42 @@ def recognize_position(req: RecognizeRequest):
         "positionId": req.positionId,
     }
     cache_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return _attach_saved_position(req.jobId, req.positionId, payload)
+
+
+@app.put("/api/books/{job_id}/positions/{position_id}")
+def save_corrected_position(job_id: str, position_id: int, req: SavePositionRequest):
+    try:
+        board = chess.Board(req.fen)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid FEN: {exc}") from exc
+
+    if not board.is_valid():
+        raise HTTPException(
+            status_code=400,
+            detail="Chỉ lưu thế cờ hợp lệ. Hãy kiểm tra lại quân và bên đến lượt.",
+        )
+
+    saved_path = _saved_position_path(job_id, position_id)
+    payload = {
+        "jobId": job_id,
+        "positionId": position_id,
+        "fen": board.fen(),
+        "savedAt": time.time(),
+    }
+    _write_json_atomic(saved_path, payload)
     return payload
+
+
+@app.delete("/api/books/{job_id}/positions/{position_id}")
+def delete_corrected_position(job_id: str, position_id: int):
+    saved_path = _saved_position_path(job_id, position_id)
+    if saved_path.exists():
+        try:
+            saved_path.unlink()
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail="Could not delete saved FEN") from exc
+    return {"ok": True}
 
 
 @app.post("/api/analyze")
