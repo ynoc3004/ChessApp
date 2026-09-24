@@ -7,6 +7,7 @@ import {
   type BookListResponse,
   type BookSummary,
   type Position,
+  type ScanJob,
   type UploadResponse,
 } from "@/lib/api";
 
@@ -19,6 +20,7 @@ export default function HomePage() {
   const [filename, setFilename] = useState("");
   const [restoring, setRestoring] = useState(false);
   const [recentBooks, setRecentBooks] = useState<BookSummary[]>([]);
+  const [scanJob, setScanJob] = useState<ScanJob | null>(null);
 
   function openBook(book: UploadResponse) {
     setJobId(book.jobId);
@@ -59,19 +61,56 @@ export default function HomePage() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!file) return;
+
     setLoading(true);
     setError("");
     setPositions([]);
     setJobId("");
+    setScanJob(null);
 
     const body = new FormData();
     body.append("file", file);
 
     try {
-      const response = await fetch(`${API_BASE}/api/books`, { method: "POST", body });
+      const response = await fetch(`${API_BASE}/api/books/start`, {
+        method: "POST",
+        body,
+      });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail ?? "Upload failed");
-      const result = data as UploadResponse;
+      if (!response.ok) throw new Error(data.detail ?? "Không bắt đầu quét được");
+
+      let current = data as ScanJob;
+      setScanJob(current);
+      setJobId(current.jobId);
+      setFilename(current.filename || file.name);
+
+      while (current.status === "queued" || current.status === "processing") {
+        await new Promise((resolve) => window.setTimeout(resolve, 750));
+
+        const statusResponse = await fetch(
+          `${API_BASE}/api/jobs/${current.jobId}`,
+          { cache: "no-store" },
+        );
+        const statusData = await statusResponse.json();
+        if (!statusResponse.ok) {
+          throw new Error(statusData.detail ?? "Không đọc được tiến trình quét");
+        }
+
+        current = statusData as ScanJob;
+        setScanJob(current);
+        setPositions(current.positions ?? []);
+
+        if (current.status === "failed") {
+          throw new Error(current.error || "Quét sách thất bại");
+        }
+      }
+
+      const result: UploadResponse = {
+        jobId: current.jobId,
+        filename: current.filename || file.name,
+        count: current.count,
+        positions: current.positions ?? [],
+      };
       openBook(result);
       await loadRecentBooks();
     } catch (err) {
@@ -130,6 +169,28 @@ export default function HomePage() {
           {loading ? "Đang quét sách…" : "Tìm các thế cờ"}
         </button>
         {file && <p className="subtle">Đã chọn: {file.name}</p>}
+        {scanJob && loading && (
+          <div className="scanProgress">
+            <div className="scanProgressHeader">
+              <strong>
+                {scanJob.status === "queued" ? "Đang chuẩn bị…" : "Đang quét sách…"}
+              </strong>
+              <span>{scanJob.progress.toFixed(1)}%</span>
+            </div>
+            <div className="progressTrack" aria-label="Tiến trình quét">
+              <div
+                className="progressFill"
+                style={{ width: `${Math.max(1, scanJob.progress)}%` }}
+              />
+            </div>
+            <p className="subtle">
+              {scanJob.total > 0
+                ? `Đã xử lý ${scanJob.current} / ${scanJob.total}`
+                : "Đang đọc thông tin tài liệu"}{" "}
+              · đã tìm thấy {scanJob.count} hình cờ.
+            </p>
+          </div>
+        )}
         {restoring && <p className="subtle">Đang khôi phục lần quét gần nhất…</p>}
         {error && <p className="error">{error}</p>}
       </form>
