@@ -34,10 +34,18 @@ type RecognitionResult = {
   piecePlacement: string;
   suggestedOrientation: "white" | "black";
   orientationConfidence: number;
+  averageConfidence: number;
+  lowConfidenceThreshold: number;
+  uncertainSquares: string[];
+  squareConfidence: Record<string, number>;
   sideToMove: "w" | "b";
   candidates: {
     whiteBottom: string;
     blackBottom: string;
+  };
+  confidenceCandidates: {
+    whiteBottom: Record<string, number>;
+    blackBottom: Record<string, number>;
   };
   warnings: string[];
 };
@@ -77,6 +85,8 @@ export default function AnalysisClient({
   const [warnings, setWarnings] = useState<string[]>([]);
   const [recognition, setRecognition] = useState<RecognitionResult | null>(null);
   const [recognizing, setRecognizing] = useState(false);
+  const [squareConfidence, setSquareConfidence] = useState<Record<string, number>>({});
+  const [uncertainSquares, setUncertainSquares] = useState<string[]>([]);
 
   const [editMode, setEditMode] = useState(true);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
@@ -125,7 +135,18 @@ export default function AnalysisClient({
           ? result.candidates.whiteBottom
           : result.candidates.blackBottom;
 
+      const confidence =
+        orientation === "white"
+          ? result.confidenceCandidates.whiteBottom
+          : result.confidenceCandidates.blackBottom;
+      const uncertain = Object.entries(confidence)
+        .filter(([, value]) => value < result.lowConfidenceThreshold)
+        .map(([square]) => square)
+        .sort((a, b) => (8 - Number(a[1])) - (8 - Number(b[1])) || a.localeCompare(b));
+
       setPlacement(nextPlacement);
+      setSquareConfidence(confidence);
+      setUncertainSquares(uncertain);
       setImageOrientation(orientation);
       setBoardOrientation(orientation);
       setSideToMove(side);
@@ -349,13 +370,19 @@ export default function AnalysisClient({
     }
   }
 
-  const squareStyles = selectedSquare
-    ? {
-        [selectedSquare]: {
-          boxShadow: "inset 0 0 0 4px rgba(255, 196, 0, .95)",
-        },
-      }
-    : {};
+  const squareStyles: Record<string, React.CSSProperties> = {};
+
+  for (const square of uncertainSquares) {
+    squareStyles[square] = {
+      boxShadow: "inset 0 0 0 4px rgba(220, 80, 55, .72)",
+    };
+  }
+
+  if (selectedSquare) {
+    squareStyles[selectedSquare] = {
+      boxShadow: "inset 0 0 0 4px rgba(255, 196, 0, .98)",
+    };
+  }
 
   const boardOptions = {
     position: fen,
@@ -371,6 +398,9 @@ export default function AnalysisClient({
   const selectedPiece = selectedSquare
     ? getPieceAt(placement, selectedSquare)
     : null;
+  const selectedConfidence = selectedSquare
+    ? squareConfidence[selectedSquare]
+    : undefined;
 
   return (
     <main className="shell">
@@ -413,6 +443,39 @@ export default function AnalysisClient({
         </div>
 
         <div className="panel">
+          {recognition && (
+            <div className="confidencePanel">
+              <div className="confidenceSummary">
+                <div>
+                  <span className="controlLabel">Độ tin cậy AI trung bình</span>
+                  <strong>{Math.round(recognition.averageConfidence * 100)}%</strong>
+                </div>
+                <div>
+                  <span className="controlLabel">Ô nên kiểm tra lại</span>
+                  <strong>{uncertainSquares.length}</strong>
+                </div>
+              </div>
+
+              {uncertainSquares.length > 0 && (
+                <div className="uncertainList">
+                  {uncertainSquares.map((square) => (
+                    <button
+                      key={square}
+                      onClick={() => {
+                        setEditMode(true);
+                        setSelectedSquare(square);
+                      }}
+                      title={`AI confidence ${Math.round((squareConfidence[square] ?? 0) * 100)}%`}
+                    >
+                      {square}
+                      <small>{Math.round((squareConfidence[square] ?? 0) * 100)}%</small>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="boardToolbar">
             <div className="segmented compact">
               <button
@@ -456,6 +519,9 @@ export default function AnalysisClient({
                     {selectedPiece
                       ? PIECE_TO_UNICODE[selectedPiece]
                       : "ô trống"}
+                    {selectedConfidence !== undefined
+                      ? ` · AI ${Math.round(selectedConfidence * 100)}%`
+                      : ""}
                   </span>
                 )}
               </div>
