@@ -5,3 +5,4 @@ numpy>=2.0,<3
 opencv-python>=4.14,<5
 PyMuPDF>=1.28,<2
 python-chess>=1.999,<2
+chessimg2pos==0.1.6
