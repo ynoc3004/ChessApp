@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   API_BASE,
@@ -21,11 +21,34 @@ export default function HomePage() {
   const [restoring, setRestoring] = useState(false);
   const [recentBooks, setRecentBooks] = useState<BookSummary[]>([]);
   const [scanJob, setScanJob] = useState<ScanJob | null>(null);
+  const [pageQuery, setPageQuery] = useState("");
+  const [galleryPage, setGalleryPage] = useState(1);
+  const PAGE_SIZE = 12;
+
+  const filteredPositions = useMemo(() => {
+    const query = pageQuery.trim();
+    if (!query) return positions;
+    const page = Number(query);
+    if (!Number.isFinite(page)) return positions;
+    return positions.filter((position) => position.page === page);
+  }, [pageQuery, positions]);
+
+  const totalGalleryPages = Math.max(
+    1,
+    Math.ceil(filteredPositions.length / PAGE_SIZE),
+  );
+
+  const visiblePositions = filteredPositions.slice(
+    (galleryPage - 1) * PAGE_SIZE,
+    galleryPage * PAGE_SIZE,
+  );
 
   function openBook(book: UploadResponse) {
     setJobId(book.jobId);
     setFilename(book.filename);
     setPositions(book.positions);
+    setPageQuery("");
+    setGalleryPage(1);
     window.localStorage.setItem("chessBookReader:lastJobId", book.jobId);
   }
 
@@ -196,15 +219,10 @@ export default function HomePage() {
       </form>
 
       {recentBooks.length > 0 && (
-        <section className="recentBooks">
-          <div className="sectionHeading">
-            <div>
-              <p className="eyebrow">LỊCH SỬ LOCAL</p>
-              <h2>Các sách đã quét gần đây</h2>
-            </div>
-            <p className="subtle">Dữ liệu nằm trên máy đang chạy backend.</p>
-          </div>
-
+        <details className="recentBooks recentBooksCompact">
+          <summary>
+            Sách đã quét gần đây ({recentBooks.length})
+          </summary>
           <div className="recentBookList">
             {recentBooks.map((book) => (
               <article className="recentBookItem" key={book.jobId}>
@@ -216,61 +234,79 @@ export default function HomePage() {
                   <button className="button" onClick={() => openBook(book)}>
                     Mở gallery
                   </button>
-                  <a
-                    className="button"
-                    href={`${API_BASE}/api/books/${book.jobId}/download`}
-                  >
-                    Tải ZIP
+                  <a className="button" href={`${API_BASE}/api/books/${book.jobId}/download`}>
+                    ZIP
                   </a>
-                  <a
-                    className="button"
-                    href={`${API_BASE}/api/books/${book.jobId}/recognized.json`}
-                  >
-                    Xuất FEN
+                  <a className="button" href={`${API_BASE}/api/books/${book.jobId}/recognized.json`}>
+                    FEN
                   </a>
-                  <button
-                    className="button dangerButton"
-                    onClick={() => void deleteBook(book)}
-                  >
+                  <button className="button dangerButton" onClick={() => void deleteBook(book)}>
                     Xóa
                   </button>
                 </div>
               </article>
             ))}
           </div>
-        </section>
+        </details>
       )}
 
       {positions.length > 0 && (
         <section className="results">
-          <div className="sectionHeading">
+          <div className="galleryToolbar">
             <div>
-              <p className="eyebrow">KẾT QUẢ</p>
-              <h2>Tìm thấy {positions.length} hình cờ</h2>
+              <p className="eyebrow">KẾT QUẢ · {filename}</p>
+              <h2>{positions.length} hình cờ</h2>
             </div>
-            <div className="resultHeaderActions">
-              <p className="subtle">{filename}</p>
+
+            <div className="pageSearch">
+              <label htmlFor="page-search">Tìm theo trang PDF</label>
+              <div>
+                <input
+                  id="page-search"
+                  inputMode="numeric"
+                  placeholder="VD: 126"
+                  value={pageQuery}
+                  onChange={(event) => {
+                    setPageQuery(event.target.value.replace(/[^0-9]/g, ""));
+                    setGalleryPage(1);
+                  }}
+                />
+                {pageQuery && (
+                  <button
+                    className="button compactButton"
+                    onClick={() => {
+                      setPageQuery("");
+                      setGalleryPage(1);
+                    }}
+                  >
+                    Xóa lọc
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="galleryActions">
               {jobId && (
                 <>
-                  <a
-                    className="button"
-                    href={`${API_BASE}/api/books/${jobId}/download`}
-                  >
-                    Tải tất cả ảnh (.zip)
+                  <a className="button compactButton" href={`${API_BASE}/api/books/${jobId}/download`}>
+                    Tải ZIP
                   </a>
-                  <a
-                    className="button"
-                    href={`${API_BASE}/api/books/${jobId}/recognized.json`}
-                  >
-                    Xuất FEN đã nhận (.json)
+                  <a className="button compactButton" href={`${API_BASE}/api/books/${jobId}/recognized.json`}>
+                    Xuất FEN
                   </a>
                 </>
               )}
             </div>
           </div>
 
-          <div className="grid">
-            {positions.map((position) => (
+          {pageQuery && filteredPositions.length === 0 && (
+            <div className="emptySearch">
+              Không tìm thấy hình cờ ở trang PDF {pageQuery}.
+            </div>
+          )}
+
+          <div className="grid compactGalleryGrid">
+            {visiblePositions.map((position) => (
               <article className="card" key={position.id}>
                 <div className="imageWrap">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -296,6 +332,30 @@ export default function HomePage() {
               </article>
             ))}
           </div>
+
+          {filteredPositions.length > PAGE_SIZE && (
+            <div className="galleryPager">
+              <button
+                className="button"
+                disabled={galleryPage <= 1}
+                onClick={() => setGalleryPage((page) => Math.max(1, page - 1))}
+              >
+                ← Trang trước
+              </button>
+              <span>
+                {galleryPage} / {totalGalleryPages}
+              </span>
+              <button
+                className="button"
+                disabled={galleryPage >= totalGalleryPages}
+                onClick={() =>
+                  setGalleryPage((page) => Math.min(totalGalleryPages, page + 1))
+                }
+              >
+                Trang sau →
+              </button>
+            </div>
+          )}
         </section>
       )}
     </main>
