@@ -13,3 +13,12 @@ export type UploadResponse = {
   count: number;
   positions: Position[];
 };
+
+
+export type BookSummary = UploadResponse & {
+  updatedAt?: number;
+};
+
+export type BookListResponse = {
+  books: BookSummary[];
+};
