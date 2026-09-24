@@ -67,6 +67,8 @@ export async function recognizeBookDiagram(
   const scan = await loaded.recognizer.recognize(blob);
   if (!scan) return null;
 
+  const plausible =
+    (scan as unknown as { plausible?: boolean }).plausible ?? true;
   const resolved = loaded.resolveOrientation(scan.placement);
   const whiteBottom = scan.placement;
   const blackBottom = loaded.flipPlacement(scan.placement);
@@ -93,7 +95,7 @@ export async function recognizeBookDiagram(
     meanConfidence: scan.meanConfidence,
     minConfidence: scan.minConfidence,
     reliable: scan.reliable,
-    plausible: scan.plausible,
+    plausible,
     squareConfidence: selectedConfidence,
     confidenceCandidates: {
       whiteBottom: whiteConfidence,
