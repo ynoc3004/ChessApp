@@ -146,3 +146,13 @@ CI: frontend production build + backend Python syntax check chạy tự động 
 - Có thể tải toàn bộ diagram thành ZIP.
 - Có thể tải `recognized-positions.json` chứa các thế cờ đã mở qua AI, kèm FEN, page, confidence và các ô confidence thấp.
 - Có thể xóa toàn bộ dữ liệu của một job từ giao diện.
+
+
+## Quét sách nền và tiến trình
+
+Frontend mới dùng `POST /api/books/start` để bắt đầu quét trong background thread và poll `GET /api/jobs/{jobId}`.
+
+- Hiện phần trăm quét và `X / tổng số trang`.
+- Hình cờ xuất hiện dần ngay khi backend tìm thấy.
+- API `POST /api/books` cũ vẫn được giữ để tương thích/fallback.
+- Khi hoàn tất, metadata được lưu vào lịch sử local như bình thường.
