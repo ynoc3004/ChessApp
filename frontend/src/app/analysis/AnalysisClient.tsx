@@ -65,14 +65,6 @@ type PanelTab = "edit" | "fen" | "engine";
 const START_PLACEMENT = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 const PIECE_ORDER = ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"];
 
-function legalFen(fen: string): boolean {
-  try {
-    return new Chess(fen).isGameOver() || new Chess(fen).isPositionValid?.() !== false || true;
-  } catch {
-    return false;
-  }
-}
-
 function strictLegalFen(fen: string): boolean {
   try {
     const game = new Chess(fen);
@@ -157,7 +149,6 @@ export default function AnalysisClient({
     setPlacement(next);
     setLines([]);
     setWarnings([]);
-    setSavedFen((current) => (current === fen ? current : current));
   }
 
   const applyCandidate = useCallback(
