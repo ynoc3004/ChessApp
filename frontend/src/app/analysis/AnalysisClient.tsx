@@ -165,6 +165,18 @@ export default function AnalysisClient({
     [],
   );
 
+  const applyFullFen = useCallback((fenValue: string) => {
+    const parsed = parseFen(fenValue);
+    setPlacement(parsed.placement);
+    setSideToMove(parsed.sideToMove);
+    setCastling(parsed.castling);
+    setEnPassant(parsed.enPassant);
+    setHistory([]);
+    setSelectedSquare(null);
+    setPaintPiece(undefined);
+    setLines([]);
+  }, []);
+
   const recognize = useCallback(
     async (force = false) => {
       if (!jobId || positionId < 1) {
@@ -188,10 +200,18 @@ export default function AnalysisClient({
         const result = data as RecognitionResult;
         setRecognition(result);
         setWarnings(result.warnings ?? []);
-        applyCandidate(result, result.suggestedOrientation, "w");
-        setMessage(
-          "AI đã đọc xong. Nếu có quân sai, bật chế độ sửa và click trực tiếp lên bàn.",
-        );
+
+        if (result.savedFen) {
+          applyFullFen(result.savedFen);
+          setSavedFen(result.savedFen);
+          setMessage("Đã nạp thế cờ bạn đã lưu trước đó. Bạn vẫn có thể sửa tiếp.");
+        } else {
+          setSavedFen(null);
+          applyCandidate(result, result.suggestedOrientation, "w");
+          setMessage(
+            "AI đã đọc xong. Nếu có quân sai, bật chế độ sửa và click trực tiếp lên bàn.",
+          );
+        }
       } catch (err) {
         setMessage(
           err instanceof Error ? err.message : "Không nhận dạng được thế cờ",
@@ -200,7 +220,7 @@ export default function AnalysisClient({
         setRecognizing(false);
       }
     },
-    [applyCandidate, jobId, positionId],
+    [applyCandidate, applyFullFen, jobId, positionId],
   );
 
   useEffect(() => {
