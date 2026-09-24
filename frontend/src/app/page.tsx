@@ -161,6 +161,12 @@ export default function HomePage() {
                   >
                     Tải ZIP
                   </a>
+                  <a
+                    className="button"
+                    href={`${API_BASE}/api/books/${book.jobId}/recognized.json`}
+                  >
+                    Xuất FEN
+                  </a>
                   <button
                     className="button dangerButton"
                     onClick={() => void deleteBook(book)}
@@ -189,6 +195,12 @@ export default function HomePage() {
                   href={`${API_BASE}/api/books/${jobId}/download`}
                 >
                   Tải tất cả ảnh (.zip)
+                </a>
+                <a
+                  className="button"
+                  href={`${API_BASE}/api/books/${jobId}/recognized.json`}
+                >
+                  Xuất FEN đã nhận (.json)
                 </a>
               )}
             </div>
