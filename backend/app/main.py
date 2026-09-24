@@ -48,6 +48,17 @@ class RecognizeRequest(BaseModel):
     force: bool = False
 
 
+def resolve_engine_path() -> str | None:
+    configured = os.getenv("STOCKFISH_PATH")
+    if configured:
+        configured_path = Path(configured)
+        if configured_path.exists():
+            return str(configured_path)
+
+    discovered = shutil.which("stockfish")
+    return discovered
+
+
 def san_line(board: chess.Board, pv: list[chess.Move], max_plies: int = 10) -> str:
     b = board.copy()
     sans: list[str] = []
@@ -76,6 +87,15 @@ def _position_paths(job_id: str, position_id: int) -> tuple[Path, Path]:
 @app.get("/health")
 def health():
     return {"ok": True, "phase": 2}
+
+
+@app.get("/api/engine-status")
+def engine_status():
+    engine_path = resolve_engine_path()
+    return {
+        "available": bool(engine_path),
+        "source": "STOCKFISH_PATH" if os.getenv("STOCKFISH_PATH") and engine_path else ("PATH" if engine_path else None),
+    }
 
 
 @app.post("/api/books")
@@ -164,7 +184,7 @@ def analyze_position(req: AnalyzeRequest):
             detail="This FEN is not a legal chess position. Check the AI-recognized pieces first.",
         )
 
-    engine_path = os.getenv("STOCKFISH_PATH")
+    engine_path = resolve_engine_path()
     if not engine_path:
         raise HTTPException(
             status_code=503,
