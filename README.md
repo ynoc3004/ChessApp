@@ -1,4 +1,4 @@
-# Chess Book Reader — Phase 2
+# Chess Book Reader — Phase 2.1
 
 Website local để biến diagram trong sách cờ thành thế cờ có thể phân tích:
 
@@ -7,8 +7,11 @@ Website local để biến diagram trong sách cờ thành thế cờ có thể 
 3. Gallery hiển thị toàn bộ diagram tìm được.
 4. Khi mở một diagram, AI nhận dạng 64 ô và sinh FEN piece-placement tự động.
 5. Người dùng có thể đổi **Trắng ở dưới / Đen ở dưới** và **Trắng đi / Đen đi**.
-6. Có thể sửa FEN thủ công trước khi chạy Stockfish.
-7. Stockfish trả Top 3 engine lines nếu `STOCKFISH_PATH` đã được cấu hình.
+6. Editor sửa quân trực tiếp: chọn quân → click ô, kéo quân tự do, xóa, undo, clear board, khôi phục kết quả AI.
+7. Có thể chỉnh quyền nhập thành, en passant và FEN thủ công.
+8. **Mở thẳng vị trí trên Lichess Analysis** bằng FEN hiện tại.
+9. Mở Chess.com Analysis đồng thời copy FEN để dùng `Load FEN`.
+10. Stockfish local trả Top 3 engine lines nếu máy đã cấu hình engine.
 
 ## Phase 2 dùng gì?
 
@@ -106,3 +109,18 @@ Response gồm:
 - Tự đoán hướng chỉ là heuristic; nút đổi hướng luôn có sẵn.
 - Chưa có editor click từng ô để thay quân bằng palette; hiện có thể sửa FEN thủ công.
 - Prototype vẫn dùng PyMuPDF để render PDF; cần rà soát license trước khi biến thành sản phẩm proprietary/đóng nguồn.
+
+
+## Phase 2.1 — Position editor & external analysis
+
+Ở trang analysis:
+
+- **Sửa thế cờ**: chọn quân trong palette rồi click vào ô; kéo-thả quân là di chuyển tự do, không kiểm tra luật.
+- **Thử nước**: kéo-thả theo luật cờ vua.
+- **Hoàn tác / Xóa hết bàn / Khôi phục AI**.
+- Badge **Vị trí hợp lệ / Chưa hợp lệ** giúp biết khi nào đã sẵn sàng phân tích.
+- **Mở phân tích trên Lichess** truyền FEN trực tiếp trong URL.
+- **Mở Chess.com + copy FEN** mở Analysis Board và đặt FEN vào clipboard; trên Chess.com dùng Load FEN.
+- **Stockfish trong web** chỉ bật nếu backend tìm thấy executable qua `STOCKFISH_PATH` hoặc lệnh `stockfish` trong PATH.
+
+Lichess là lựa chọn không cần cài thêm engine trên máy.
