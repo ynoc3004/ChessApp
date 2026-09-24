@@ -156,3 +156,51 @@ Frontend mới dùng `POST /api/books/start` để bắt đầu quét trong back
 - Hình cờ xuất hiện dần ngay khi backend tìm thấy.
 - API `POST /api/books` cũ vẫn được giữ để tương thích/fallback.
 - Khi hoàn tất, metadata được lưu vào lịch sử local như bình thường.
+
+
+## Old-book recognition (Phase 2.2)
+
+Đối với sách cũ, scan mờ, nền gạch chéo hoặc font quân lạ, app không còn chỉ chạy một ảnh duy nhất.
+
+Backend tự tạo 3 bản nhận dạng phụ:
+
+- `contrast`: CLAHE + sharpen cho scan mờ.
+- `binary`: adaptive threshold cho bản in đen trắng tương phản thấp.
+- `dehatch`: giảm các nét gạch chéo dài thường gặp ở diagram sách cũ.
+
+Frontend chạy Fenshot trên `original + contrast + binary + dehatch`, sau đó chọn kết quả bằng confidence + chess plausibility + độ đồng thuận giữa các biến thể. PyTorch cũ chỉ dùng như second opinion khi ensemble vẫn không chắc.
+
+### Học từ các lần sửa
+
+Khi bấm **Lưu bản sửa**, app giữ:
+
+- ảnh diagram gốc;
+- FEN đã sửa đúng;
+- FEN AI ban đầu;
+- orientation;
+- recognizer/preprocess variant;
+- board corners do detector xác định.
+
+Dữ liệu nằm local trong:
+
+```text
+backend/data/learning_corrections/
+```
+
+Không tự train model ngay sau mỗi lần sửa vì vài mẫu ít có thể làm model tệ đi. Thay vào đó app tích lũy dữ liệu đúng trước.
+
+Khi đã có đủ các diagram đã sửa, tạo corpus 64 ô bằng:
+
+```powershell
+cd D:\code\ChessApp\backend
+.\.venv\Scripts\python.exe scripts\build_user_dataset.py
+```
+
+Output:
+
+```text
+backend/data/user_training_corpus/shard-user.bin
+backend/data/user_training_corpus/shard-user.labels
+```
+
+Format này khớp classifier 13 lớp của Fenshot (`1KQRBNPkqrbnp`) để dùng cho bước retraining/fine-tuning sau.
