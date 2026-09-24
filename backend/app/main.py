@@ -180,6 +180,28 @@ def _scan_book_job(
         _write_json_atomic(status_path, status)
 
 
+def _saved_position_path(job_id: str, position_id: int) -> Path:
+    job_dir = _job_dir(job_id)
+    if position_id < 1 or position_id > 100000:
+        raise HTTPException(status_code=400, detail="Invalid position id")
+    return job_dir / f"position-{position_id:04d}.user.json"
+
+
+def _attach_saved_position(job_id: str, position_id: int, payload: dict) -> dict:
+    saved_path = _saved_position_path(job_id, position_id)
+    enriched = dict(payload)
+    if saved_path.exists():
+        try:
+            saved = json.loads(saved_path.read_text(encoding="utf-8"))
+            enriched["savedFen"] = saved.get("fen")
+            enriched["savedAt"] = saved.get("savedAt")
+        except (json.JSONDecodeError, OSError):
+            enriched["savedFen"] = None
+    else:
+        enriched["savedFen"] = None
+    return enriched
+
+
 def _position_paths(job_id: str, position_id: int) -> tuple[Path, Path]:
     job_dir = _job_dir(job_id)
     if position_id < 1 or position_id > 100000:
