@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable
 import zipfile
 
 import cv2
@@ -148,19 +148,30 @@ def detect_boards_in_image(image_bgr: np.ndarray) -> list[tuple[np.ndarray, floa
     return results
 
 
-def extract_from_pdf(path: Path) -> Iterable[DetectedBoard]:
+def extract_from_pdf(
+    path: Path,
+    progress_callback: Callable[[int, int], None] | None = None,
+) -> Iterable[DetectedBoard]:
     doc = fitz.open(path)
-    for page_index in range(len(doc)):
-        page = doc[page_index]
-        matrix = fitz.Matrix(2.2, 2.2)
-        pix = page.get_pixmap(matrix=matrix, alpha=False)
-        arr = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
-        if pix.n == 4:
-            bgr = cv2.cvtColor(arr, cv2.COLOR_RGBA2BGR)
-        else:
-            bgr = cv2.cvtColor(arr, cv2.COLOR_RGB2BGR)
-        for crop, score in detect_boards_in_image(bgr):
-            yield DetectedBoard(page=page_index + 1, image=crop, score=score)
+    total_pages = len(doc)
+    try:
+        for page_index in range(total_pages):
+            page = doc[page_index]
+            matrix = fitz.Matrix(2.2, 2.2)
+            pix = page.get_pixmap(matrix=matrix, alpha=False)
+            arr = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
+                pix.height, pix.width, pix.n
+            )
+            if pix.n == 4:
+                bgr = cv2.cvtColor(arr, cv2.COLOR_RGBA2BGR)
+            else:
+                bgr = cv2.cvtColor(arr, cv2.COLOR_RGB2BGR)
+            for crop, score in detect_boards_in_image(bgr):
+                yield DetectedBoard(page=page_index + 1, image=crop, score=score)
+            if progress_callback:
+                progress_callback(page_index + 1, total_pages)
+    finally:
+        doc.close()
 
 
 def extract_docx_images(path: Path) -> Iterable[tuple[str, np.ndarray]]:
@@ -173,14 +184,21 @@ def extract_docx_images(path: Path) -> Iterable[tuple[str, np.ndarray]]:
                 yield name, image
 
 
-def extract_from_docx(path: Path) -> Iterable[DetectedBoard]:
-    for index, (_name, image) in enumerate(extract_docx_images(path), start=1):
+def extract_from_docx(
+    path: Path,
+    progress_callback: Callable[[int, int], None] | None = None,
+) -> Iterable[DetectedBoard]:
+    images = list(extract_docx_images(path))
+    total_images = len(images)
+    for index, (_name, image) in enumerate(images, start=1):
         # Many chess diagrams in DOCX are already embedded as individual images.
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         direct_score = _grid_score(gray) if 0.70 <= image.shape[1] / max(image.shape[0], 1) <= 1.35 else 0
         if direct_score >= 0.58:
             yield DetectedBoard(page=index, image=image, score=direct_score)
-            continue
+        else:
+            for crop, score in detect_boards_in_image(image):
+                yield DetectedBoard(page=index, image=crop, score=score)
 
-        for crop, score in detect_boards_in_image(image):
-            yield DetectedBoard(page=index, image=crop, score=score)
+        if progress_callback:
+            progress_callback(index, total_images)
