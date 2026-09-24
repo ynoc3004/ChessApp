@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import os
+import re
 import shutil
 import uuid
 from pathlib import Path
@@ -14,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .detector import extract_from_docx, extract_from_pdf
+from .recognizer import recognize_board
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -22,7 +25,7 @@ OUTPUT_DIR = DATA_DIR / "positions"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-app = FastAPI(title="Chess Book Reader API", version="0.1.0")
+app = FastAPI(title="Chess Book Reader API", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -39,6 +42,12 @@ class AnalyzeRequest(BaseModel):
     multipv: int = 3
 
 
+class RecognizeRequest(BaseModel):
+    jobId: str
+    positionId: int
+    force: bool = False
+
+
 def san_line(board: chess.Board, pv: list[chess.Move], max_plies: int = 10) -> str:
     b = board.copy()
     sans: list[str] = []
@@ -50,24 +59,38 @@ def san_line(board: chess.Board, pv: list[chess.Move], max_plies: int = 10) -> s
     return " ".join(sans)
 
 
+def _position_paths(job_id: str, position_id: int) -> tuple[Path, Path]:
+    if not re.fullmatch(r"[0-9a-f]{32}", job_id):
+        raise HTTPException(status_code=400, detail="Invalid job id")
+    if position_id < 1 or position_id > 100000:
+        raise HTTPException(status_code=400, detail="Invalid position id")
+
+    job_dir = OUTPUT_DIR / job_id
+    image_path = job_dir / f"position-{position_id:04d}.png"
+    cache_path = job_dir / f"position-{position_id:04d}.recognition.json"
+    if not image_path.exists():
+        raise HTTPException(status_code=404, detail="Position image not found")
+    return image_path, cache_path
+
+
 @app.get("/health")
 def health():
-    return {"ok": True}
+    return {"ok": True, "phase": 2}
 
 
 @app.post("/api/books")
 def upload_book(file: UploadFile = File(...)):
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in {".pdf", ".docx"}:
-        raise HTTPException(status_code=400, detail="Only .pdf and .docx are supported in this MVP.")
+        raise HTTPException(status_code=400, detail="Only .pdf and .docx are supported.")
 
     job_id = uuid.uuid4().hex
     upload_path = UPLOAD_DIR / f"{job_id}{suffix}"
     job_output = OUTPUT_DIR / job_id
     job_output.mkdir(parents=True, exist_ok=True)
 
-    with upload_path.open("wb") as f:
-        shutil.copyfileobj(file.file, f)
+    with upload_path.open("wb") as f_out:
+        shutil.copyfileobj(file.file, f_out)
 
     try:
         extracted = extract_from_pdf(upload_path) if suffix == ".pdf" else extract_from_docx(upload_path)
@@ -95,12 +118,51 @@ def upload_book(file: UploadFile = File(...)):
     }
 
 
+@app.post("/api/recognize")
+def recognize_position(req: RecognizeRequest):
+    """Read a detected board image and return FEN piece-placement candidates.
+
+    Recognition is lazy: for a 700-page book we only run the ML model for a
+    diagram when the user opens it. The result is cached next to the PNG.
+    """
+    image_path, cache_path = _position_paths(req.jobId, req.positionId)
+
+    if cache_path.exists() and not req.force:
+        try:
+            return json.loads(cache_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    try:
+        result = recognize_board(image_path)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"AI recognition failed: {exc}") from exc
+
+    payload = {
+        **result,
+        "fen": f"{result['piecePlacement']} w - - 0 1",
+        "sideToMove": "w",
+        "jobId": req.jobId,
+        "positionId": req.positionId,
+    }
+    cache_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return payload
+
+
 @app.post("/api/analyze")
 def analyze_position(req: AnalyzeRequest):
     try:
         board = chess.Board(req.fen)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"Invalid FEN: {exc}") from exc
+
+    if not board.is_valid():
+        raise HTTPException(
+            status_code=400,
+            detail="This FEN is not a legal chess position. Check the AI-recognized pieces first.",
+        )
 
     engine_path = os.getenv("STOCKFISH_PATH")
     if not engine_path:
@@ -109,6 +171,7 @@ def analyze_position(req: AnalyzeRequest):
             detail="STOCKFISH_PATH is not configured. Set it to your Stockfish executable path.",
         )
 
+    engine = None
     try:
         engine = chess.engine.SimpleEngine.popen_uci(engine_path)
         infos = engine.analyse(
@@ -116,9 +179,14 @@ def analyze_position(req: AnalyzeRequest):
             chess.engine.Limit(depth=max(8, min(req.depth, 22))),
             multipv=max(1, min(req.multipv, 5)),
         )
-        engine.quit()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Stockfish failed: {exc}") from exc
+    finally:
+        if engine is not None:
+            try:
+                engine.quit()
+            except Exception:
+                pass
 
     if not isinstance(infos, list):
         infos = [infos]
