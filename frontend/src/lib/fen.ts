@@ -127,3 +127,8 @@ export function parseFen(fen: string) {
 export function lichessAnalysisUrl(fen: string): string {
   return `https://lichess.org/analysis/standard/${fen.trim().replace(/\s+/g, "_")}`;
 }
+
+
+export function chessComAnalysisUrl(fen: string): string {
+  return `https://www.chess.com/analysis?fen=${encodeURIComponent(fen.trim())}`;
+}
