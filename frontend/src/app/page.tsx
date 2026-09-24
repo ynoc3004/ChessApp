@@ -169,7 +169,7 @@ export default function HomePage() {
   }
 
   return (
-    <main className="shell">
+    <main className={`shell ${positions.length > 0 ? "hasResults" : ""}`}>
       <section className="hero">
         <p className="eyebrow">CHESS BOOK READER · PHASE 2.1</p>
         <h1>Biến sách cờ thành các thế cờ có thể phân tích trực tiếp.</h1>
