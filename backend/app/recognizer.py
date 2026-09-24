@@ -6,6 +6,7 @@ from pathlib import Path
 import chess
 
 PIECES = set("prnbqkPRNBQK")
+LOW_CONFIDENCE_THRESHOLD = 0.72
 
 
 def _expand_rank(rank: str) -> list[str]:
@@ -23,7 +24,9 @@ def _expand_rank(rank: str) -> list[str]:
         else:
             raise ValueError(f"Unsupported FEN character from recognizer: {ch!r}")
     if len(cells) != 8:
-        raise ValueError(f"Recognizer returned a rank with {len(cells)} squares instead of 8: {rank!r}")
+        raise ValueError(
+            f"Recognizer returned a rank with {len(cells)} squares instead of 8: {rank!r}"
+        )
     return cells
 
 
@@ -60,6 +63,12 @@ def flip_piece_placement_180(placement: str) -> str:
     return "/".join(_compress_rank(rank) for rank in flipped)
 
 
+def _rotate_square_180(square: str) -> str:
+    file_index = ord(square[0]) - ord("a")
+    rank = int(square[1])
+    return f"{chr(ord('h') - file_index)}{9 - rank}"
+
+
 def _pawn_orientation_score(placement: str) -> float:
     """Positive means the diagram is more likely white-at-bottom."""
     ranks = [_expand_rank(rank) for rank in placement.split("/")]
@@ -82,12 +91,18 @@ def _pawn_orientation_score(placement: str) -> float:
 
 def _position_warnings(placement: str) -> list[str]:
     warnings: list[str] = []
-    expanded = "".join(ch for rank in placement.split("/") for ch in _expand_rank(rank))
+    expanded = "".join(
+        ch for rank in placement.split("/") for ch in _expand_rank(rank)
+    )
 
     if expanded.count("K") != 1:
-        warnings.append(f"AI nhận {expanded.count('K')} vua trắng; thông thường phải có đúng 1.")
+        warnings.append(
+            f"AI nhận {expanded.count('K')} vua trắng; thông thường phải có đúng 1."
+        )
     if expanded.count("k") != 1:
-        warnings.append(f"AI nhận {expanded.count('k')} vua đen; thông thường phải có đúng 1.")
+        warnings.append(
+            f"AI nhận {expanded.count('k')} vua đen; thông thường phải có đúng 1."
+        )
     if expanded.count("P") > 8:
         warnings.append("AI nhận hơn 8 tốt trắng.")
     if expanded.count("p") > 8:
@@ -95,46 +110,101 @@ def _position_warnings(placement: str) -> list[str]:
 
     board = chess.Board(f"{placement} w - - 0 1")
     if not board.is_valid():
-        warnings.append("Thế cờ AI đọc được chưa hợp lệ theo luật cờ vua; hãy kiểm tra lại các quân trước khi chạy Stockfish.")
+        warnings.append(
+            "Thế cờ AI đọc được chưa hợp lệ theo luật cờ vua; "
+            "hãy kiểm tra lại các quân trước khi phân tích."
+        )
     return warnings
 
 
 @lru_cache(maxsize=1)
-def _load_predict_fen():
+def _load_predictor():
+    """Load the PyTorch model once per backend process."""
     try:
-        from chessimg2pos import predict_fen  # type: ignore
+        from chessimg2pos import ChessPositionPredictor  # type: ignore
+        from chessimg2pos.constants import DEFAULT_CLASSIFIER  # type: ignore
+        from chessimg2pos.model_loader import download_pretrained_model  # type: ignore
     except Exception as exc:
         raise RuntimeError(
             "Phase 2 AI is not installed. Run: pip install -r requirements.txt"
         ) from exc
-    return predict_fen
+
+    model_path = download_pretrained_model()
+    return ChessPositionPredictor(
+        model_path=model_path,
+        classifier=DEFAULT_CLASSIFIER,
+    )
+
+
+def _confidence_maps(predictions) -> tuple[dict[str, float], dict[str, float]]:
+    white: dict[str, float] = {}
+    black: dict[str, float] = {}
+
+    for item in predictions:
+        square, _piece, probability = item
+        confidence = round(float(probability), 3)
+        white[str(square)] = confidence
+        black[_rotate_square_180(str(square))] = confidence
+
+    return white, black
 
 
 def recognize_board(image_path: Path) -> dict:
     if not image_path.exists():
         raise FileNotFoundError(image_path)
 
-    predict_fen = _load_predict_fen()
-    raw = str(predict_fen(str(image_path)))
+    predictor = _load_predictor()
+    detailed = predictor.predict_chessboard(str(image_path))
+    raw = str(detailed["fen"])
+
     white_bottom = normalize_piece_placement(raw)
     black_bottom = flip_piece_placement_180(white_bottom)
+
+    white_confidence, black_confidence = _confidence_maps(
+        detailed.get("predictions", [])
+    )
 
     score = _pawn_orientation_score(white_bottom)
     if score < -0.18:
         suggested = "black"
         selected = black_bottom
+        selected_confidence = black_confidence
     else:
         suggested = "white"
         selected = white_bottom
+        selected_confidence = white_confidence
+
+    confidence_values = list(selected_confidence.values())
+    average_confidence = (
+        sum(confidence_values) / len(confidence_values)
+        if confidence_values
+        else 0.0
+    )
+    uncertain_squares = sorted(
+        [
+            square
+            for square, confidence in selected_confidence.items()
+            if confidence < LOW_CONFIDENCE_THRESHOLD
+        ],
+        key=lambda square: (8 - int(square[1]), square[0]),
+    )
 
     return {
         "raw": raw,
         "piecePlacement": selected,
         "suggestedOrientation": suggested,
         "orientationConfidence": round(abs(score), 3),
+        "averageConfidence": round(average_confidence, 3),
+        "lowConfidenceThreshold": LOW_CONFIDENCE_THRESHOLD,
+        "uncertainSquares": uncertain_squares,
+        "squareConfidence": selected_confidence,
         "candidates": {
             "whiteBottom": white_bottom,
             "blackBottom": black_bottom,
+        },
+        "confidenceCandidates": {
+            "whiteBottom": white_confidence,
+            "blackBottom": black_confidence,
         },
         "warnings": _position_warnings(selected),
     }
