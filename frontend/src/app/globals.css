@@ -140,3 +140,15 @@ h2 { font-family: Georgia, 'Times New Roman', serif; margin: 0; }
 @media (max-width: 820px) {
   .resultHeaderActions { justify-content: flex-start; }
 }
+
+
+.recentBooks { margin-top: 34px; }
+.recentBookList { display: grid; gap: 10px; }
+.recentBookItem { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px; display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+.recentBookItem p { margin: 4px 0 0; }
+.dangerButton { color: var(--danger); border-color: #d9b8b8; }
+.dangerButton:hover { background: #fff0f0; }
+
+@media (max-width: 700px) {
+  .recentBookItem { align-items: flex-start; flex-direction: column; }
+}
