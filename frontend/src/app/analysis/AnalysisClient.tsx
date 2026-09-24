@@ -216,13 +216,14 @@ export default function AnalysisClient({
         setRecognition(result);
         setWarnings(result.warnings ?? []);
 
+        applyCandidate(result, result.suggestedOrientation, "w");
+
         if (result.savedFen) {
           applyFullFen(result.savedFen);
           setSavedFen(result.savedFen);
           setMessage("Đã nạp thế cờ bạn đã lưu trước đó. Bạn vẫn có thể sửa tiếp.");
         } else {
           setSavedFen(null);
-          applyCandidate(result, result.suggestedOrientation, "w");
           setMessage(
             "AI đã đọc xong. Nếu có quân sai, bật chế độ sửa và click trực tiếp lên bàn.",
           );
