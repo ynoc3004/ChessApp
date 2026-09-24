@@ -5,3 +5,6 @@ __pycache__/
 .venv/
 backend/data/
 .env
+frontend/public/models/
+frontend/public/ort/
+frontend/public/stockfish/
