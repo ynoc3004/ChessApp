@@ -771,3 +771,99 @@ h2 { font-family: Georgia, 'Times New Roman', serif; margin: 0; }
     justify-content: flex-start;
   }
 }
+
+
+/* When a book is already open, keep the gallery near the top. */
+.shell.hasResults {
+  padding-top: 18px;
+}
+
+.hasResults .hero {
+  max-width: none;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.hasResults .hero .eyebrow {
+  margin: 0;
+}
+
+.hasResults .hero h1 {
+  font-size: 1.5rem;
+  line-height: 1.05;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.hasResults .hero .subtle {
+  display: none;
+}
+
+.hasResults .uploadCard {
+  padding: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.hasResults .dropzone {
+  min-width: 0;
+  padding: 9px 11px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+
+.hasResults .dropzone .subtle {
+  display: none;
+}
+
+.hasResults .dropTitle {
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.hasResults .dropzone input {
+  margin: 0;
+  min-width: 0;
+}
+
+.hasResults .uploadCard > .subtle,
+.hasResults .uploadCard > .error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.hasResults .scanProgress {
+  grid-column: 1 / -1;
+}
+
+.hasResults .recentBooksCompact {
+  margin-top: 10px;
+}
+
+.hasResults .results {
+  margin-top: 14px;
+}
+
+@media (max-width: 760px) {
+  .hasResults .hero {
+    display: block;
+  }
+
+  .hasResults .hero .eyebrow {
+    margin-bottom: 5px;
+  }
+
+  .hasResults .uploadCard {
+    grid-template-columns: 1fr;
+  }
+
+  .hasResults .dropzone {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
