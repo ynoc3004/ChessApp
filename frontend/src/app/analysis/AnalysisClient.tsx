@@ -579,7 +579,9 @@ export default function AnalysisClient({
       if (!response.ok) throw new Error(data.detail ?? "Không lưu được thế cờ");
       setSavedFen(data.fen);
       if (data.fen && data.fen !== fen) applyFullFen(data.fen);
-      setMessage("Đã lưu bản thế cờ đã sửa.");
+      setMessage(
+        "Đã lưu bản thế cờ đã sửa và thêm diagram này vào dữ liệu học local.",
+      );
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Không lưu được thế cờ");
     } finally {
@@ -799,7 +801,16 @@ export default function AnalysisClient({
           <div className="sourceStatus">
             <div>
               <span>AI</span>
-              <strong>{recognition?.source ?? "—"}</strong>
+              <strong>
+                {recognition
+                  ? `${recognition.source}${
+                      recognition.preprocessVariant &&
+                      recognition.preprocessVariant !== "original"
+                        ? `/${recognition.preprocessVariant}`
+                        : ""
+                    }`
+                  : "—"}
+              </strong>
             </div>
             <div>
               <span>Tin cậy</span>
