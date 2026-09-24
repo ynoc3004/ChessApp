@@ -12,6 +12,7 @@ import { API_BASE } from "@/lib/api";
 import {
   PIECE_TO_UNICODE,
   buildFen,
+  chessComAnalysisUrl,
   clearPlacement,
   getPieceAt,
   lichessAnalysisUrl,
@@ -308,11 +309,11 @@ export default function AnalysisClient({
       return;
     }
 
-    window.open("https://www.chess.com/analysis", "_blank", "noopener,noreferrer");
+    window.open(chessComAnalysisUrl(fen), "_blank", "noopener,noreferrer");
     try {
       await navigator.clipboard.writeText(fen);
       setMessage(
-        "Đã mở Chess.com và copy FEN. Trong Chess.com chọn Load FEN rồi dán vào.",
+        "Đã mở Chess.com bằng FEN hiện tại và đồng thời copy FEN để dự phòng. Nếu Chess.com không tự nạp, chọn Load FEN rồi dán vào.",
       );
     } catch {
       setMessage(
@@ -635,8 +636,8 @@ export default function AnalysisClient({
           <p className="eyebrow">PHÂN TÍCH THẾ CỜ</p>
           <h2>Chọn cách phân tích</h2>
           <p className="subtle">
-            Lichess mở thẳng đúng FEN. Chess.com được mở cùng lúc với FEN đã
-            copy để bạn dùng Load FEN. Stockfish local chỉ cần khi bạn muốn
+            Lichess mở thẳng đúng FEN. Chess.com cũng nhận FEN qua link và
+            website vẫn copy FEN vào clipboard làm phương án dự phòng. Stockfish local chỉ cần khi bạn muốn
             phân tích ngay trong website này.
           </p>
         </div>
@@ -655,7 +656,7 @@ export default function AnalysisClient({
             onClick={() => void openChessCom()}
             disabled={!isLegal}
           >
-            Mở Chess.com + copy FEN ↗
+            Mở phân tích trên Chess.com ↗
           </button>
 
           <button
