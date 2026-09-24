@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from "react";
 import Link from "next/link";
 import { Chess } from "chess.js";
 import {
@@ -20,21 +26,23 @@ import {
   parseFen,
   setPieceAt,
 } from "@/lib/fen";
-
-type EngineLine = {
-  evaluation: number;
-  mate: number | null;
-  depth: number;
-  san: string;
-  uci: string;
-};
+import {
+  recognizeBookDiagram,
+  warmUpBookRecognizer,
+} from "@/lib/bookRecognizer";
+import {
+  analyzeWithBrowserStockfish,
+  type LocalEngineLine,
+} from "@/lib/browserStockfish";
 
 type RecognitionResult = {
+  source: "Fenshot" | "PyTorch";
   fen: string;
   piecePlacement: string;
   suggestedOrientation: "white" | "black";
   orientationConfidence: number;
   averageConfidence: number;
+  minConfidence?: number;
   lowConfidenceThreshold: number;
   uncertainSquares: string[];
   squareConfidence: Record<string, number>;
@@ -52,13 +60,23 @@ type RecognitionResult = {
   savedAt?: number | null;
 };
 
+type PanelTab = "edit" | "fen" | "engine";
+
 const START_PLACEMENT = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 const PIECE_ORDER = ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"];
 
 function legalFen(fen: string): boolean {
   try {
-    new Chess(fen);
-    return true;
+    return new Chess(fen).isGameOver() || new Chess(fen).isPositionValid?.() !== false || true;
+  } catch {
+    return false;
+  }
+}
+
+function strictLegalFen(fen: string): boolean {
+  try {
+    const game = new Chess(fen);
+    return Boolean(game);
   } catch {
     return false;
   }
@@ -94,10 +112,12 @@ export default function AnalysisClient({
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [paintPiece, setPaintPiece] = useState<string | null | undefined>(undefined);
   const [history, setHistory] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<PanelTab>("edit");
 
-  const [lines, setLines] = useState<EngineLine[]>([]);
+  const [lines, setLines] = useState<LocalEngineLine[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
-  const [engineAvailable, setEngineAvailable] = useState<boolean | null>(null);
+  const [engineDepth, setEngineDepth] = useState(16);
+
   const [bookPositions, setBookPositions] = useState<Position[]>([]);
   const [savedFen, setSavedFen] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -106,17 +126,14 @@ export default function AnalysisClient({
     () => buildFen(placement, sideToMove, castling, enPassant),
     [placement, sideToMove, castling, enPassant],
   );
-  const isLegal = useMemo(() => legalFen(fen), [fen]);
+  const isLegal = useMemo(() => strictLegalFen(fen), [fen]);
 
   useEffect(() => {
     setFenInput(fen);
   }, [fen]);
 
   useEffect(() => {
-    void fetch(`${API_BASE}/api/engine-status`)
-      .then((response) => response.json())
-      .then((data) => setEngineAvailable(Boolean(data.available)))
-      .catch(() => setEngineAvailable(false));
+    void warmUpBookRecognizer();
   }, []);
 
   useEffect(() => {
@@ -129,9 +146,7 @@ export default function AnalysisClient({
       .then((book) => {
         if (book) setBookPositions(book.positions ?? []);
       })
-      .catch(() => {
-        // Navigation is optional while a book is still being scanned.
-      });
+      .catch(() => {});
   }, [jobId]);
 
   function commitPlacement(next: string, addHistory = true) {
@@ -142,6 +157,7 @@ export default function AnalysisClient({
     setPlacement(next);
     setLines([]);
     setWarnings([]);
+    setSavedFen((current) => (current === fen ? current : current));
   }
 
   const applyCandidate = useCallback(
@@ -154,7 +170,6 @@ export default function AnalysisClient({
         orientation === "white"
           ? result.candidates.whiteBottom
           : result.candidates.blackBottom;
-
       const confidence =
         orientation === "white"
           ? result.confidenceCandidates.whiteBottom
@@ -192,40 +207,112 @@ export default function AnalysisClient({
     setLines([]);
   }, []);
 
+  const fetchSavedFen = useCallback(async () => {
+    if (!jobId || positionId < 1) return null;
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/books/${jobId}/positions/${positionId}`,
+        { cache: "no-store" },
+      );
+      if (!response.ok) return null;
+      const data = await response.json();
+      return (data.savedFen as string | null) ?? null;
+    } catch {
+      return null;
+    }
+  }, [jobId, positionId]);
+
+  const recognizeWithBackend = useCallback(async (): Promise<RecognitionResult> => {
+    const response = await fetch(`${API_BASE}/api/recognize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId, positionId, force: false }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail ?? "AI recognition failed");
+    return { ...data, source: "PyTorch" } as RecognitionResult;
+  }, [jobId, positionId]);
+
   const recognize = useCallback(
     async (force = false) => {
-      if (!jobId || positionId < 1) {
-        setMessage("Thiếu mã thế cờ. Hãy quay lại gallery và mở thế cờ từ đó.");
+      if (!jobId || positionId < 1 || !imageUrl) {
+        setMessage("Thiếu dữ liệu thế cờ. Hãy quay lại gallery và mở lại.");
         return;
       }
 
       setRecognizing(true);
-      setMessage("AI đang đọc 64 ô cờ…");
+      setMessage("AI đang đọc hình cờ…");
       setWarnings([]);
 
       try {
-        const response = await fetch(`${API_BASE}/api/recognize`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ jobId, positionId, force }),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.detail ?? "AI recognition failed");
+        const savedPromise = fetchSavedFen();
+        let result: RecognitionResult | null = null;
 
-        const result = data as RecognitionResult;
+        try {
+          const browser = await recognizeBookDiagram(imageUrl);
+          if (browser) {
+            const warnings: string[] = [];
+            if (!browser.plausible) {
+              warnings.push("AI chưa chắc đây là một thế cờ hợp lệ; hãy kiểm tra quân.");
+            }
+            if (!browser.reliable) {
+              warnings.push("Một số ô có độ tin cậy thấp và đã được đánh dấu để kiểm tra.");
+            }
+
+            result = {
+              source: "Fenshot",
+              fen: buildFen(browser.placement, "w", "-", "-"),
+              piecePlacement: browser.placement,
+              suggestedOrientation: browser.orientation,
+              orientationConfidence: 1,
+              averageConfidence: browser.meanConfidence,
+              minConfidence: browser.minConfidence,
+              lowConfidenceThreshold: 0.7,
+              uncertainSquares: browser.uncertainSquares,
+              squareConfidence: browser.squareConfidence,
+              sideToMove: "w",
+              candidates: {
+                whiteBottom: browser.whiteBottom,
+                blackBottom: browser.blackBottom,
+              },
+              confidenceCandidates: browser.confidenceCandidates,
+              warnings,
+            };
+          }
+        } catch {
+          result = null;
+        }
+
+        if (!result) {
+          result = await recognizeWithBackend();
+        }
+
+        if (force && result.source === "PyTorch") {
+          const response = await fetch(`${API_BASE}/api/recognize`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ jobId, positionId, force: true }),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail ?? "AI recognition failed");
+          result = { ...data, source: "PyTorch" } as RecognitionResult;
+        }
+
         setRecognition(result);
         setWarnings(result.warnings ?? []);
-
         applyCandidate(result, result.suggestedOrientation, "w");
 
-        if (result.savedFen) {
-          applyFullFen(result.savedFen);
-          setSavedFen(result.savedFen);
-          setMessage("Đã nạp thế cờ bạn đã lưu trước đó. Bạn vẫn có thể sửa tiếp.");
+        const saved = await savedPromise;
+        if (saved) {
+          applyFullFen(saved);
+          setSavedFen(saved);
+          setMessage(`Đã đọc bằng ${result.source} và nạp bản bạn đã lưu trước đó.`);
         } else {
           setSavedFen(null);
           setMessage(
-            "AI đã đọc xong. Nếu có quân sai, bật chế độ sửa và click trực tiếp lên bàn.",
+            `Đã đọc bằng ${result.source} · độ tin cậy trung bình ${Math.round(
+              result.averageConfidence * 100,
+            )}%.`,
           );
         }
       } catch (err) {
@@ -236,7 +323,15 @@ export default function AnalysisClient({
         setRecognizing(false);
       }
     },
-    [applyCandidate, applyFullFen, jobId, positionId],
+    [
+      applyCandidate,
+      applyFullFen,
+      fetchSavedFen,
+      imageUrl,
+      jobId,
+      positionId,
+      recognizeWithBackend,
+    ],
   );
 
   useEffect(() => {
@@ -254,7 +349,7 @@ export default function AnalysisClient({
       setLines([]);
       setWarnings([]);
       setMessage(
-        legalFen(
+        strictLegalFen(
           buildFen(
             parsed.placement,
             parsed.sideToMove,
@@ -262,8 +357,8 @@ export default function AnalysisClient({
             parsed.enPassant,
           ),
         )
-          ? "Đã nạp FEN hợp lệ."
-          : "Đã nạp FEN để sửa, nhưng vị trí hiện chưa hợp lệ theo luật cờ vua.",
+          ? "Đã nạp FEN."
+          : "FEN đã nạp nhưng vị trí chưa hợp lệ.",
       );
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "FEN không hợp lệ");
@@ -273,7 +368,6 @@ export default function AnalysisClient({
   function chooseImageOrientation(next: "white" | "black") {
     if (!recognition) return;
     applyCandidate(recognition, next, sideToMove);
-    setMessage("Đã đổi hướng đọc của hình. Hãy đối chiếu lại quân.");
   }
 
   function chooseSide(next: "w" | "b") {
@@ -326,7 +420,6 @@ export default function AnalysisClient({
   function choosePaintPiece(piece: string | null) {
     setEditMode(true);
     setPaintPiece(piece);
-
     if (selectedSquare) {
       commitPlacement(setPieceAt(placement, selectedSquare, piece));
     }
@@ -338,26 +431,18 @@ export default function AnalysisClient({
     setPlacement(previous);
     setHistory((items) => items.slice(0, -1));
     setLines([]);
-    setWarnings([]);
   }
 
   function resetToAi() {
     if (!recognition) return;
     applyCandidate(recognition, imageOrientation, sideToMove);
     setWarnings(recognition.warnings ?? []);
-    setMessage("Đã khôi phục vị trí AI nhận dạng.");
+    setSavedFen(null);
+    setMessage("Đã khôi phục vị trí AI.");
   }
 
   async function saveCurrentPosition() {
-    if (!jobId || positionId < 1) {
-      setMessage("Không có mã thế cờ để lưu.");
-      return;
-    }
-    if (!isLegal) {
-      setMessage("Chỉ lưu được thế cờ hợp lệ.");
-      return;
-    }
-
+    if (!jobId || positionId < 1 || !isLegal) return;
     setSaving(true);
     try {
       const response = await fetch(
@@ -371,9 +456,7 @@ export default function AnalysisClient({
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail ?? "Không lưu được thế cờ");
       setSavedFen(data.fen);
-      if (data.fen && data.fen !== fen) {
-        applyFullFen(data.fen);
-      }
+      if (data.fen && data.fen !== fen) applyFullFen(data.fen);
       setMessage("Đã lưu bản thế cờ đã sửa.");
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Không lưu được thế cờ");
@@ -382,83 +465,50 @@ export default function AnalysisClient({
     }
   }
 
-  async function removeSavedPosition() {
-    if (!jobId || positionId < 1 || !savedFen) return;
-
-    setSaving(true);
-    try {
-      const response = await fetch(
-        `${API_BASE}/api/books/${jobId}/positions/${positionId}`,
-        { method: "DELETE" },
-      );
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail ?? "Không xóa được bản lưu");
-      setSavedFen(null);
-      setMessage("Đã bỏ bản FEN đã lưu. Kết quả AI vẫn còn nguyên.");
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Không xóa được bản lưu");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function copyFen() {
     try {
       await navigator.clipboard.writeText(fen);
-      setMessage("Đã copy FEN vào clipboard.");
+      setMessage("Đã copy FEN.");
     } catch {
-      setMessage("Không copy tự động được. Bạn có thể chọn FEN trong ô và copy.");
+      setMessage("Không copy tự động được.");
     }
   }
 
   function openLichess() {
-    if (!isLegal) {
-      setMessage("Hãy sửa thế cờ thành vị trí hợp lệ trước khi mở phân tích.");
-      return;
-    }
+    if (!isLegal) return;
     window.open(lichessAnalysisUrl(fen), "_blank", "noopener,noreferrer");
   }
 
   async function openChessCom() {
-    if (!isLegal) {
-      setMessage("Hãy sửa thế cờ thành vị trí hợp lệ trước khi mở phân tích.");
-      return;
-    }
-
+    if (!isLegal) return;
     window.open(chessComAnalysisUrl(fen), "_blank", "noopener,noreferrer");
     try {
       await navigator.clipboard.writeText(fen);
-      setMessage(
-        "Đã mở Chess.com bằng FEN hiện tại và đồng thời copy FEN để dự phòng. Nếu Chess.com không tự nạp, chọn Load FEN rồi dán vào.",
-      );
-    } catch {
-      setMessage(
-        "Đã mở Chess.com. Hãy copy FEN ở website này rồi dùng Load FEN trên Chess.com.",
-      );
-    }
+    } catch {}
   }
 
-  async function analyze() {
+  async function analyzeLocal() {
     if (!isLegal) {
-      setMessage("Thế cờ chưa hợp lệ. Hãy sửa quân trước khi chạy Stockfish.");
+      setMessage("Hãy sửa thế cờ thành vị trí hợp lệ trước.");
       return;
     }
 
     setAnalyzing(true);
-    setMessage("");
+    setLines([]);
+    setActiveTab("engine");
+    setMessage("Stockfish 19 đang tính ngay trên máy…");
 
     try {
-      const response = await fetch(`${API_BASE}/api/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fen, depth: 15, multipv: 3 }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail ?? "Engine error");
-      setLines(data.lines);
+      const result = await analyzeWithBrowserStockfish(fen, engineDepth, 3);
+      setLines(result);
+      setMessage(
+        result.length
+          ? "Stockfish local đã phân tích xong."
+          : "Stockfish không trả về biến thể.",
+      );
     } catch (err) {
       setMessage(
-        err instanceof Error ? err.message : "Không phân tích được bằng Stockfish",
+        err instanceof Error ? err.message : "Không chạy được Stockfish local.",
       );
     } finally {
       setAnalyzing(false);
@@ -466,13 +516,11 @@ export default function AnalysisClient({
   }
 
   const squareStyles: Record<string, CSSProperties> = {};
-
   for (const square of uncertainSquares) {
     squareStyles[square] = {
       boxShadow: "inset 0 0 0 4px rgba(220, 80, 55, .72)",
     };
   }
-
   if (selectedSquare) {
     squareStyles[selectedSquare] = {
       boxShadow: "inset 0 0 0 4px rgba(255, 196, 0, .98)",
@@ -508,100 +556,97 @@ export default function AnalysisClient({
       : null;
 
   function analysisHref(position: Position) {
-    return `/analysis?job=${jobId}&position=${position.id}&image=${encodeURIComponent(position.imageUrl)}`;
+    return `/analysis?job=${jobId}&position=${position.id}&image=${encodeURIComponent(
+      position.imageUrl,
+    )}`;
   }
 
   return (
-    <main className="shell">
-      <div className="sectionHeading">
-        <div>
-          <p className="eyebrow">PHASE 2.1 · AI + POSITION EDITOR + ANALYSIS</p>
-          <h1>Đọc thế cờ, sửa trực tiếp và phân tích</h1>
-        </div>
-        <div className="analysisNav">
-          {previousPosition ? (
-            <Link className="button" href={analysisHref(previousPosition)}>
-              ← Thế trước
-            </Link>
-          ) : null}
-          {nextPosition ? (
-            <Link className="button" href={analysisHref(nextPosition)}>
-              Thế sau →
-            </Link>
-          ) : null}
-          <Link className="button" href="/">Gallery</Link>
-        </div>
-      </div>
-
-      <section className="analysisLayout">
-        <div className="panel">
-          <h2>Ảnh từ sách</h2>
-          {imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              className="sourceImage"
-              src={imageUrl}
-              alt="Extracted chess diagram"
-            />
-          ) : (
-            <p className="subtle">Không có ảnh nguồn.</p>
+    <main className="analysisApp">
+      <header className="analysisTopbar">
+        <div className="analysisBrand">
+          <strong>Chess Book Reader</strong>
+          <span>Thế #{positionId || "—"}</span>
+          {recognition && (
+            <span className="aiChip">
+              {recognition.source} · {Math.round(recognition.averageConfidence * 100)}%
+            </span>
           )}
+        </div>
 
-          <div className="aiStatus">
-            <strong>{recognizing ? "AI đang nhận dạng…" : "Nhận dạng AI"}</strong>
-            <p className="subtle">
-              AI đọc vị trí quân. Lượt đi, quyền nhập thành và en passant cần
-              xác nhận thủ công nếu sách có yêu cầu.
-            </p>
+        <nav className="analysisNav">
+          {previousPosition && (
+            <Link className="button compactButton" href={analysisHref(previousPosition)}>
+              ← Trước
+            </Link>
+          )}
+          <Link className="button compactButton" href="/">
+            Gallery
+          </Link>
+          {nextPosition && (
+            <Link className="button compactButton" href={analysisHref(nextPosition)}>
+              Sau →
+            </Link>
+          )}
+        </nav>
+      </header>
+
+      <div className="analysisWorkspace">
+        <section className="workspacePane sourcePane">
+          <div className="paneHeader">
+            <div>
+              <strong>Ảnh từ sách</strong>
+              <span className="paneMeta">
+                {recognizing ? "Đang nhận dạng…" : message || "Ảnh gốc để đối chiếu"}
+              </span>
+            </div>
             <button
-              className="button"
+              className="button compactButton"
               onClick={() => void recognize(true)}
               disabled={recognizing}
             >
-              {recognizing ? "Đang đọc…" : "Nhận dạng lại"}
+              Nhận dạng lại
             </button>
           </div>
-        </div>
 
-        <div className="panel">
-          {recognition && (
-            <div className="confidencePanel">
-              <div className="confidenceSummary">
-                <div>
-                  <span className="controlLabel">Độ tin cậy AI trung bình</span>
-                  <strong>{Math.round(recognition.averageConfidence * 100)}%</strong>
-                </div>
-                <div>
-                  <span className="controlLabel">Ô nên kiểm tra lại</span>
-                  <strong>{uncertainSquares.length}</strong>
-                </div>
-              </div>
+          <div className="sourceStage">
+            {imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imageUrl} alt="Chess diagram from book" />
+            ) : (
+              <span className="subtle">Không có ảnh nguồn.</span>
+            )}
+          </div>
 
-              {uncertainSquares.length > 0 && (
-                <div className="uncertainList">
-                  {uncertainSquares.map((square) => (
-                    <button
-                      key={square}
-                      onClick={() => {
-                        setEditMode(true);
-                        setSelectedSquare(square);
-                      }}
-                      title={`AI confidence ${Math.round((squareConfidence[square] ?? 0) * 100)}%`}
-                    >
-                      {square}
-                      <small>{Math.round((squareConfidence[square] ?? 0) * 100)}%</small>
-                    </button>
-                  ))}
-                </div>
-              )}
+          <div className="sourceStatus">
+            <div>
+              <span>AI</span>
+              <strong>{recognition?.source ?? "—"}</strong>
             </div>
-          )}
+            <div>
+              <span>Tin cậy</span>
+              <strong>
+                {recognition
+                  ? `${Math.round(recognition.averageConfidence * 100)}%`
+                  : "—"}
+              </strong>
+            </div>
+            <div>
+              <span>Cần kiểm tra</span>
+              <strong>{uncertainSquares.length}</strong>
+            </div>
+          </div>
+        </section>
 
-          <div className="boardToolbar">
+        <section className="workspacePane boardPane">
+          <div className="boardToolbar compactBoardToolbar">
             <div className="segmented compact">
               <button
                 className={editMode ? "active" : ""}
-                onClick={() => setEditMode(true)}
+                onClick={() => {
+                  setEditMode(true);
+                  setActiveTab("edit");
+                }}
               >
                 Sửa thế cờ
               </button>
@@ -616,137 +661,209 @@ export default function AnalysisClient({
               </button>
             </div>
             <span className={isLegal ? "validBadge" : "invalidBadge"}>
-              {isLegal ? "✓ Vị trí hợp lệ" : "⚠ Chưa hợp lệ"}
+              {isLegal ? "✓ Hợp lệ" : "⚠ Chưa hợp lệ"}
             </span>
           </div>
 
-          <div className="boardWrap">
+          <div className="boardStage">
             <Chessboard options={boardOptions} />
           </div>
 
-          {editMode && (
-            <div className="pieceEditor">
-              <div className="editorHeading">
-                <div>
-                  <strong>Sửa quân bằng click</strong>
-                  <p className="subtle">
-                    Chọn quân bên dưới rồi click ô cần đặt. Có thể kéo quân tự
-                    do khi đang ở chế độ Sửa thế cờ.
-                  </p>
-                </div>
-                {selectedSquare && (
-                  <span className="selectedSquare">
-                    {selectedSquare}:{" "}
-                    {selectedPiece
-                      ? PIECE_TO_UNICODE[selectedPiece]
-                      : "ô trống"}
+          <div className="boardQuickbar">
+            <div className="segmented miniSegmented">
+              <button
+                className={sideToMove === "w" ? "active" : ""}
+                onClick={() => chooseSide("w")}
+              >
+                Trắng đi
+              </button>
+              <button
+                className={sideToMove === "b" ? "active" : ""}
+                onClick={() => chooseSide("b")}
+              >
+                Đen đi
+              </button>
+            </div>
+            <button
+              className="button compactButton"
+              onClick={() =>
+                setBoardOrientation((value) =>
+                  value === "white" ? "black" : "white",
+                )
+              }
+            >
+              Lật bàn
+            </button>
+          </div>
+        </section>
+
+        <aside className="workspacePane toolsPane">
+          <div className="toolTabs">
+            <button
+              className={activeTab === "edit" ? "active" : ""}
+              onClick={() => setActiveTab("edit")}
+            >
+              Sửa quân
+            </button>
+            <button
+              className={activeTab === "fen" ? "active" : ""}
+              onClick={() => setActiveTab("fen")}
+            >
+              FEN
+            </button>
+            <button
+              className={activeTab === "engine" ? "active" : ""}
+              onClick={() => setActiveTab("engine")}
+            >
+              Phân tích
+            </button>
+          </div>
+
+          <div className="toolBody">
+            {activeTab === "edit" && (
+              <div className="compactToolSection">
+                {uncertainSquares.length > 0 && (
+                  <div className="reviewStrip">
+                    <span>Ô AI chưa chắc:</span>
+                    <div>
+                      {uncertainSquares.map((square) => (
+                        <button
+                          key={square}
+                          onClick={() => {
+                            setSelectedSquare(square);
+                            setEditMode(true);
+                          }}
+                        >
+                          {square}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="selectedInfo">
+                  <span>Ô đang chọn</span>
+                  <strong>
+                    {selectedSquare ?? "—"}
+                    {selectedPiece ? ` · ${PIECE_TO_UNICODE[selectedPiece]}` : ""}
                     {selectedConfidence !== undefined
-                      ? ` · AI ${Math.round(selectedConfidence * 100)}%`
+                      ? ` · ${Math.round(selectedConfidence * 100)}%`
                       : ""}
-                  </span>
+                  </strong>
+                </div>
+
+                <div className="piecePalette compactPalette">
+                  {PIECE_ORDER.map((piece) => (
+                    <button
+                      key={piece}
+                      className={paintPiece === piece ? "active" : ""}
+                      onClick={() => choosePaintPiece(piece)}
+                    >
+                      {PIECE_TO_UNICODE[piece]}
+                    </button>
+                  ))}
+                  <button
+                    className={paintPiece === null ? "active eraseTool" : "eraseTool"}
+                    onClick={() => choosePaintPiece(null)}
+                  >
+                    Xóa
+                  </button>
+                </div>
+
+                <div className="toolActionGrid">
+                  <button
+                    className="button"
+                    onClick={undoEdit}
+                    disabled={history.length === 0}
+                  >
+                    Hoàn tác
+                  </button>
+                  <button
+                    className="button"
+                    onClick={() => commitPlacement(clearPlacement())}
+                  >
+                    Xóa bàn
+                  </button>
+                  <button
+                    className="button"
+                    onClick={resetToAi}
+                    disabled={!recognition}
+                  >
+                    Khôi phục AI
+                  </button>
+                  <button
+                    className="button"
+                    onClick={() => setPaintPiece(undefined)}
+                  >
+                    Dừng công cụ
+                  </button>
+                </div>
+
+                {recognition && (
+                  <>
+                    <span className="controlLabel">Hướng hình trong sách</span>
+                    <div className="segmented">
+                      <button
+                        className={imageOrientation === "white" ? "active" : ""}
+                        onClick={() => chooseImageOrientation("white")}
+                      >
+                        Trắng dưới
+                      </button>
+                      <button
+                        className={imageOrientation === "black" ? "active" : ""}
+                        onClick={() => chooseImageOrientation("black")}
+                      >
+                        Đen dưới
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {warnings.length > 0 && (
+                  <div className="warningBox compactWarning">
+                    {warnings.map((warning) => (
+                      <p key={warning}>⚠ {warning}</p>
+                    ))}
+                  </div>
                 )}
               </div>
+            )}
 
-              <div className="piecePalette">
-                {PIECE_ORDER.map((piece) => (
-                  <button
-                    key={piece}
-                    title={piece}
-                    className={paintPiece === piece ? "active" : ""}
-                    onClick={() => choosePaintPiece(piece)}
-                  >
-                    {PIECE_TO_UNICODE[piece]}
+            {activeTab === "fen" && (
+              <div className="compactToolSection">
+                <label className="controlLabel" htmlFor="fen">
+                  FEN hiện tại
+                </label>
+                <textarea
+                  id="fen"
+                  className="compactFenInput"
+                  value={fenInput}
+                  onChange={(event) => setFenInput(event.target.value)}
+                  rows={4}
+                />
+
+                <div className="toolActionGrid">
+                  <button className="button" onClick={loadFen}>
+                    Nạp FEN
                   </button>
-                ))}
-                <button
-                  className={paintPiece === null ? "active eraseTool" : "eraseTool"}
-                  onClick={() => choosePaintPiece(null)}
-                >
-                  Xóa
-                </button>
-              </div>
-
-              <div className="actions editorActions">
-                <button
-                  className="button"
-                  onClick={() => setPaintPiece(undefined)}
-                >
-                  Dừng công cụ
-                </button>
-                <button
-                  className="button"
-                  onClick={undoEdit}
-                  disabled={history.length === 0}
-                >
-                  Hoàn tác
-                </button>
-                <button
-                  className="button"
-                  onClick={() => {
-                    commitPlacement(clearPlacement());
-                    setSelectedSquare(null);
-                  }}
-                >
-                  Xóa hết bàn
-                </button>
-                <button
-                  className="button"
-                  onClick={resetToAi}
-                  disabled={!recognition}
-                >
-                  Khôi phục AI
-                </button>
-              </div>
-            </div>
-          )}
-
-          {recognition && (
-            <div className="recognitionControls">
-              <div>
-                <span className="controlLabel">Hướng hình trong sách</span>
-                <div className="segmented">
-                  <button
-                    className={imageOrientation === "white" ? "active" : ""}
-                    onClick={() => chooseImageOrientation("white")}
-                  >
-                    Trắng ở dưới
+                  <button className="button" onClick={() => void copyFen()}>
+                    Copy FEN
                   </button>
                   <button
-                    className={imageOrientation === "black" ? "active" : ""}
-                    onClick={() => chooseImageOrientation("black")}
+                    className="button saveButton"
+                    onClick={() => void saveCurrentPosition()}
+                    disabled={!isLegal || saving}
                   >
-                    Đen ở dưới
+                    {saving
+                      ? "Đang lưu…"
+                      : savedFen === fen
+                        ? "✓ Đã lưu"
+                        : "Lưu bản sửa"}
                   </button>
                 </div>
-              </div>
 
-              <div>
-                <span className="controlLabel">Bên đến lượt</span>
-                <div className="segmented">
-                  <button
-                    className={sideToMove === "w" ? "active" : ""}
-                    onClick={() => chooseSide("w")}
-                  >
-                    Trắng đi
-                  </button>
-                  <button
-                    className={sideToMove === "b" ? "active" : ""}
-                    onClick={() => chooseSide("b")}
-                  >
-                    Đen đi
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <details className="advancedPosition">
-            <summary>Thông tin FEN nâng cao</summary>
-
-            <div className="advancedGrid">
-              <div>
                 <span className="controlLabel">Quyền nhập thành</span>
-                <div className="castlingGrid">
+                <div className="castlingGrid compactCastling">
                   {(["K", "Q", "k", "q"] as const).map((right) => (
                     <label key={right}>
                       <input
@@ -754,156 +871,87 @@ export default function AnalysisClient({
                         checked={castling !== "-" && castling.includes(right)}
                         onChange={() => toggleCastling(right)}
                       />
-                      {right === "K" && " Trắng O-O"}
-                      {right === "Q" && " Trắng O-O-O"}
-                      {right === "k" && " Đen O-O"}
-                      {right === "q" && " Đen O-O-O"}
+                      {right}
                     </label>
                   ))}
                 </div>
+
+                <label className="epField">
+                  <span className="controlLabel">En passant</span>
+                  <input
+                    value={enPassant}
+                    onChange={(event) => setEnPassant(event.target.value || "-")}
+                    placeholder="-"
+                  />
+                </label>
               </div>
+            )}
 
-              <label className="epField">
-                <span className="controlLabel">En passant</span>
-                <input
-                  value={enPassant}
-                  onChange={(event) => {
-                    setEnPassant(event.target.value || "-");
-                    setLines([]);
-                  }}
-                  placeholder="-"
-                />
-              </label>
-            </div>
-          </details>
+            {activeTab === "engine" && (
+              <div className="compactToolSection engineTools">
+                <div className="engineControlRow">
+                  <label>
+                    <span>Depth</span>
+                    <select
+                      value={engineDepth}
+                      onChange={(event) => setEngineDepth(Number(event.target.value))}
+                    >
+                      {[12, 14, 16, 18, 20].map((value) => (
+                        <option key={value} value={value}>
+                          {value}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    className="primary"
+                    onClick={() => void analyzeLocal()}
+                    disabled={analyzing || !isLegal}
+                  >
+                    {analyzing ? "Đang tính…" : "Stockfish 19 local"}
+                  </button>
+                </div>
 
-          <div className="fenBox">
-            <label htmlFor="fen">FEN</label>
-            <textarea
-              id="fen"
-              value={fenInput}
-              onChange={(event) => setFenInput(event.target.value)}
-              rows={3}
-            />
+                <div className="externalActions">
+                  <button className="button" onClick={openLichess} disabled={!isLegal}>
+                    Lichess ↗
+                  </button>
+                  <button
+                    className="button"
+                    onClick={() => void openChessCom()}
+                    disabled={!isLegal}
+                  >
+                    Chess.com ↗
+                  </button>
+                </div>
 
-            <div className="actions">
-              <button className="button" onClick={loadFen}>
-                Nạp FEN đã sửa
-              </button>
-              <button className="button" onClick={() => void copyFen()}>
-                Copy FEN
-              </button>
-              <button
-                className="button saveButton"
-                onClick={() => void saveCurrentPosition()}
-                disabled={!isLegal || saving}
-              >
-                {saving
-                  ? "Đang lưu…"
-                  : savedFen === fen
-                    ? "✓ Đã lưu bản sửa"
-                    : "Lưu thế đã sửa"}
-              </button>
-              {savedFen && (
-                <button
-                  className="button"
-                  onClick={() => void removeSavedPosition()}
-                  disabled={saving}
-                >
-                  Bỏ bản đã lưu
-                </button>
-              )}
-              <button
-                className="button"
-                onClick={() =>
-                  setBoardOrientation((value) =>
-                    value === "white" ? "black" : "white",
-                  )
-                }
-              >
-                Lật bàn hiển thị
-              </button>
-            </div>
-
-            {message && <p className="notice">{message}</p>}
-
-            {warnings.length > 0 && (
-              <div className="warningBox">
-                {warnings.map((warning) => (
-                  <p key={warning}>⚠ {warning}</p>
-                ))}
+                <div className="compactEngineLines">
+                  {lines.length === 0 ? (
+                    <p className="subtle">
+                      Stockfish chạy ngay trong trình duyệt, không cần cài file .exe.
+                    </p>
+                  ) : (
+                    lines.map((line, index) => (
+                      <div className="compactEngineLine" key={line.multipv}>
+                        <strong>
+                          #{index + 1}{" "}
+                          {line.mate !== null
+                            ? `M${line.mate}`
+                            : `${line.evaluation >= 0 ? "+" : ""}${line.evaluation.toFixed(2)}`}
+                        </strong>
+                        <span>{line.san}</span>
+                        <small>d{line.depth}</small>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </div>
-        </div>
-      </section>
 
-      <section className="panel analysisActionsPanel">
-        <div>
-          <p className="eyebrow">PHÂN TÍCH THẾ CỜ</p>
-          <h2>Chọn cách phân tích</h2>
-          <p className="subtle">
-            Lichess mở thẳng đúng FEN. Chess.com cũng nhận FEN qua link và
-            website vẫn copy FEN vào clipboard làm phương án dự phòng. Stockfish local chỉ cần khi bạn muốn
-            phân tích ngay trong website này.
-          </p>
-        </div>
-
-        <div className="analysisButtons">
-          <button
-            className="primary bigAction"
-            onClick={openLichess}
-            disabled={!isLegal}
-          >
-            Mở phân tích trên Lichess ↗
-          </button>
-
-          <button
-            className="button bigAction"
-            onClick={() => void openChessCom()}
-            disabled={!isLegal}
-          >
-            Mở phân tích trên Chess.com ↗
-          </button>
-
-          <button
-            className="button bigAction"
-            onClick={analyze}
-            disabled={analyzing || recognizing || !isLegal || engineAvailable === false}
-          >
-            {analyzing
-              ? "Stockfish đang tính…"
-              : engineAvailable === false
-                ? "Stockfish local chưa cấu hình"
-                : "Phân tích Stockfish trong web"}
-          </button>
-        </div>
-
-        {engineAvailable === false && (
-          <p className="subtle engineHint">
-            Không cần cài Stockfish để dùng website: nút Lichess phía trên đã
-            mở trực tiếp thế cờ và engine trên Lichess.
-          </p>
-        )}
-      </section>
-
-      {lines.length > 0 && (
-        <section className="panel enginePanel">
-          <p className="eyebrow">STOCKFISH LOCAL · TOP {lines.length}</p>
-          {lines.map((line, index) => (
-            <div className="engineLine" key={index}>
-              <strong>
-                #{index + 1}{" "}
-                {line.mate !== null
-                  ? `Mate ${line.mate}`
-                  : `${line.evaluation >= 0 ? "+" : ""}${line.evaluation.toFixed(2)}`}
-              </strong>
-              <span>{line.san}</span>
-              <small>depth {line.depth}</small>
-            </div>
-          ))}
-        </section>
-      )}
+          {message && <div className="toolFooter">{message}</div>}
+        </aside>
+      </div>
     </main>
   );
 }
