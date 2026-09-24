@@ -1010,3 +1010,116 @@ h2 { font-family: Georgia, 'Times New Roman', serif; margin: 0; }
     width: min(100%, 360px);
   }
 }
+
+
+/* Board visual refresh: correct light/dark parity + cleaner pieces */
+@media (min-width: 1181px) {
+  .analysisWorkspace {
+    grid-template-columns:
+      minmax(300px, .72fr)
+      minmax(520px, 1.08fr)
+      minmax(365px, .76fr);
+  }
+}
+
+.boardStage {
+  border-radius: 10px;
+}
+
+.boardCapture {
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .2);
+}
+
+.boardCapture > div,
+.engineMiniBoard > div {
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: 1 / 1;
+}
+
+.compactPalette {
+  grid-template-columns: repeat(6, minmax(42px, 1fr));
+  gap: 7px;
+}
+
+.compactPalette button {
+  min-height: 50px;
+  height: 50px;
+  padding: 5px;
+  background: #151613;
+  border: 1px solid #3b3d37;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.compactPalette button:hover {
+  border-color: #79a95f;
+  background: #1c2118;
+  transform: translateY(-1px);
+}
+
+.compactPalette button.active {
+  border-color: #8fbd70;
+  background: #22301c;
+  box-shadow: 0 0 0 2px rgba(143, 189, 112, .22);
+}
+
+.palettePieceIcon {
+  width: 39px;
+  height: 39px;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+.compactPalette .eraseTool {
+  grid-column: span 2;
+  color: #f1f1ed;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.engineBoardShell {
+  width: min(100%, 360px);
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 7px;
+}
+
+.engineMiniBoard {
+  border: 1px solid #46543b;
+  border-radius: 9px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .2);
+  background: #eeeed2;
+}
+
+.evalBar {
+  border-radius: 7px;
+  border-color: #4f5548;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+}
+
+.evalWhite {
+  background: #f4f4ec;
+}
+
+@media (max-height: 780px) and (min-width: 1181px) {
+  .engineBoardShell {
+    width: min(100%, 300px);
+  }
+}
+
+@media (max-width: 820px) {
+  .compactPalette {
+    grid-template-columns: repeat(4, minmax(48px, 1fr));
+  }
+
+  .palettePieceIcon {
+    width: 42px;
+    height: 42px;
+  }
+}

@@ -18,7 +18,6 @@ import {
 } from "react-chessboard";
 import { API_BASE, type Position, type UploadResponse } from "@/lib/api";
 import {
-  PIECE_TO_UNICODE,
   buildFen,
   chessComAnalysisUrl,
   clearPlacement,
@@ -37,6 +36,12 @@ import {
   analyzeWithBrowserStockfish,
   type LocalEngineLine,
 } from "@/lib/browserStockfish";
+import {
+  BOARD_PIECES,
+  BOARD_THEME,
+  PIECE_ASSET_BY_FEN,
+  PIECE_LABEL_BY_FEN,
+} from "@/lib/chessTheme";
 
 type RecognitionResult = {
   source: "Fenshot" | "PyTorch";
@@ -688,8 +693,39 @@ export default function AnalysisClient({
 
   const fixedBoardStyle: CSSProperties = {
     width: "100%",
-    height: "auto",
+    height: "100%",
     aspectRatio: "1 / 1",
+    overflow: "hidden",
+    borderRadius: "8px",
+    boxShadow: "0 10px 28px rgba(0, 0, 0, .2)",
+  };
+
+  const sharedBoardTheme = {
+    pieces: BOARD_PIECES,
+    lightSquareStyle: { backgroundColor: BOARD_THEME.light },
+    darkSquareStyle: { backgroundColor: BOARD_THEME.dark },
+    lightSquareNotationStyle: {
+      color: BOARD_THEME.dark,
+      fontWeight: 900,
+      textShadow: "0 1px 0 rgba(255,255,255,.25)",
+    },
+    darkSquareNotationStyle: {
+      color: BOARD_THEME.light,
+      fontWeight: 900,
+      textShadow: "0 1px 0 rgba(0,0,0,.18)",
+    },
+    alphaNotationStyle: {
+      fontSize: "11px",
+      fontWeight: 900,
+      bottom: 2,
+      right: 4,
+    },
+    numericNotationStyle: {
+      fontSize: "11px",
+      fontWeight: 900,
+      top: 2,
+      left: 3,
+    },
   };
 
   const boardOptions = {
@@ -703,6 +739,7 @@ export default function AnalysisClient({
     showNotation: true,
     showAnimations: false,
     boardStyle: fixedBoardStyle,
+    ...sharedBoardTheme,
     squareStyles,
   } as const;
 
@@ -716,6 +753,7 @@ export default function AnalysisClient({
     showNotation: true,
     showAnimations: false,
     boardStyle: fixedBoardStyle,
+    ...sharedBoardTheme,
   } as const;
 
   const selectedPiece = selectedSquare
@@ -944,7 +982,9 @@ export default function AnalysisClient({
                   <span>Ô đang chọn</span>
                   <strong>
                     {selectedSquare ?? "—"}
-                    {selectedPiece ? ` · ${PIECE_TO_UNICODE[selectedPiece]}` : ""}
+                    {selectedPiece
+                      ? ` · ${PIECE_LABEL_BY_FEN[selectedPiece] ?? selectedPiece}`
+                      : ""}
                     {selectedConfidence !== undefined
                       ? ` · ${Math.round(selectedConfidence * 100)}%`
                       : ""}
@@ -957,8 +997,14 @@ export default function AnalysisClient({
                       key={piece}
                       className={paintPiece === piece ? "active" : ""}
                       onClick={() => choosePaintPiece(piece)}
+                      title={PIECE_LABEL_BY_FEN[piece] ?? piece}
                     >
-                      {PIECE_TO_UNICODE[piece]}
+                      <img
+                        className="palettePieceIcon"
+                        src={PIECE_ASSET_BY_FEN[piece]}
+                        alt={PIECE_LABEL_BY_FEN[piece] ?? piece}
+                        draggable={false}
+                      />
                     </button>
                   ))}
                   <button
