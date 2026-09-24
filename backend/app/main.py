@@ -7,6 +7,7 @@ import shutil
 import uuid
 import zipfile
 import threading
+import time
 from pathlib import Path
 
 import chess
@@ -52,6 +53,10 @@ class RecognizeRequest(BaseModel):
     jobId: str
     positionId: int
     force: bool = False
+
+
+class SavePositionRequest(BaseModel):
+    fen: str
 
 
 def resolve_engine_path() -> str | None:
