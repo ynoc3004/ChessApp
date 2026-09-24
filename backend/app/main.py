@@ -21,13 +21,16 @@ from pydantic import BaseModel
 
 from .detector import extract_from_docx, extract_from_pdf
 from .recognizer import recognize_board
+from .preprocess import ensure_book_variants
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 UPLOAD_DIR = DATA_DIR / "uploads"
 OUTPUT_DIR = DATA_DIR / "positions"
+LEARNING_DIR = DATA_DIR / "learning_corrections"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+LEARNING_DIR.mkdir(parents=True, exist_ok=True)
 
 BOOK_METADATA = "book.json"
 JOB_STATUS = "status.json"
@@ -55,8 +58,20 @@ class RecognizeRequest(BaseModel):
     force: bool = False
 
 
+class BoardCornersPayload(BaseModel):
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+
+
 class SavePositionRequest(BaseModel):
     fen: str
+    aiFen: str | None = None
+    imageOrientation: str | None = None
+    recognizer: str | None = None
+    preprocessVariant: str | None = None
+    corners: BoardCornersPayload | None = None
 
 
 def resolve_engine_path() -> str | None:
@@ -492,6 +507,37 @@ def download_book_diagrams(job_id: str):
     )
 
 
+@app.get("/api/books/{job_id}/positions/{position_id}/variants")
+def get_position_variants(job_id: str, position_id: int):
+    image_path, _cache_path = _position_paths(job_id, position_id)
+    try:
+        variants = ensure_book_variants(image_path)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not preprocess old-book diagram: {exc}",
+        ) from exc
+
+    return {
+        "variants": [
+            {
+                "name": name,
+                "url": f"http://localhost:8000/files/{job_id}/{path.name}",
+            }
+            for name, path in variants.items()
+        ]
+    }
+
+
+@app.get("/api/learning/stats")
+def learning_stats():
+    metadata_files = list(LEARNING_DIR.glob("*.json"))
+    return {
+        "correctedBoards": len(metadata_files),
+        "directory": str(LEARNING_DIR),
+    }
+
+
 @app.post("/api/recognize")
 def recognize_position(req: RecognizeRequest):
     """Read a detected board image and return FEN piece-placement candidates.
@@ -566,6 +612,38 @@ def save_corrected_position(job_id: str, position_id: int, req: SavePositionRequ
         "savedAt": time.time(),
     }
     _write_json_atomic(saved_path, payload)
+
+    # Every manual correction becomes reusable local training data.
+    # We keep the complete board image + exact corrected FEN so a
+    # future model can be retrained without asking the user to label
+    # the same diagram again.
+    try:
+        image_path, _cache_path = _position_paths(job_id, position_id)
+        sample_key = f"{job_id}-{position_id:04d}"
+        sample_image = LEARNING_DIR / f"{sample_key}.png"
+        sample_meta = LEARNING_DIR / f"{sample_key}.json"
+        if not sample_image.exists():
+            shutil.copy2(image_path, sample_image)
+
+        learning_payload = {
+            "sampleId": sample_key,
+            "jobId": job_id,
+            "positionId": position_id,
+            "image": sample_image.name,
+            "correctedFen": board.fen(),
+            "aiFen": req.aiFen,
+            "imageOrientation": req.imageOrientation,
+            "recognizer": req.recognizer,
+            "preprocessVariant": req.preprocessVariant,
+            "corners": req.corners.model_dump() if req.corners else None,
+            "savedAt": time.time(),
+        }
+        _write_json_atomic(sample_meta, learning_payload)
+    except Exception:
+        # Saving the user's corrected FEN is the critical path. A
+        # training-sample write failure must never discard that work.
+        pass
+
     return payload
 
 
