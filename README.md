@@ -124,3 +124,6 @@ Response gồm:
 - **Stockfish trong web** chỉ bật nếu backend tìm thấy executable qua `STOCKFISH_PATH` hoặc lệnh `stockfish` trong PATH.
 
 Lichess là lựa chọn không cần cài thêm engine trên máy.
+
+
+CI: frontend production build + backend Python syntax check chạy tự động trên mỗi push vào `main`.
