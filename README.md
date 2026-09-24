@@ -1,116 +1,108 @@
-# Chess Book Reader — MVP 1
+# Chess Book Reader — Phase 2
 
-MVP này làm được:
+Website local để biến diagram trong sách cờ thành thế cờ có thể phân tích:
 
 1. Upload `.pdf` hoặc `.docx`.
-2. Backend render / đọc ảnh và dùng OpenCV để tìm vùng có hình dạng giống bàn cờ 8×8.
-3. Tách các diagram thành PNG riêng.
-4. Hiện gallery để tải ảnh.
-5. Mở từng diagram cạnh một bàn cờ React tương tác.
-6. Nạp FEN, kéo quân hợp lệ và (nếu cấu hình Stockfish) lấy Top 3 engine lines.
+2. OpenCV tìm và crop các diagram 8×8.
+3. Gallery hiển thị toàn bộ diagram tìm được.
+4. Khi mở một diagram, AI nhận dạng 64 ô và sinh FEN piece-placement tự động.
+5. Người dùng có thể đổi **Trắng ở dưới / Đen ở dưới** và **Trắng đi / Đen đi**.
+6. Có thể sửa FEN thủ công trước khi chạy Stockfish.
+7. Stockfish trả Top 3 engine lines nếu `STOCKFISH_PATH` đã được cấu hình.
 
-> Chưa có ở MVP 1: tự nhận dạng quân cờ từ ảnh → FEN. Đó là phase 2.
+## Phase 2 dùng gì?
 
-## Yêu cầu
+AI recognition dùng `chessimg2pos==0.1.6` (PyTorch, MIT). Recognition chạy **lazy**: model chỉ chạy khi người dùng mở một diagram, vì vậy sách 700 trang không bị bắt nhận dạng AI toàn bộ cùng lúc. Kết quả nhận dạng được cache thành JSON cạnh ảnh đã crop.
 
-- Node.js 20+ (khuyến nghị Node 22+)
-- Python 3.11 hoặc 3.12
-- Stockfish nếu muốn bật engine analysis
+> Hình cờ chỉ cho biết chắc phần **piece placement**. Nó không cho biết chắc bên nào đến lượt, quyền nhập thành, en-passant, halfmove clock hay move number. UI cho người dùng chọn bên đi; các field còn lại mặc định là `- - 0 1`.
 
-## 1. Chạy backend
-
-Windows PowerShell:
+## Cập nhật code trên máy
 
 ```powershell
-cd backend
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+cd D:\code\ChessApp
+git pull origin main
 ```
 
-macOS/Linux:
+## Cập nhật backend cho Phase 2
 
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+Nếu `.venv` đã tồn tại:
+
+```powershell
+cd D:\code\ChessApp\backend
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 ```
 
-Kiểm tra: mở `http://localhost:8000/health`.
+Kiểm tra:
 
-## 2. Chạy frontend
+```text
+http://localhost:8000/health
+```
 
-Mở terminal thứ hai:
+Kết quả đúng:
 
-```bash
-cd frontend
+```json
+{"ok": true, "phase": 2}
+```
+
+Lần cài Phase 2 đầu tiên có thể lâu hơn vì `chessimg2pos` kéo theo PyTorch / torchvision.
+
+## Chạy frontend
+
+Mở PowerShell thứ hai:
+
+```powershell
+cd D:\code\ChessApp\frontend
+$env:Path += ";C:\Program Files\nodejs"
 npm install
 npm run dev
 ```
 
-Mở `http://localhost:3000`.
-
-## 3. Bật Stockfish
-
-Tải Stockfish phù hợp hệ điều hành và đặt biến môi trường `STOCKFISH_PATH` trỏ tới executable.
-
-PowerShell ví dụ:
-
-```powershell
-$env:STOCKFISH_PATH="C:\\tools\\stockfish\\stockfish-windows-x86-64-avx2.exe"
-uvicorn app.main:app --reload --port 8000
-```
-
-macOS/Linux ví dụ:
-
-```bash
-export STOCKFISH_PATH=/usr/local/bin/stockfish
-uvicorn app.main:app --reload --port 8000
-```
-
-## Cách detector hiện tại hoạt động
-
-Đây là detector heuristic, không phải AI:
-
-- tìm contour gần hình vuông;
-- kiểm tra các đường ngang/dọc gần vị trí 9 đường biên của bàn 8×8;
-- kiểm tra pattern sáng/tối xen kẽ của 64 ô;
-- loại các box trùng nhau bằng IoU.
-
-Nó hoạt động tốt nhất với diagram in rõ, nhìn gần vuông, nhưng có thể bỏ sót hình scan mờ hoặc nhận nhầm bảng biểu.
-
-## Phase 2: image → FEN
-
-Nên làm theo pipeline:
+Mở:
 
 ```text
-board crop
-  → chuẩn hóa perspective
-  → chia 8×8
-  → classifier 13 lớp (empty + 12 quân)
-  → sửa tay nếu confidence thấp
-  → sinh FEN
+http://localhost:3000
 ```
 
-Model có thể dùng PyTorch/ONNX. Khi có model, thêm endpoint:
+## Cách dùng Phase 2
 
-```text
-POST /api/recognize-position
-```
+Sau khi quét sách, bấm **AI đọc FEN & phân tích** ở một diagram. Trang analysis sẽ tự gọi `POST /api/recognize`, đọc ảnh và nạp FEN lên bàn cờ.
 
-response:
+Nếu bàn trong sách quay từ phía Đen, bấm **Đen ở dưới**. Nếu đề ghi Black to move, chọn **Đen đi**. Sau đó đối chiếu các quân với ảnh trước khi chạy Stockfish.
+
+## API
+
+### POST /api/recognize
 
 ```json
 {
-  "fen": "r3k2r/pp1nbppp/2b5/1p1n1p2/2PP4/3Q1NB1/1P3PPP/R4RK1 w - - 0 14",
-  "confidence": 0.94,
-  "uncertainSquares": ["c6"]
+  "jobId": "<32-char job id>",
+  "positionId": 1,
+  "force": false
 }
 ```
 
-## Lưu ý license
+Response gồm:
 
-Prototype backend dùng **PyMuPDF** để render PDF vì rất tiện. PyMuPDF hiện dùng dual license AGPL/commercial. Nếu bạn muốn làm sản phẩm proprietary/đóng nguồn, hãy rà soát license trước khi deploy hoặc chuyển phần render PDF sang PDF.js (Apache 2.0) ở frontend.
+```json
+{
+  "piecePlacement": "r3k2r/pp1nbppp/2b5/1p1n1p2/2PP4/3Q1NB1/1P3PPP/R4RK1",
+  "fen": "r3k2r/pp1nbppp/2b5/1p1n1p2/2PP4/3Q1NB1/1P3PPP/R4RK1 w - - 0 1",
+  "suggestedOrientation": "white",
+  "orientationConfidence": 0.8,
+  "candidates": {
+    "whiteBottom": "...",
+    "blackBottom": "..."
+  },
+  "warnings": []
+}
+```
+
+`force: true` bỏ cache và chạy AI lại.
+
+## Hạn chế hiện tại
+
+- Font quân cờ rất khác dữ liệu huấn luyện hoặc scan mờ có thể làm AI đọc sai.
+- Tự đoán hướng chỉ là heuristic; nút đổi hướng luôn có sẵn.
+- Chưa có editor click từng ô để thay quân bằng palette; hiện có thể sửa FEN thủ công.
+- Prototype vẫn dùng PyMuPDF để render PDF; cần rà soát license trước khi biến thành sản phẩm proprietary/đóng nguồn.
