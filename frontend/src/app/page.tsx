@@ -116,6 +116,10 @@ export default function HomePage() {
         );
         const statusData = await statusResponse.json();
         if (!statusResponse.ok) {
+          if (statusResponse.status === 503) {
+            // Backend is replacing status.json on Windows; retry on next poll.
+            continue;
+          }
           throw new Error(statusData.detail ?? "Không đọc được tiến trình quét");
         }
 
