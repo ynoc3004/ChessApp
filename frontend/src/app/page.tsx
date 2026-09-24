@@ -41,10 +41,10 @@ export default function HomePage() {
   return (
     <main className="shell">
       <section className="hero">
-        <p className="eyebrow">CHESS BOOK READER · PHASE 2</p>
+        <p className="eyebrow">CHESS BOOK READER · PHASE 2.1</p>
         <h1>Biến sách cờ thành các thế cờ có thể phân tích trực tiếp.</h1>
         <p className="subtle">
-          Upload PDF hoặc DOCX. Hệ thống tìm diagram; khi bạn mở một thế cờ, AI sẽ đọc 64 ô và tự tạo FEN.
+          Upload PDF hoặc DOCX. Hệ thống tìm diagram; khi bạn mở một thế cờ, AI sẽ đọc 64 ô, tự tạo FEN, cho phép sửa quân bằng click rồi mở thẳng thế cờ trên Lichess.
         </p>
       </section>
 
