@@ -186,6 +186,18 @@ def get_book(job_id: str):
         raise HTTPException(status_code=500, detail="Could not read book metadata") from exc
 
 
+@app.delete("/api/books/{job_id}")
+def delete_book(job_id: str):
+    job_dir = _job_dir(job_id)
+    shutil.rmtree(job_dir, ignore_errors=True)
+    for upload_path in UPLOAD_DIR.glob(f"{job_id}.*"):
+        try:
+            upload_path.unlink()
+        except OSError:
+            pass
+    return {"ok": True, "jobId": job_id}
+
+
 @app.get("/api/books/{job_id}/download")
 def download_book_diagrams(job_id: str):
     job_dir = _job_dir(job_id)
