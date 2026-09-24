@@ -29,8 +29,9 @@ import {
   setPieceAt,
 } from "@/lib/fen";
 import {
-  recognizeBookDiagram,
+  recognizeBookDiagramEnsemble,
   warmUpBookRecognizer,
+  type RecognitionCorners,
 } from "@/lib/bookRecognizer";
 import {
   analyzeWithBrowserStockfish,
@@ -58,6 +59,8 @@ type RecognitionResult = {
     blackBottom: Record<string, number>;
   };
   warnings: string[];
+  corners?: RecognitionCorners | null;
+  preprocessVariant?: string | null;
   savedFen?: string | null;
   savedAt?: number | null;
 };
@@ -295,14 +298,39 @@ export default function AnalysisClient({
         let result: RecognitionResult | null = null;
 
         try {
-          const browser = await recognizeBookDiagram(imageUrl);
+          const variantResponse = await fetch(
+            `${API_BASE}/api/books/${jobId}/positions/${positionId}/variants`,
+            { cache: "no-store" },
+          );
+          const variantData = variantResponse.ok
+            ? await variantResponse.json()
+            : { variants: [] };
+
+          const recognitionCandidates = [
+            { name: "original", url: imageUrl },
+            ...(variantData.variants ?? []),
+          ];
+
+          const browser = await recognizeBookDiagramEnsemble(
+            recognitionCandidates,
+          );
+
           if (browser) {
             const warnings: string[] = [];
             if (!browser.plausible) {
-              warnings.push("AI chưa chắc đây là một thế cờ hợp lệ; hãy kiểm tra quân.");
+              warnings.push(
+                "AI chưa chắc đây là một thế cờ hợp lệ; hãy kiểm tra quân.",
+              );
             }
             if (!browser.reliable) {
-              warnings.push("Một số ô có độ tin cậy thấp và đã được đánh dấu để kiểm tra.");
+              warnings.push(
+                "Một số ô có độ tin cậy thấp và đã được đánh dấu để kiểm tra.",
+              );
+            }
+            if (browser.variant !== "original") {
+              warnings.push(
+                `AI đã tự dùng tiền xử lý "${browser.variant}" cho bản scan/sách cũ.`,
+              );
             }
 
             result = {
@@ -323,14 +351,38 @@ export default function AnalysisClient({
               },
               confidenceCandidates: browser.confidenceCandidates,
               warnings,
+              corners: browser.corners,
+              preprocessVariant: browser.variant,
             };
           }
         } catch {
           result = null;
         }
 
+        // Use the heavier PyTorch recognizer only when the browser
+        // ensemble is absent or visibly uncertain. This keeps normal
+        // diagrams fast while giving difficult old-book scans a second opinion.
+        if (
+          !result ||
+          result.averageConfidence < 0.9 ||
+          result.uncertainSquares.length > 12
+        ) {
+          try {
+            const backendResult = await recognizeWithBackend();
+            if (
+              !result ||
+              backendResult.averageConfidence >
+                result.averageConfidence + 0.04
+            ) {
+              result = backendResult;
+            }
+          } catch {
+            // Keep the browser result when the optional fallback fails.
+          }
+        }
+
         if (!result) {
-          result = await recognizeWithBackend();
+          throw new Error("Không có bộ nhận dạng nào đọc được thế cờ này.");
         }
 
         if (force && result.source === "PyTorch") {
@@ -356,7 +408,11 @@ export default function AnalysisClient({
         } else {
           setSavedFen(null);
           setMessage(
-            `Đã đọc bằng ${result.source} · độ tin cậy trung bình ${Math.round(
+            `Đã đọc bằng ${result.source}${
+              result.preprocessVariant && result.preprocessVariant !== "original"
+                ? ` / ${result.preprocessVariant}`
+                : ""
+            } · độ tin cậy trung bình ${Math.round(
               result.averageConfidence * 100,
             )}%.`,
           );
@@ -509,7 +565,14 @@ export default function AnalysisClient({
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fen }),
+          body: JSON.stringify({
+            fen,
+            aiFen: recognition?.fen ?? null,
+            imageOrientation,
+            recognizer: recognition?.source ?? null,
+            preprocessVariant: recognition?.preprocessVariant ?? null,
+            corners: recognition?.corners ?? null,
+          }),
         },
       );
       const data = await response.json();
