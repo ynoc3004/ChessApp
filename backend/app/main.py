@@ -6,6 +6,7 @@ import re
 import shutil
 import uuid
 import zipfile
+import threading
 from pathlib import Path
 
 import chess
@@ -28,6 +29,7 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 BOOK_METADATA = "book.json"
+JOB_STATUS = "status.json"
 
 app = FastAPI(title="Chess Book Reader API", version="0.2.0")
 app.add_middleware(
@@ -83,6 +85,96 @@ def _job_dir(job_id: str) -> Path:
     return job_dir
 
 
+def _write_json_atomic(path: Path, payload: dict) -> None:
+    tmp_path = path.with_name(path.name + ".tmp")
+    tmp_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    tmp_path.replace(path)
+
+
+def _scan_book_job(
+    job_id: str,
+    upload_path: Path,
+    suffix: str,
+    original_filename: str | None,
+) -> None:
+    job_output = OUTPUT_DIR / job_id
+    status_path = job_output / JOB_STATUS
+    positions: list[dict] = []
+
+    status = {
+        "jobId": job_id,
+        "filename": original_filename,
+        "status": "processing",
+        "current": 0,
+        "total": 0,
+        "progress": 0.0,
+        "count": 0,
+        "positions": positions,
+        "error": None,
+    }
+    _write_json_atomic(status_path, status)
+
+    def on_progress(current: int, total: int) -> None:
+        status["current"] = current
+        status["total"] = total
+        status["progress"] = round((current / total) * 100, 1) if total else 0.0
+        status["count"] = len(positions)
+        _write_json_atomic(status_path, status)
+
+    try:
+        extracted = (
+            extract_from_pdf(upload_path, progress_callback=on_progress)
+            if suffix == ".pdf"
+            else extract_from_docx(upload_path, progress_callback=on_progress)
+        )
+
+        for idx, detected in enumerate(extracted, start=1):
+            filename = f"position-{idx:04d}.png"
+            target = job_output / filename
+            cv2.imwrite(str(target), detected.image)
+            positions.append(
+                {
+                    "id": idx,
+                    "page": detected.page,
+                    "confidence": round(float(detected.score), 3),
+                    "imageUrl": f"http://localhost:8000/files/{job_id}/{filename}",
+                }
+            )
+
+        payload = {
+            "jobId": job_id,
+            "filename": original_filename,
+            "count": len(positions),
+            "positions": positions,
+        }
+        _write_json_atomic(job_output / BOOK_METADATA, payload)
+
+        status.update(
+            {
+                "status": "completed",
+                "progress": 100.0,
+                "count": len(positions),
+                "positions": positions,
+            }
+        )
+        if status["total"]:
+            status["current"] = status["total"]
+        _write_json_atomic(status_path, status)
+    except Exception as exc:
+        status.update(
+            {
+                "status": "failed",
+                "error": str(exc),
+                "count": len(positions),
+                "positions": positions,
+            }
+        )
+        _write_json_atomic(status_path, status)
+
+
 def _position_paths(job_id: str, position_id: int) -> tuple[Path, Path]:
     job_dir = _job_dir(job_id)
     if position_id < 1 or position_id > 100000:
@@ -107,6 +199,57 @@ def engine_status():
         "available": bool(engine_path),
         "source": "STOCKFISH_PATH" if os.getenv("STOCKFISH_PATH") and engine_path else ("PATH" if engine_path else None),
     }
+
+
+@app.post("/api/books/start")
+def start_book_scan(file: UploadFile = File(...)):
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in {".pdf", ".docx"}:
+        raise HTTPException(status_code=400, detail="Only .pdf and .docx are supported.")
+
+    job_id = uuid.uuid4().hex
+    upload_path = UPLOAD_DIR / f"{job_id}{suffix}"
+    job_output = OUTPUT_DIR / job_id
+    job_output.mkdir(parents=True, exist_ok=True)
+
+    with upload_path.open("wb") as f_out:
+        shutil.copyfileobj(file.file, f_out)
+
+    initial_status = {
+        "jobId": job_id,
+        "filename": file.filename,
+        "status": "queued",
+        "current": 0,
+        "total": 0,
+        "progress": 0.0,
+        "count": 0,
+        "positions": [],
+        "error": None,
+    }
+    _write_json_atomic(job_output / JOB_STATUS, initial_status)
+
+    worker = threading.Thread(
+        target=_scan_book_job,
+        args=(job_id, upload_path, suffix, file.filename),
+        daemon=True,
+        name=f"book-scan-{job_id[:8]}",
+    )
+    worker.start()
+
+    return initial_status
+
+
+@app.get("/api/jobs/{job_id}")
+def get_scan_job(job_id: str):
+    job_dir = _job_dir(job_id)
+    status_path = job_dir / JOB_STATUS
+    if not status_path.exists():
+        raise HTTPException(status_code=404, detail="Scan status not found")
+
+    try:
+        return json.loads(status_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        raise HTTPException(status_code=500, detail="Could not read scan status") from exc
 
 
 @app.post("/api/books")
