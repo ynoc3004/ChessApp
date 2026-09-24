@@ -8,6 +8,10 @@ export type BrowserRecognition = {
   reliable: boolean;
   plausible: boolean;
   squareConfidence: Record<string, number>;
+  confidenceCandidates: {
+    whiteBottom: Record<string, number>;
+    blackBottom: Record<string, number>;
+  };
   uncertainSquares: string[];
   whiteBottom: string;
   blackBottom: string;
@@ -91,6 +95,10 @@ export async function recognizeBookDiagram(
     reliable: scan.reliable,
     plausible: scan.plausible,
     squareConfidence: selectedConfidence,
+    confidenceCandidates: {
+      whiteBottom: whiteConfidence,
+      blackBottom: blackConfidence,
+    },
     uncertainSquares,
     whiteBottom,
     blackBottom,
