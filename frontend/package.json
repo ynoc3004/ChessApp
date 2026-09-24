@@ -5,14 +5,18 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "postinstall": "node scripts/copy-runtime-assets.mjs"
   },
   "dependencies": {
     "chess.js": "1.4.0",
     "next": "16.3.3",
     "react": "19.2.0",
     "react-chessboard": "5.12.1",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "@scoriiu/fenshot": "0.1.4",
+    "onnxruntime-web": "1.26.0",
+    "stockfish": "19.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
