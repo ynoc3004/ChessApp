@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import uuid
+import zipfile
 from pathlib import Path
 
 import chess
@@ -13,6 +14,7 @@ import cv2
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from .detector import extract_from_docx, extract_from_pdf
@@ -24,6 +26,8 @@ UPLOAD_DIR = DATA_DIR / "uploads"
 OUTPUT_DIR = DATA_DIR / "positions"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+BOOK_METADATA = "book.json"
 
 app = FastAPI(title="Chess Book Reader API", version="0.2.0")
 app.add_middleware(
@@ -70,13 +74,20 @@ def san_line(board: chess.Board, pv: list[chess.Move], max_plies: int = 10) -> s
     return " ".join(sans)
 
 
-def _position_paths(job_id: str, position_id: int) -> tuple[Path, Path]:
+def _job_dir(job_id: str) -> Path:
     if not re.fullmatch(r"[0-9a-f]{32}", job_id):
         raise HTTPException(status_code=400, detail="Invalid job id")
+    job_dir = OUTPUT_DIR / job_id
+    if not job_dir.exists():
+        raise HTTPException(status_code=404, detail="Book job not found")
+    return job_dir
+
+
+def _position_paths(job_id: str, position_id: int) -> tuple[Path, Path]:
+    job_dir = _job_dir(job_id)
     if position_id < 1 or position_id > 100000:
         raise HTTPException(status_code=400, detail="Invalid position id")
 
-    job_dir = OUTPUT_DIR / job_id
     image_path = job_dir / f"position-{position_id:04d}.png"
     cache_path = job_dir / f"position-{position_id:04d}.recognition.json"
     if not image_path.exists():
@@ -130,12 +141,71 @@ def upload_book(file: UploadFile = File(...)):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Could not process document: {exc}") from exc
 
-    return {
+    payload = {
         "jobId": job_id,
         "filename": file.filename,
         "count": len(positions),
         "positions": positions,
     }
+    (job_output / BOOK_METADATA).write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return payload
+
+
+@app.get("/api/books")
+def list_books():
+    books = []
+    for job_dir in OUTPUT_DIR.iterdir():
+        if not job_dir.is_dir():
+            continue
+        metadata_path = job_dir / BOOK_METADATA
+        if not metadata_path.exists():
+            continue
+        try:
+            payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+            payload["updatedAt"] = metadata_path.stat().st_mtime
+            books.append(payload)
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    books.sort(key=lambda item: item.get("updatedAt", 0), reverse=True)
+    return {"books": books[:20]}
+
+
+@app.get("/api/books/{job_id}")
+def get_book(job_id: str):
+    job_dir = _job_dir(job_id)
+    metadata_path = job_dir / BOOK_METADATA
+    if not metadata_path.exists():
+        raise HTTPException(status_code=404, detail="Book metadata not found")
+    try:
+        return json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        raise HTTPException(status_code=500, detail="Could not read book metadata") from exc
+
+
+@app.get("/api/books/{job_id}/download")
+def download_book_diagrams(job_id: str):
+    job_dir = _job_dir(job_id)
+    zip_path = job_dir / "chess-diagrams.zip"
+
+    png_files = sorted(job_dir.glob("position-*.png"))
+    if not png_files:
+        raise HTTPException(status_code=404, detail="No diagrams found")
+
+    newest_png = max(path.stat().st_mtime for path in png_files)
+    if not zip_path.exists() or zip_path.stat().st_mtime < newest_png:
+        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for image_path in png_files:
+                archive.write(image_path, arcname=image_path.name)
+
+    return FileResponse(
+        path=zip_path,
+        media_type="application/zip",
+        filename=f"{job_id}-chess-diagrams.zip",
+    )
 
 
 @app.post("/api/recognize")
