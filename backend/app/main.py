@@ -186,6 +186,61 @@ def get_book(job_id: str):
         raise HTTPException(status_code=500, detail="Could not read book metadata") from exc
 
 
+@app.get("/api/books/{job_id}/recognized.json")
+def download_recognized_positions(job_id: str):
+    job_dir = _job_dir(job_id)
+    metadata_path = job_dir / BOOK_METADATA
+    page_by_id: dict[int, int] = {}
+
+    if metadata_path.exists():
+        try:
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            page_by_id = {
+                int(item["id"]): int(item["page"])
+                for item in metadata.get("positions", [])
+                if "id" in item and "page" in item
+            }
+        except (json.JSONDecodeError, OSError, ValueError, TypeError):
+            page_by_id = {}
+
+    recognized = []
+    for cache_path in sorted(job_dir.glob("position-*.recognition.json")):
+        try:
+            position_id = int(cache_path.name.split("-")[1].split(".")[0])
+            data = json.loads(cache_path.read_text(encoding="utf-8"))
+        except (ValueError, IndexError, json.JSONDecodeError, OSError):
+            continue
+
+        recognized.append(
+            {
+                "positionId": position_id,
+                "page": page_by_id.get(position_id),
+                "fen": data.get("fen"),
+                "piecePlacement": data.get("piecePlacement"),
+                "suggestedOrientation": data.get("suggestedOrientation"),
+                "averageConfidence": data.get("averageConfidence"),
+                "uncertainSquares": data.get("uncertainSquares", []),
+            }
+        )
+
+    payload = {
+        "jobId": job_id,
+        "count": len(recognized),
+        "positions": recognized,
+    }
+    export_path = job_dir / "recognized-positions.json"
+    export_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    return FileResponse(
+        path=export_path,
+        media_type="application/json",
+        filename=f"{job_id}-recognized-positions.json",
+    )
+
+
 @app.delete("/api/books/{job_id}")
 def delete_book(job_id: str):
     job_dir = _job_dir(job_id)
