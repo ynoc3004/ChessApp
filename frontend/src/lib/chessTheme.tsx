@@ -53,8 +53,16 @@ export const PIECE_LABEL_BY_FEN: Record<string, string> = {
 };
 
 const pieceImageStyle: CSSProperties = {
-  width: "100%",
-  height: "100%",
+  // react-chessboard renders a second "clone" while dragging. That clone
+  // lives in a portal and does not inherit the square's dimensions, so an
+  // unconstrained 100% image can grow to the size of the viewport.
+  // min(100%, 96px) keeps normal pieces square-sized while capping the
+  // drag overlay to a human-sized chess piece.
+  width: "min(100%, 96px)",
+  height: "min(100%, 96px)",
+  maxWidth: "96px",
+  maxHeight: "96px",
+  margin: "auto",
   objectFit: "contain",
   display: "block",
   pointerEvents: "none",

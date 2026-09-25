@@ -738,6 +738,13 @@ export default function AnalysisClient({
     allowDrawingArrows: !editMode,
     showNotation: true,
     showAnimations: false,
+    draggingPieceStyle: {
+      transform: "scale(1.06)",
+      zIndex: 1000,
+    },
+    draggingPieceGhostStyle: {
+      opacity: 0.22,
+    },
     boardStyle: fixedBoardStyle,
     ...sharedBoardTheme,
     squareStyles,
@@ -752,6 +759,13 @@ export default function AnalysisClient({
     allowDrawingArrows: true,
     showNotation: true,
     showAnimations: false,
+    draggingPieceStyle: {
+      transform: "scale(1.06)",
+      zIndex: 1000,
+    },
+    draggingPieceGhostStyle: {
+      opacity: 0.22,
+    },
     boardStyle: fixedBoardStyle,
     ...sharedBoardTheme,
   } as const;
