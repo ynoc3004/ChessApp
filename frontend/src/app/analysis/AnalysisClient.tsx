@@ -14,6 +14,7 @@ import { toPng } from "html-to-image";
 import {
   Chessboard,
   type PieceDropHandlerArgs,
+  type PieceHandlerArgs,
   type SquareHandlerArgs,
 } from "react-chessboard";
 import { API_BASE, type Position, type UploadResponse } from "@/lib/api";
@@ -550,6 +551,18 @@ export default function AnalysisClient({
     }
   }
 
+  function syncDragOverlaySize(boardId: string, { square }: PieceHandlerArgs) {
+    if (!square) return;
+    const squareElement = document.getElementById(`${boardId}-square-${square}`);
+    const squareSize = squareElement?.getBoundingClientRect().width;
+    if (!squareSize || !Number.isFinite(squareSize)) return;
+
+    document.documentElement.style.setProperty(
+      "--drag-piece-size",
+      `${Math.round(squareSize)}px`,
+    );
+  }
+
   function onEnginePieceDrop({ sourceSquare, targetSquare }: PieceDropHandlerArgs) {
     if (!targetSquare || sourceSquare === targetSquare) return false;
     try {
@@ -767,9 +780,11 @@ export default function AnalysisClient({
     position: fen,
     boardOrientation,
     onPieceDrop,
+    onPieceDrag: (args: PieceHandlerArgs) =>
+      syncDragOverlaySize("main-position-board", args),
     onSquareClick,
     allowDragging: true,
-    dragActivationDistance: 10,
+    dragActivationDistance: 4,
     allowDrawingArrows: !editMode,
     showNotation: true,
     showAnimations: false,
@@ -790,13 +805,15 @@ export default function AnalysisClient({
     position: engineFen,
     boardOrientation,
     onPieceDrop: onEnginePieceDrop,
+    onPieceDrag: (args: PieceHandlerArgs) =>
+      syncDragOverlaySize("engine-analysis-board", args),
     allowDragging: true,
-    dragActivationDistance: 10,
+    dragActivationDistance: 4,
     allowDrawingArrows: true,
     showNotation: true,
     showAnimations: false,
     draggingPieceStyle: {
-      transform: "scale(1.06)",
+      transform: "scale(1)",
       zIndex: 1000,
     },
     draggingPieceGhostStyle: {
