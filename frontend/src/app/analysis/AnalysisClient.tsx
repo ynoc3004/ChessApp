@@ -75,6 +75,32 @@ const START_PLACEMENT = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 const START_FEN = buildFen(START_PLACEMENT, "w", "KQkq", "-");
 const PIECE_ORDER = ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"];
 
+function exactBoardParityStyles(): Record<string, CSSProperties> {
+  const styles: Record<string, CSSProperties> = {};
+
+  for (let fileIndex = 0; fileIndex < 8; fileIndex += 1) {
+    const file = String.fromCharCode(97 + fileIndex);
+    for (let rank = 1; rank <= 8; rank += 1) {
+      const square = `${file}${rank}`;
+      // Standard chessboard parity:
+      // a1 dark, a2 light, b1 light, b2 dark...
+      const isDark = (fileIndex + rank) % 2 === 1;
+      const color = isDark ? BOARD_THEME.dark : BOARD_THEME.light;
+
+      styles[square] = {
+        backgroundColor: color,
+        // Use a solid gradient as well as backgroundColor so browser/extension
+        // dark-mode color rewriting cannot invert only the light squares.
+        backgroundImage: `linear-gradient(${color}, ${color})`,
+        forcedColorAdjust: "none",
+        colorScheme: "only light",
+      };
+    }
+  }
+
+  return styles;
+}
+
 function strictLegalFen(fen: string): boolean {
   try {
     const game = new Chess(fen);
@@ -678,17 +704,23 @@ export default function AnalysisClient({
     return () => window.clearTimeout(timer);
   }, [activeTab, engineAuto, engineFen, engineLegal, engineDepth, runEngine]);
 
-  const squareStyles: Record<string, CSSProperties> = {};
+  const squareStyles = exactBoardParityStyles();
+
   for (const square of uncertainSquares) {
     squareStyles[square] = {
+      ...squareStyles[square],
       boxShadow: "inset 0 0 0 4px rgba(220, 80, 55, .72)",
     };
   }
+
   if (selectedSquare) {
     squareStyles[selectedSquare] = {
+      ...squareStyles[selectedSquare],
       boxShadow: "inset 0 0 0 4px rgba(255, 196, 0, .98)",
     };
   }
+
+  const engineSquareStyles = exactBoardParityStyles();
 
   const fixedBoardStyle: CSSProperties = {
     width: "100%",
@@ -769,6 +801,7 @@ export default function AnalysisClient({
     },
     boardStyle: fixedBoardStyle,
     ...sharedBoardTheme,
+    squareStyles: engineSquareStyles,
   } as const;
 
   const selectedPiece = selectedSquare

@@ -1,8 +1,8 @@
 export const BOARD_THEME = {
   // Correct chessboard parity: a8 is light and a1 is dark.
   // These colors also stay close to the green/cream diagrams in many books.
-  light: "#eeeed2",
-  dark: "#769656",
+  light: "#f2f2d5",
+  dark: "#6f8f52",
   frame: "#38452d",
 } as const;
 
