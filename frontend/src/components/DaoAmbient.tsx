@@ -3,16 +3,34 @@
 import { useEffect, useState } from "react";
 
 const REMINDERS = [
-  "Trước khi xuất thủ, hãy xem đối phương có nước chiếu, bắt quân hay đe dọa nào không.",
-  "Tĩnh tâm ba nhịp: kiểm tra vua, quân treo và ô yếu rồi mới hạ tử.",
-  "Đừng chỉ nhìn nước mình muốn đi. Hãy hỏi đối thủ muốn làm gì ở nước kế tiếp.",
-  "Một quân đứng đẹp chưa chắc hữu dụng. Hãy tìm quân yếu nhất của mình để cải thiện.",
-  "Khi thế cờ rối, ưu tiên nước chắc chắn: an toàn vua, phát triển quân và giữ liên kết.",
-  "Sau mỗi nước, nhìn lại toàn bàn một lần. Kỳ đạo trọng toàn cục hơn một đòn đẹp mắt.",
+  "Trước khi hạ tử, hãy nhìn toàn cục một lần.",
+  "Tĩnh tâm: kiểm tra nước chiếu, bắt quân và đe dọa trước.",
+  "Đừng vội công. Hãy hỏi quân nào của mình đang đứng kém nhất.",
+  "Kỳ đạo quý ở thế. Một nước chắc chắn thường mạnh hơn một nước hoa mỹ.",
+  "Sau mỗi nước của đối thủ, hãy hỏi: ý đồ của họ là gì?",
+  "Giữ vua an ổn, nối quân thông suốt, rồi mới luận công thủ.",
 ];
 
 export default function DaoAmbient() {
   const [reminderIndex, setReminderIndex] = useState(0);
+
+  useEffect(() => {
+    const root = document.documentElement;
+
+    const onPointerMove = (event: PointerEvent) => {
+      const x = event.clientX / Math.max(window.innerWidth, 1) - 0.5;
+      const y = event.clientY / Math.max(window.innerHeight, 1) - 0.5;
+      root.style.setProperty("--dao-parallax-x", `${(x * 12).toFixed(2)}px`);
+      root.style.setProperty("--dao-parallax-y", `${(y * 8).toFixed(2)}px`);
+    };
+
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      root.style.removeProperty("--dao-parallax-x");
+      root.style.removeProperty("--dao-parallax-y");
+    };
+  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -22,18 +40,23 @@ export default function DaoAmbient() {
   }, []);
 
   return (
-    <div className="daoAmbient" aria-hidden="true">
-      <div className="celestialBackdrop" />
-      <div className="celestialGodRays" />
+    <div className="daoAmbient daoThemeAmbient" aria-hidden="true">
+      <div className="daoThemeBackdrop" />
+      <div className="daoThemeGlow" />
 
-      <div className="movingCloud cloudFrontOne" />
-      <div className="movingCloud cloudFrontTwo" />
-      <div className="movingCloud cloudMidOne" />
-      <div className="movingCloud cloudMidTwo" />
+      <div className="daoCloudVeil cloudVeilOne" />
+      <div className="daoCloudVeil cloudVeilTwo" />
+      <div className="daoCloudVeil cloudVeilThree" />
+
+      <div className="daoMysticHalo">
+        <span>乾</span><span>坎</span><span>艮</span><span>震</span>
+        <b>☯</b>
+        <span>巽</span><span>離</span><span>坤</span><span>兌</span>
+      </div>
 
       <div
         key={reminderIndex}
-        className={`thaiThanhVisit visit-${reminderIndex % 3}`}
+        className={`thaiThanhVisit daoMasterVisit visit-${reminderIndex % 3}`}
       >
         <img
           className="thaiThanhSpirit"
@@ -41,16 +64,15 @@ export default function DaoAmbient() {
           alt=""
           draggable={false}
         />
-
-        <div className="thaiThanhReminder">
+        <div className="thaiThanhReminder daoMasterReminder">
           <strong>Thái Thanh sư phụ</strong>
           <span>{REMINDERS[reminderIndex]}</span>
         </div>
       </div>
 
-      <div className="mysticSeal sealOne"><b>清</b><span>靜</span></div>
-      <div className="mysticSeal sealTwo"><b>觀</b><span>局</span></div>
-      <div className="mysticSeal sealThree"><b>守</b><span>心</span></div>
+      <div className="daoRune runeOne">清心</div>
+      <div className="daoRune runeTwo">觀局</div>
+      <div className="daoRune runeThree">守一</div>
     </div>
   );
 }

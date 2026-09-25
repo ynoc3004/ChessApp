@@ -3838,3 +3838,428 @@ body {
     animation: none !important;
   }
 }
+
+
+/* =========================================================
+   TIÊN CẢNH AI · HUYỀN MÔN SÁNG
+   Theme lấy trực tiếp từ ảnh tiên cảnh AI được tạo cho project.
+   ========================================================= */
+
+:root {
+  --dao-parallax-x: 0px;
+  --dao-parallax-y: 0px;
+  --dao-ink: #4d463f;
+  --dao-muted: #7e756b;
+  --dao-gold: #c59a5d;
+  --dao-rose: #d995a7;
+  --dao-jade: #79a992;
+  --dao-glass: rgba(255, 255, 252, .72);
+  --dao-glass-strong: rgba(255, 254, 249, .84);
+  --dao-line: rgba(166, 151, 137, .52);
+}
+
+html,
+body {
+  background: #e8f2f7 !important;
+  color: var(--dao-ink) !important;
+}
+
+body::before,
+body::after,
+.shell::after,
+.analysisApp::after {
+  display: none !important;
+  content: none !important;
+}
+
+.daoThemeAmbient {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  background: #e8f2f7 !important;
+}
+
+.daoThemeBackdrop {
+  position: absolute;
+  inset: -3.5%;
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, .04) 0%,
+      rgba(255, 243, 244, .05) 46%,
+      rgba(236, 248, 246, .08) 100%
+    ),
+    url("/dao/immortal-theme.webp");
+  background-size: cover;
+  background-position: center center;
+  transform:
+    translate3d(var(--dao-parallax-x), var(--dao-parallax-y), 0)
+    scale(1.075);
+  filter: saturate(1.07) brightness(1.03);
+  transition: transform 220ms ease-out;
+  will-change: transform;
+}
+
+.daoThemeGlow {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 63% 18%, rgba(255, 244, 190, .21), transparent 22%),
+    linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,240,244,.025) 55%, rgba(226,244,241,.06));
+  mix-blend-mode: screen;
+}
+
+/* Mây động chỉ là lớp khí quyển mềm, để ảnh AI vẫn là nhân vật chính. */
+.daoCloudVeil {
+  position: absolute;
+  left: -48vw;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 18% 52%, rgba(255,255,255,.80) 0 19%, transparent 49%),
+    radial-gradient(ellipse at 46% 43%, rgba(255,221,234,.70) 0 24%, transparent 54%),
+    radial-gradient(ellipse at 72% 57%, rgba(255,251,252,.76) 0 22%, transparent 51%),
+    radial-gradient(ellipse at 91% 44%, rgba(255,219,233,.58) 0 18%, transparent 47%);
+  filter: blur(19px);
+  animation: daoCloudAcross linear infinite;
+  will-change: transform;
+}
+
+.cloudVeilOne {
+  top: 12vh;
+  width: 60vw;
+  height: 16vh;
+  opacity: .23;
+  animation-duration: 74s;
+}
+
+.cloudVeilTwo {
+  top: 47vh;
+  width: 68vw;
+  height: 20vh;
+  opacity: .18;
+  animation-duration: 98s;
+  animation-delay: -37s;
+}
+
+.cloudVeilThree {
+  top: 74vh;
+  width: 78vw;
+  height: 22vh;
+  opacity: .15;
+  animation-duration: 124s;
+  animation-delay: -68s;
+}
+
+@keyframes daoCloudAcross {
+  from { transform: translate3d(-8vw, 0, 0) scale(.95); }
+  to { transform: translate3d(160vw, -1.8vh, 0) scale(1.08); }
+}
+
+/* Bát quái/huyền môn rất nhẹ, không phá cảnh. */
+.daoMysticHalo {
+  position: absolute;
+  right: 3vw;
+  bottom: 4vh;
+  width: 154px;
+  height: 154px;
+  border: 1px solid rgba(172, 129, 75, .23);
+  border-radius: 50%;
+  color: rgba(143, 101, 62, .38);
+  opacity: .68;
+  animation: daoHaloSpin 44s linear infinite;
+}
+
+.daoMysticHalo::before,
+.daoMysticHalo::after {
+  content: "";
+  position: absolute;
+  inset: 17px;
+  border: 1px dashed rgba(171, 126, 72, .22);
+  border-radius: inherit;
+}
+
+.daoMysticHalo::after {
+  inset: 41px;
+  border-style: solid;
+}
+
+.daoMysticHalo b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 29px;
+  font-weight: 400;
+  color: rgba(154, 109, 61, .56);
+}
+
+.daoMysticHalo span {
+  position: absolute;
+  font: 700 12px Georgia, serif;
+}
+
+.daoMysticHalo span:nth-child(1) { left: 50%; top: 4px; transform: translateX(-50%); }
+.daoMysticHalo span:nth-child(2) { right: 18px; top: 22px; }
+.daoMysticHalo span:nth-child(3) { right: 4px; top: 50%; transform: translateY(-50%); }
+.daoMysticHalo span:nth-child(4) { right: 18px; bottom: 22px; }
+.daoMysticHalo span:nth-child(6) { left: 50%; bottom: 4px; transform: translateX(-50%); }
+.daoMysticHalo span:nth-child(7) { left: 18px; bottom: 22px; }
+.daoMysticHalo span:nth-child(8) { left: 4px; top: 50%; transform: translateY(-50%); }
+.daoMysticHalo span:nth-child(9) { left: 18px; top: 22px; }
+
+@keyframes daoHaloSpin {
+  to { transform: rotate(360deg); }
+}
+
+.daoRune {
+  position: absolute;
+  padding: 7px 8px;
+  writing-mode: vertical-rl;
+  border: 1px solid rgba(184, 127, 64, .34);
+  border-radius: 999px;
+  background: rgba(255, 240, 196, .17);
+  color: rgba(141, 91, 46, .54);
+  box-shadow: 0 8px 20px rgba(138, 91, 49, .05);
+  font: 800 11px/1 Georgia, serif;
+  letter-spacing: .12em;
+  animation: daoRuneFloat 7s ease-in-out infinite alternate;
+}
+
+.runeOne { left: 2vw; top: 31vh; }
+.runeTwo { right: 1.8vw; top: 42vh; animation-delay: -2.2s; }
+.runeThree { right: 8vw; bottom: 12vh; animation-delay: -4.4s; }
+
+@keyframes daoRuneFloat {
+  from { transform: translateY(-5px); }
+  to { transform: translateY(7px); }
+}
+
+/* Thái Thanh vẫn là yếu tố động, nhưng nhường sân cho tiên cảnh. */
+.daoMasterVisit {
+  width: clamp(245px, 21vw, 345px) !important;
+  top: 8vh !important;
+  right: 1.2vw !important;
+  opacity: .82;
+  filter: drop-shadow(0 18px 28px rgba(78, 73, 67, .13)) !important;
+}
+
+.daoMasterReminder {
+  width: min(245px, 82%) !important;
+  border-color: rgba(189, 139, 106, .54) !important;
+  background: linear-gradient(180deg, rgba(255,255,252,.91), rgba(255,244,241,.86)) !important;
+  color: #554940 !important;
+  backdrop-filter: blur(9px);
+}
+
+/* Nội dung trở thành kính ngọc sáng thay vì các khối đen che background. */
+.uploadCard,
+.recentBooksCompact,
+.recentBookItem,
+.scanProgress,
+.results,
+.galleryToolbar,
+.analysisTopbar,
+.sourcePane,
+.boardPane,
+.toolsPane,
+.panel {
+  background:
+    linear-gradient(180deg, rgba(255,255,252,.79), rgba(250,248,244,.69)) !important;
+  color: var(--dao-ink) !important;
+  border-color: var(--dao-line) !important;
+  box-shadow:
+    0 12px 32px rgba(80, 85, 86, .08),
+    inset 0 1px 0 rgba(255,255,255,.84) !important;
+  backdrop-filter: blur(11px) saturate(1.08);
+}
+
+/* Gallery mờ nhẹ để tiên cảnh xuyên qua, nhưng rê chuột thì hiện rõ. */
+.compactGalleryGrid .card {
+  background:
+    linear-gradient(180deg, rgba(255,255,253,.67), rgba(250,247,242,.58)) !important;
+  border-color: rgba(170, 155, 141, .46) !important;
+  box-shadow: 0 10px 26px rgba(66, 70, 73, .075) !important;
+  backdrop-filter: blur(8px) saturate(1.03);
+  transition:
+    background-color .2s ease,
+    transform .2s ease,
+    box-shadow .2s ease;
+}
+
+.compactGalleryGrid .card:hover {
+  transform: translateY(-2px);
+  background:
+    linear-gradient(180deg, rgba(255,255,253,.86), rgba(250,247,242,.79)) !important;
+  box-shadow: 0 15px 32px rgba(66,70,73,.11) !important;
+}
+
+.compactGalleryGrid .imageWrap {
+  background: rgba(255,255,255,.28) !important;
+  border-color: rgba(168,157,145,.34) !important;
+}
+
+.compactGalleryGrid .imageWrap img {
+  opacity: .83;
+  filter: saturate(.82) contrast(.94) brightness(1.035);
+  transition: opacity .18s ease, filter .18s ease;
+}
+
+.compactGalleryGrid .card:hover .imageWrap img {
+  opacity: 1;
+  filter: none;
+}
+
+.compactGalleryGrid .cardBody {
+  color: #4f463f !important;
+}
+
+.compactGalleryGrid .cardBody .subtle {
+  color: #7c7168 !important;
+}
+
+/* Các ảnh nguồn trong analysis vẫn rõ; bàn cờ phân tích tuyệt đối không làm mờ. */
+.sourceStage,
+.imageWrap {
+  background: rgba(255,255,255,.55) !important;
+}
+
+.boardStage,
+.engineMiniBoard,
+.boardCapture {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* Header/hero sáng như mây, chữ nâu tím để ăn với bình minh. */
+.hero h1,
+.analysisBrand > strong,
+.paneHeader strong,
+.galleryToolbar h2,
+.recentBooksCompact > summary {
+  color: #51453f !important;
+  text-shadow: 0 2px 12px rgba(255,255,255,.62);
+}
+
+.eyebrow {
+  color: #a56677 !important;
+}
+
+.daoQuote {
+  color: #946f66 !important;
+}
+
+.subtle,
+.paneMeta,
+.controlLabel,
+.pieceChooserLabel,
+.toolFooter,
+.recentBookItem p {
+  color: var(--dao-muted) !important;
+}
+
+/* Nút mang màu đào + ngọc, tránh giao diện game tối. */
+.button,
+.compactButton,
+.reviewStrip button,
+.pageSearch input,
+.compactFenInput,
+.engineControlRow select,
+.segmented button,
+.toolTabs button {
+  background: rgba(255,252,248,.82) !important;
+  color: #554941 !important;
+  border-color: rgba(177,161,147,.62) !important;
+  backdrop-filter: blur(7px);
+}
+
+.button:hover,
+.compactButton:hover,
+.segmented button:hover,
+.toolTabs button:hover {
+  background: rgba(255,241,242,.94) !important;
+  border-color: rgba(193,133,148,.72) !important;
+}
+
+.primary,
+.primaryLink,
+.segmented button.active,
+.toolTabs button.active {
+  background: linear-gradient(180deg, #dc9dac, #c88293) !important;
+  color: #fff !important;
+  border-color: #bd7588 !important;
+  box-shadow: 0 5px 14px rgba(190,112,134,.15);
+}
+
+.validBadge,
+.aiChip {
+  background: rgba(220,240,229,.78) !important;
+  color: #4e735f !important;
+  border-color: rgba(116,161,137,.58) !important;
+}
+
+.dropzone {
+  background: rgba(255,255,252,.49) !important;
+  border-color: rgba(170,153,139,.55) !important;
+}
+
+/* Mở rộng chút không gian hai bên để background có đất diễn. */
+.shell {
+  max-width: 1160px !important;
+}
+
+.analysisApp {
+  max-width: 1480px !important;
+}
+
+/* Thanh cuộn nhẹ nhàng hơn với theme. */
+* {
+  scrollbar-color: rgba(177, 126, 143, .48) rgba(255,255,255,.16);
+}
+
+@media (max-width: 1080px) {
+  .daoMasterVisit {
+    width: 250px !important;
+    right: -38px !important;
+    opacity: .58;
+  }
+
+  .daoMysticHalo {
+    opacity: .38;
+  }
+}
+
+@media (max-width: 760px) {
+  .daoMasterVisit {
+    width: 180px !important;
+    right: -58px !important;
+    opacity: .34;
+  }
+
+  .daoMasterReminder {
+    display: none !important;
+  }
+
+  .daoMysticHalo,
+  .daoRune {
+    opacity: .2;
+  }
+
+  .compactGalleryGrid .imageWrap img {
+    opacity: .9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daoThemeBackdrop {
+    transition: none !important;
+    transform: scale(1.075) !important;
+  }
+
+  .daoCloudVeil,
+  .daoMysticHalo,
+  .daoRune {
+    animation: none !important;
+  }
+}
