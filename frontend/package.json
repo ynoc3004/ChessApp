@@ -6,10 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "postinstall": "node scripts/copy-runtime-assets.mjs && node scripts/patch-react-chessboard.mjs",
-    "predev": "node scripts/patch-react-chessboard.mjs",
-    "prebuild": "node scripts/patch-react-chessboard.mjs",
-    "prestart": "node scripts/patch-react-chessboard.mjs"
+    "postinstall": "node scripts/rebuild-immortal-bg.mjs && node scripts/copy-runtime-assets.mjs && node scripts/patch-react-chessboard.mjs",
+    "predev": "node scripts/rebuild-immortal-bg.mjs && node scripts/patch-react-chessboard.mjs",
+    "prebuild": "node scripts/rebuild-immortal-bg.mjs && node scripts/patch-react-chessboard.mjs",
+    "prestart": "node scripts/rebuild-immortal-bg.mjs && node scripts/patch-react-chessboard.mjs"
   },
   "dependencies": {
     "chess.js": "1.4.0",
