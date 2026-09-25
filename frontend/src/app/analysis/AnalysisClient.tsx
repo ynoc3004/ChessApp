@@ -648,10 +648,15 @@ export default function AnalysisClient({
         backgroundColor: "#1c1b18",
       });
       const link = document.createElement("a");
-      link.download = `chess-position-${positionId || "current"}.png`;
+      const mode = editMode ? "sau-thi-trien" : "sau-dien-hoa";
+      link.download = `ky-do-${positionId || "current"}-${mode}.png`;
       link.href = dataUrl;
       link.click();
-      setMessage("Đã thu trận đồ hiện tại.");
+      setMessage(
+        editMode
+          ? "Đã tải kỳ đồ sau khi thi triển."
+          : "Đã tải kỳ đồ sau khi diễn hóa.",
+      );
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Không tạo được ảnh bàn cờ.");
     }
@@ -946,9 +951,18 @@ export default function AnalysisClient({
                 Diễn hóa
               </button>
             </div>
-            <span className={isLegal ? "validBadge" : "invalidBadge"}>
-              {isLegal ? "✓ Trận pháp ổn định" : "⚠ Trận pháp hỗn loạn"}
-            </span>
+            <div className="boardToolbarActions">
+              <span className={isLegal ? "validBadge" : "invalidBadge"}>
+                {isLegal ? "✓ Trận pháp ổn định" : "⚠ Trận pháp hỗn loạn"}
+              </span>
+              <button
+                className="button compactButton daoDownloadButton"
+                onClick={() => void downloadBoardImage()}
+                title="Tải đúng kỳ đồ đang hiển thị thành PNG"
+              >
+                ↓ Tải kỳ đồ PNG
+              </button>
+            </div>
           </div>
 
           <div className="boardStage">
@@ -977,7 +991,7 @@ export default function AnalysisClient({
                 className="button compactButton"
                 onClick={() => void downloadBoardImage()}
               >
-                Thu trận đồ
+                {editMode ? "Thu kỳ đồ" : "Thu ảnh diễn hóa"}
               </button>
               <button
                 className="button compactButton"

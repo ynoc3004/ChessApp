@@ -1818,3 +1818,41 @@ h1 {
     display: none;
   }
 }
+
+
+/* Download the reconstructed/current board directly after recognition or play. */
+.boardToolbarActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.daoDownloadButton {
+  border-color: rgba(196, 165, 106, .55) !important;
+  color: #e5d5a6 !important;
+  background:
+    linear-gradient(180deg, rgba(117, 92, 45, .18), rgba(59, 75, 53, .22)),
+    #111510 !important;
+  box-shadow: inset 0 0 14px rgba(196, 165, 106, .04);
+}
+
+.daoDownloadButton:hover {
+  border-color: rgba(213, 186, 121, .82) !important;
+  color: #f3e6bd !important;
+  background:
+    linear-gradient(180deg, rgba(140, 109, 52, .25), rgba(72, 96, 63, .28)),
+    #151a14 !important;
+}
+
+@media (max-width: 820px) {
+  .compactBoardToolbar {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .boardToolbarActions {
+    justify-content: flex-start;
+  }
+}
