@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fd2ff"/>
+      <stop offset=".22" stop-color="#d7dbff"/>
+      <stop offset=".44" stop-color="#ffd4df"/>
+      <stop offset=".68" stop-color="#ffe9db"/>
+      <stop offset="1" stop-color="#e4f1e8"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="50%" cy="45%" r="50%">
+      <stop offset="0" stop-color="#fffdf4" stop-opacity="1"/>
+      <stop offset=".18" stop-color="#fff2bd" stop-opacity=".9"/>
+      <stop offset=".52" stop-color="#ffd6dd" stop-opacity=".32"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="farPeak" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7d99b4" stop-opacity=".58"/>
+      <stop offset=".58" stop-color="#819a9f" stop-opacity=".32"/>
+      <stop offset="1" stop-color="#cbded6" stop-opacity=".05"/>
+    </linearGradient>
+    <linearGradient id="midPeak" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#617f8e" stop-opacity=".7"/>
+      <stop offset=".72" stop-color="#668678" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#d8ebe0" stop-opacity=".04"/>
+    </linearGradient>
+    <linearGradient id="island" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7d998c"/>
+      <stop offset=".45" stop-color="#607a70"/>
+      <stop offset="1" stop-color="#334f4a"/>
+    </linearGradient>
+    <linearGradient id="cliff" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#657d72"/>
+      <stop offset=".5" stop-color="#465f59"/>
+      <stop offset="1" stop-color="#203b3a"/>
+    </linearGradient>
+    <linearGradient id="fall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".98"/>
+      <stop offset=".35" stop-color="#c9efff" stop-opacity=".82"/>
+      <stop offset=".82" stop-color="#daf4ff" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="cloud" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset=".22" stop-color="#fff8fb" stop-opacity=".86"/>
+      <stop offset=".55" stop-color="#ffe4ee" stop-opacity=".9"/>
+      <stop offset=".84" stop-color="#fff" stop-opacity=".76"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="blur18"><feGaussianBlur stdDeviation="18"/></filter>
+    <filter id="blur34"><feGaussianBlur stdDeviation="34"/></filter>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+  <ellipse cx="1035" cy="155" rx="510" ry="360" fill="url(#sun)"/>
+
+  <!-- very distant needle mountains -->
+  <g fill="url(#farPeak)" opacity=".52" filter="url(#blur18)">
+    <path d="M-80 710 C80 590 125 440 220 275 C270 190 295 105 328 40 C355 162 390 264 455 365 C520 465 585 545 650 690 Z"/>
+    <path d="M330 705 C470 625 545 486 635 292 C685 184 710 90 742 8 C785 164 816 268 885 379 C950 482 1000 570 1068 700 Z"/>
+    <path d="M780 700 C910 620 1000 488 1104 286 C1155 188 1192 76 1216 0 C1250 148 1306 274 1370 390 C1432 500 1505 585 1580 705 Z"/>
+    <path d="M1370 712 C1500 630 1582 500 1684 302 C1730 212 1775 130 1810 54 C1832 178 1870 300 1960 425 L2020 720 Z"/>
+  </g>
+
+  <!-- middle mountains with shelves and temples -->
+  <g opacity=".82">
+    <path d="M-80 830 C90 760 195 625 322 480 C388 406 444 341 493 260 C540 391 596 489 691 572 C770 642 836 721 890 820 Z" fill="url(#midPeak)"/>
+    <path d="M1010 825 C1122 740 1204 610 1297 465 C1364 360 1418 267 1460 190 C1501 345 1572 458 1660 556 C1739 644 1820 716 2000 810 Z" fill="url(#midPeak)"/>
+    <path d="M610 802 C715 731 792 622 866 515 C928 426 970 347 1018 260 C1058 393 1114 501 1206 590 L1315 800 Z" fill="url(#midPeak)" opacity=".55"/>
+  </g>
+
+  <!-- left floating immortal island -->
+  <g transform="translate(225 285)">
+    <path d="M25 247 C70 110 206 61 335 109 C405 135 469 192 494 261 C427 315 345 338 244 338 C147 338 72 310 25 247Z" fill="url(#island)"/>
+    <path d="M78 279 C129 346 160 450 185 585 C235 492 269 399 286 330 C323 418 353 507 371 607 C407 497 442 392 453 286 C367 329 171 340 78 279Z" fill="url(#cliff)" opacity=".93"/>
+    <path d="M163 314 C175 400 191 485 199 585" stroke="url(#fall)" stroke-width="28" stroke-linecap="round" filter="url(#glow)"/>
+    <path d="M381 308 C388 392 405 455 413 541" stroke="url(#fall)" stroke-width="19" stroke-linecap="round" opacity=".76"/>
+    <g fill="#f1e5d2" stroke="#9d7b72" stroke-width="3">
+      <path d="M165 151 h183 l-31 25 h-120z"/>
+      <path d="M194 112 h126 l-20 25 h-83z"/>
+      <rect x="219" y="174" width="74" height="82" rx="5"/>
+      <path d="M94 195 h90 l-19 20 h-52z"/>
+      <rect x="119" y="214" width="42" height="52"/>
+      <path d="M330 190 h93 l-19 20 h-55z"/>
+      <rect x="354" y="209" width="46" height="55"/>
+    </g>
+    <g stroke="#678775" stroke-width="7" stroke-linecap="round" opacity=".8">
+      <path d="M72 226 Q91 176 130 167"/>
+      <path d="M411 224 Q392 176 356 168"/>
+      <path d="M205 244 Q187 204 168 198"/>
+      <path d="M310 241 Q331 202 355 198"/>
+    </g>
+  </g>
+
+  <!-- right floating island -->
+  <g transform="translate(1300 305) scale(.82)">
+    <path d="M25 247 C70 110 206 61 335 109 C405 135 469 192 494 261 C427 315 345 338 244 338 C147 338 72 310 25 247Z" fill="url(#island)"/>
+    <path d="M78 279 C129 346 160 450 185 585 C235 492 269 399 286 330 C323 418 353 507 371 607 C407 497 442 392 453 286 C367 329 171 340 78 279Z" fill="url(#cliff)" opacity=".94"/>
+    <path d="M169 309 C181 400 194 487 203 584" stroke="url(#fall)" stroke-width="25" stroke-linecap="round"/>
+    <g fill="#f3e9d7" stroke="#9b7c70" stroke-width="3">
+      <path d="M170 150 h184 l-31 25 h-120z"/>
+      <path d="M200 109 h126 l-21 25 h-82z"/>
+      <rect x="225" y="173" width="73" height="83" rx="5"/>
+    </g>
+  </g>
+
+  <!-- cloud sea -->
+  <g opacity=".8" filter="url(#blur18)">
+    <ellipse cx="180" cy="790" rx="350" ry="95" fill="#fff"/>
+    <ellipse cx="540" cy="810" rx="390" ry="120" fill="#fff8fb"/>
+    <ellipse cx="930" cy="770" rx="430" ry="105" fill="#ffeef4"/>
+    <ellipse cx="1335" cy="805" rx="420" ry="120" fill="#fff"/>
+    <ellipse cx="1710" cy="775" rx="365" ry="100" fill="#ffeaf2"/>
+    <ellipse cx="410" cy="940" rx="520" ry="135" fill="#fff"/>
+    <ellipse cx="1040" cy="930" rx="630" ry="160" fill="#fff7fa"/>
+    <ellipse cx="1640" cy="940" rx="510" ry="150" fill="#fff"/>
+  </g>
+
+  <!-- thin pink cloud ribbons -->
+  <g fill="none" stroke="url(#cloud)" stroke-linecap="round" opacity=".65" filter="url(#blur18)">
+    <path d="M-80 620 C290 520 410 665 740 585 C1010 520 1190 570 1430 510 C1650 455 1810 500 2020 425" stroke-width="52"/>
+    <path d="M-120 735 C240 675 450 790 760 704 C1080 615 1320 720 1600 650 C1775 606 1900 625 2030 590" stroke-width="43"/>
+  </g>
+
+  <!-- light shafts -->
+  <g opacity=".14" fill="#fff8d8">
+    <path d="M820 -20 L1030 -20 L730 1080 L565 1080 Z"/>
+    <path d="M1120 -20 L1250 -20 L1090 1080 L980 1080 Z"/>
+  </g>
+</svg>

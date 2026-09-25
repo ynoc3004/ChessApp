@@ -192,7 +192,7 @@ export default function HomePage() {
           <span>☰</span><span>☵</span><span>☶</span><span>☷</span>
         </div>
         <p className="eyebrow">KỲ PHỔ TÀNG KINH · HUYỀN MÔN KỲ ĐẠO</p>
-        <h1>Khai cổ phổ giữa tiên sơn vân hải, diễn hóa thế cờ dưới thần quang.</h1>
+        <h1>Khai cổ phổ giữa vân hải tiên sơn, tĩnh tâm diễn hóa kỳ cục.</h1>
         <p className="subtle">
           Nạp PDF hoặc DOCX vào Tàng Kinh Các. Hệ thống tự tìm kỳ đồ, AI đọc 64 ô và dựng FEN; sau đó bạn có thể bố trận, diễn hóa nước đi và vận dụng Tâm pháp Stockfish trong một tiên cảnh sáng, nhẹ và dễ quan sát.
         </p>

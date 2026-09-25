@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 520" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <radialGradient id="aura" cx="50%" cy="48%" r="50%">
+      <stop offset="0" stop-color="#fff8c8" stop-opacity=".74"/>
+      <stop offset=".38" stop-color="#e7e2ff" stop-opacity=".35"/>
+      <stop offset=".72" stop-color="#c9f5ff" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cloud" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".95"/>
+      <stop offset=".44" stop-color="#ffe9f2" stop-opacity=".9"/>
+      <stop offset=".78" stop-color="#dff4ff" stop-opacity=".8"/>
+      <stop offset="1" stop-color="#fff" stop-opacity=".35"/>
+    </linearGradient>
+    <filter id="blur12"><feGaussianBlur stdDeviation="12"/></filter>
+    <filter id="shadow"><feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#725a52" flood-opacity=".22"/></filter>
+    <mask id="softImage">
+      <radialGradient id="fade" cx="51%" cy="50%" r="57%">
+        <stop offset="0" stop-color="white"/>
+        <stop offset=".68" stop-color="white" stop-opacity=".96"/>
+        <stop offset=".9" stop-color="white" stop-opacity=".3"/>
+        <stop offset="1" stop-color="black"/>
+      </radialGradient>
+      <rect width="768" height="432" fill="url(#fade)"/>
+    </mask>
+    <clipPath id="hairClip">
+      <path d="M190 8 L525 0 L566 250 L456 303 L245 296 L112 230 Z"/>
+    </clipPath>
+    <clipPath id="fanClip">
+      <path d="M265 120 L578 115 L640 352 L242 357 Z"/>
+    </clipPath>
+    <clipPath id="sleeveClip">
+      <path d="M120 177 L680 158 L737 424 L72 426 Z"/>
+    </clipPath>
+  </defs>
+
+  <ellipse cx="395" cy="225" rx="292" ry="240" fill="url(#aura)">
+    <animate attributeName="opacity" values=".54;.9;.54" dur="5.2s" repeatCount="indefinite"/>
+    <animateTransform attributeName="transform" type="scale" values=".97 .97;1.04 1.04;.97 .97" additive="sum" dur="5.2s" repeatCount="indefinite"/>
+  </ellipse>
+
+  <g filter="url(#shadow)">
+    <animateTransform attributeName="transform" type="translate" values="0 4;0 -5;0 4" dur="5.8s" repeatCount="indefinite"/>
+
+    <!-- base image -->
+    <image href="/dao/taithanh-master.webp" x="0" y="0" width="768" height="432" preserveAspectRatio="xMidYMid slice" mask="url(#softImage)"/>
+
+    <!-- hair moves separately -->
+    <g clip-path="url(#hairClip)" opacity=".95">
+      <image href="/dao/taithanh-master.webp" x="0" y="0" width="768" height="432" preserveAspectRatio="xMidYMid slice"/>
+      <animateTransform attributeName="transform" type="rotate" values="-0.8 370 135;1.1 370 135;-0.8 370 135" dur="3.4s" repeatCount="indefinite"/>
+    </g>
+
+    <!-- sleeves move subtly -->
+    <g clip-path="url(#sleeveClip)" opacity=".94">
+      <image href="/dao/taithanh-master.webp" x="0" y="0" width="768" height="432" preserveAspectRatio="xMidYMid slice"/>
+      <animateTransform attributeName="transform" type="rotate" values="-0.45 420 280;0.85 420 280;-0.45 420 280" dur="4.1s" repeatCount="indefinite"/>
+    </g>
+
+    <!-- fan / ritual object motion -->
+    <g clip-path="url(#fanClip)" opacity=".98">
+      <image href="/dao/taithanh-master.webp" x="0" y="0" width="768" height="432" preserveAspectRatio="xMidYMid slice"/>
+      <animateTransform attributeName="transform" type="rotate" values="-1.7 455 238;2.8 455 238;-.4 455 238;-1.7 455 238" dur="2.55s" repeatCount="indefinite"/>
+    </g>
+
+    <!-- tiny speaking motion -->
+    <ellipse cx="438" cy="105" rx="4.4" ry="1.2" fill="#8f5e5c" opacity=".42">
+      <animate attributeName="ry" values=".7;2.2;.8;1.7;.7" dur="1.05s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values=".25;.48;.28;.44;.25" dur="1.05s" repeatCount="indefinite"/>
+    </ellipse>
+
+    <!-- light sweep -->
+    <path d="M40 385 L310 20 L410 20 L140 420 Z" fill="#fff" opacity="0">
+      <animate attributeName="opacity" values="0;0;.18;0;0" dur="7s" repeatCount="indefinite"/>
+      <animateTransform attributeName="transform" type="translate" values="-240 0;820 0" dur="7s" repeatCount="indefinite"/>
+    </path>
+  </g>
+
+  <!-- flying cloud mount -->
+  <g transform="translate(82 358)" filter="url(#blur12)" opacity=".92">
+    <ellipse cx="135" cy="48" rx="132" ry="44" fill="url(#cloud)"/>
+    <ellipse cx="287" cy="35" rx="162" ry="57" fill="url(#cloud)"/>
+    <ellipse cx="457" cy="51" rx="140" ry="42" fill="url(#cloud)"/>
+    <ellipse cx="344" cy="83" rx="240" ry="42" fill="url(#cloud)"/>
+    <animateTransform attributeName="transform" type="translate" additive="sum" values="-8 2;10 -4;-8 2" dur="4.6s" repeatCount="indefinite"/>
+  </g>
+
+  <g opacity=".62" fill="none" stroke-linecap="round">
+    <path d="M106 407 C250 355 353 430 518 379 C603 353 658 360 744 331" stroke="#ffe8f3" stroke-width="16">
+      <animate attributeName="stroke-width" values="12;19;12" dur="5.1s" repeatCount="indefinite"/>
+    </path>
+    <path d="M42 451 C194 402 324 463 448 426 C564 392 650 411 735 390" stroke="#e7f5ff" stroke-width="11">
+      <animate attributeName="stroke-width" values="9;14;9" dur="6.2s" repeatCount="indefinite"/>
+    </path>
+  </g>
+</svg>
