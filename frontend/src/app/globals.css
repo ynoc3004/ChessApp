@@ -4263,3 +4263,270 @@ body::after,
     animation: none !important;
   }
 }
+
+
+/* =========================================================
+   TIÊN CẢNH AI 2.0 · GLASS UI + HUYỀN MÔN NHẸ
+   Ưu tiên khoe background; gallery và kỳ đồ dịu hơn, hover mới rõ.
+   ========================================================= */
+
+.daoThemeBackdrop {
+  inset: -2.5% !important;
+  background-position: center 42% !important;
+  transform:
+    translate3d(var(--dao-parallax-x), var(--dao-parallax-y), 0)
+    scale(1.055) !important;
+  filter: saturate(1.12) brightness(1.055) contrast(1.01) !important;
+}
+
+.daoThemeGlow {
+  background:
+    radial-gradient(circle at 63% 17%, rgba(255, 245, 191, .12), transparent 20%),
+    linear-gradient(180deg, rgba(255,255,255,.015), rgba(255,239,245,.02) 55%, rgba(226,245,242,.035)) !important;
+}
+
+.daoCloudVeil {
+  opacity: .15 !important;
+}
+
+.cloudVeilOne { opacity: .19 !important; }
+.cloudVeilTwo { opacity: .13 !important; }
+.cloudVeilThree { opacity: .10 !important; }
+
+/* Cánh hoa đào rơi rất nhẹ để nối theme với background. */
+.daoPetals {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.daoPetals i {
+  --i: var(--petal-index);
+  position: absolute;
+  top: -8vh;
+  left: calc((var(--i) * 7.3%) + 1%);
+  width: calc(8px + (var(--i) % 4) * 2px);
+  height: calc(12px + (var(--i) % 3) * 3px);
+  border-radius: 85% 15% 80% 20%;
+  background: linear-gradient(145deg, rgba(255,205,221,.92), rgba(232,139,171,.70));
+  box-shadow: 0 0 8px rgba(236,148,178,.16);
+  opacity: .46;
+  transform: rotate(calc(var(--i) * 23deg));
+  animation: daoPetalFall calc(16s + (var(--i) % 5) * 4s) linear infinite;
+  animation-delay: calc(var(--i) * -2.7s);
+}
+
+@keyframes daoPetalFall {
+  0% {
+    translate: 0 -10vh;
+    rotate: 0deg;
+  }
+  35% {
+    translate: 4vw 38vh;
+    rotate: 180deg;
+  }
+  68% {
+    translate: -2vw 72vh;
+    rotate: 355deg;
+  }
+  100% {
+    translate: 5vw 112vh;
+    rotate: 540deg;
+  }
+}
+
+/* Glass panels: đủ đọc nhưng không che tiên cảnh. */
+.uploadCard,
+.recentBooksCompact,
+.recentBookItem,
+.scanProgress,
+.results,
+.galleryToolbar,
+.analysisTopbar,
+.sourcePane,
+.boardPane,
+.toolsPane,
+.panel {
+  background:
+    linear-gradient(180deg, rgba(255,255,252,.60), rgba(250,248,244,.47)) !important;
+  border-color: rgba(177, 153, 137, .42) !important;
+  box-shadow:
+    0 12px 34px rgba(73,78,82,.065),
+    inset 0 1px 0 rgba(255,255,255,.68) !important;
+  backdrop-filter: blur(9px) saturate(1.07) !important;
+}
+
+.results {
+  background: rgba(255,255,255,.17) !important;
+  backdrop-filter: blur(5px) saturate(1.04) !important;
+}
+
+.galleryToolbar {
+  background:
+    linear-gradient(90deg, rgba(255,252,249,.57), rgba(255,242,246,.43), rgba(234,246,239,.45)) !important;
+}
+
+/* Card kỳ đồ trở thành lớp kính nổi trên mây. */
+.compactGalleryGrid .card {
+  background:
+    linear-gradient(180deg, rgba(255,255,253,.52), rgba(250,247,242,.40)) !important;
+  border: 1px solid rgba(170,153,140,.40) !important;
+  box-shadow:
+    0 10px 25px rgba(67,72,75,.065),
+    inset 0 1px 0 rgba(255,255,255,.55) !important;
+  backdrop-filter: blur(7px) saturate(1.02) !important;
+}
+
+.compactGalleryGrid .card:hover {
+  background:
+    linear-gradient(180deg, rgba(255,255,253,.78), rgba(250,247,242,.68)) !important;
+  border-color: rgba(195,136,153,.52) !important;
+  box-shadow: 0 16px 34px rgba(67,72,75,.10) !important;
+}
+
+/* Ảnh bàn cờ gallery mờ nhẹ theo yêu cầu.
+   Chỉ ảnh preview mờ; bàn phân tích thực tế vẫn 100% rõ. */
+.compactGalleryGrid .imageWrap {
+  overflow: hidden;
+  background: rgba(255,255,255,.18) !important;
+}
+
+.compactGalleryGrid .imageWrap img {
+  opacity: .66 !important;
+  filter: saturate(.62) contrast(.90) brightness(1.08) !important;
+  mix-blend-mode: multiply;
+  transition:
+    opacity .22s ease,
+    filter .22s ease,
+    transform .22s ease;
+}
+
+.compactGalleryGrid .card:hover .imageWrap img {
+  opacity: .94 !important;
+  filter: saturate(.86) contrast(.97) brightness(1.035) !important;
+  transform: scale(1.01);
+}
+
+/* Tàng Kinh Các cũng để cảnh xuyên qua nhiều hơn. */
+.recentBookItem {
+  background: rgba(255,255,253,.45) !important;
+}
+
+.recentBookItem:hover {
+  background: rgba(255,255,253,.67) !important;
+}
+
+/* Viền huyền môn mảnh thay cho các khung game tối. */
+.uploadCard,
+.recentBooksCompact,
+.results,
+.sourcePane,
+.boardPane,
+.toolsPane {
+  outline: 1px solid rgba(198,154,91,.12);
+  outline-offset: -5px;
+}
+
+.hero.daoHero {
+  padding: 20px 112px 16px 20px !important;
+  border-radius: 20px;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.28), rgba(255,242,247,.16), transparent 84%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.36);
+  backdrop-filter: blur(3px);
+}
+
+.hero.daoHero h1 {
+  color: #544540 !important;
+  text-shadow:
+    0 2px 0 rgba(255,255,255,.42),
+    0 5px 18px rgba(109,85,76,.12) !important;
+}
+
+.daoSeal {
+  background: rgba(255,245,217,.25) !important;
+  border-color: rgba(195,145,81,.45) !important;
+  box-shadow:
+    inset 0 0 24px rgba(255,236,178,.20),
+    0 0 28px rgba(255,221,179,.12) !important;
+}
+
+.daoMysticHalo {
+  opacity: .44 !important;
+  mix-blend-mode: multiply;
+}
+
+.daoRune {
+  opacity: .42 !important;
+  backdrop-filter: blur(3px);
+}
+
+/* Nút: đào nhạt + ngọc, rõ nhưng mềm. */
+.primary,
+.primaryLink,
+.segmented button.active,
+.toolTabs button.active {
+  background: linear-gradient(180deg, #dca3b1, #c88495) !important;
+  border-color: rgba(181,113,132,.72) !important;
+  box-shadow:
+    0 5px 14px rgba(190,112,134,.12),
+    inset 0 1px 0 rgba(255,255,255,.32) !important;
+}
+
+.button,
+.compactButton,
+.reviewStrip button,
+.pageSearch input,
+.compactFenInput,
+.engineControlRow select,
+.segmented button,
+.toolTabs button {
+  background: rgba(255,253,249,.68) !important;
+  border-color: rgba(174,157,143,.48) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+/* Bàn phân tích phải luôn sắc nét dù gallery đã mờ. */
+.boardStage,
+.engineMiniBoard,
+.boardCapture,
+.boardStage img,
+.engineMiniBoard img,
+.boardCapture img {
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+/* Sư phụ giữ vừa phải, không che background và không che UI. */
+.daoMasterVisit {
+  width: clamp(225px, 18vw, 300px) !important;
+  right: .8vw !important;
+  top: 9vh !important;
+  opacity: .73 !important;
+}
+
+.daoMasterReminder {
+  width: min(220px, 80%) !important;
+  font-size: 10.5px !important;
+}
+
+@media (max-width: 900px) {
+  .hero.daoHero {
+    padding-right: 24px !important;
+  }
+
+  .daoMasterVisit {
+    opacity: .34 !important;
+  }
+
+  .compactGalleryGrid .imageWrap img {
+    opacity: .78 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daoPetals i {
+    animation: none !important;
+  }
+}

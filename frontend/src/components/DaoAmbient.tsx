@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 const REMINDERS = [
   "Trước khi hạ tử, hãy nhìn toàn cục một lần.",
@@ -47,6 +47,12 @@ export default function DaoAmbient() {
       <div className="daoCloudVeil cloudVeilOne" />
       <div className="daoCloudVeil cloudVeilTwo" />
       <div className="daoCloudVeil cloudVeilThree" />
+
+      <div className="daoPetals">
+        {Array.from({ length: 14 }, (_, index) => (
+          <i key={index} style={{ "--petal-index": index } as CSSProperties} />
+        ))}
+      </div>
 
       <div className="daoMysticHalo">
         <span>乾</span><span>坎</span><span>艮</span><span>震</span>
