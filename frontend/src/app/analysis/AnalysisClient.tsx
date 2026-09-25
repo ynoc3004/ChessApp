@@ -769,6 +769,7 @@ export default function AnalysisClient({
     onPieceDrop,
     onSquareClick,
     allowDragging: true,
+    dragActivationDistance: 10,
     allowDrawingArrows: !editMode,
     showNotation: true,
     showAnimations: false,
@@ -790,6 +791,7 @@ export default function AnalysisClient({
     boardOrientation,
     onPieceDrop: onEnginePieceDrop,
     allowDragging: true,
+    dragActivationDistance: 10,
     allowDrawingArrows: true,
     showNotation: true,
     showAnimations: false,
@@ -832,7 +834,7 @@ export default function AnalysisClient({
     <main className="analysisApp">
       <header className="analysisTopbar">
         <div className="analysisBrand">
-          <strong>Chess Book Reader</strong>
+          <strong>☯ Kỳ Phổ Đạo Các</strong>
           <span>Thế #{positionId || "—"}</span>
           {recognition && (
             <span className="aiChip">
@@ -862,7 +864,7 @@ export default function AnalysisClient({
         <section className="workspacePane sourcePane">
           <div className="paneHeader">
             <div>
-              <strong>Ảnh từ sách</strong>
+              <strong>Ảnh từ kỳ phổ</strong>
               <span className="paneMeta">
                 {recognizing ? "Đang nhận dạng…" : message || "Ảnh gốc để đối chiếu"}
               </span>

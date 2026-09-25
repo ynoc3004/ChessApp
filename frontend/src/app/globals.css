@@ -1245,3 +1245,282 @@ h2 { font-family: Georgia, 'Times New Roman', serif; margin: 0; }
     max-height: 68px !important;
   }
 }
+
+
+/* =========================================================
+   TU TIÊN / ĐẠO GIÁO INSPIRED FRONTEND THEME
+   Functional first: ink, jade, parchment, mist, mountain silhouettes.
+   ========================================================= */
+:root {
+  --bg: #10130f;
+  --paper: #191e17;
+  --ink: #ecebd8;
+  --muted: #9da890;
+  --line: #384333;
+  --accent: #4f7f5c;
+  --accent-2: #31523e;
+  --danger: #c96a61;
+  --dao-gold: #c4a56a;
+  --dao-jade: #78a47d;
+  --dao-mist: #aab6a1;
+  --dao-ink: #0b0e0b;
+}
+
+html,
+body {
+  background:
+    radial-gradient(1200px 420px at 50% 115%, rgba(95, 122, 83, .16), transparent 68%),
+    radial-gradient(780px 300px at 8% 92%, rgba(164, 175, 152, .08), transparent 70%),
+    radial-gradient(760px 300px at 92% 88%, rgba(164, 175, 152, .07), transparent 70%),
+    linear-gradient(180deg, #171a15 0%, #0f120e 72%, #0b0e0b 100%);
+  color: var(--ink);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: auto 0 0;
+  height: 28vh;
+  pointer-events: none;
+  opacity: .24;
+  background:
+    linear-gradient(145deg, transparent 0 23%, #293327 23.5% 31%, transparent 31.5%),
+    linear-gradient(215deg, transparent 0 31%, #20291f 31.5% 42%, transparent 42.5%),
+    linear-gradient(155deg, transparent 0 48%, #161f18 48.5% 60%, transparent 60.5%);
+  filter: blur(.2px);
+  z-index: -1;
+}
+
+.shell,
+.analysisApp {
+  position: relative;
+}
+
+.shell::after,
+.analysisApp::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: .055;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.08) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.025) 0 1px, transparent 1px 5px);
+  mix-blend-mode: soft-light;
+}
+
+.daoHero {
+  position: relative;
+  padding-right: 110px;
+}
+
+.daoSeal {
+  position: absolute;
+  top: 8px;
+  right: 2px;
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(196,165,106,.5);
+  border-radius: 50%;
+  color: var(--dao-gold);
+  font-family: Georgia, serif;
+  font-size: 46px;
+  line-height: 1;
+  box-shadow:
+    inset 0 0 24px rgba(196,165,106,.08),
+    0 0 38px rgba(120,164,125,.08);
+  opacity: .88;
+}
+
+h1,
+h2,
+.analysisBrand > strong,
+.dropTitle {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+h1 {
+  color: #f2f0dc;
+  text-shadow: 0 2px 18px rgba(0,0,0,.25);
+}
+
+.eyebrow {
+  color: #9bc3a0;
+}
+
+.uploadCard,
+.panel,
+.card,
+.workspacePane,
+.recentBooksCompact,
+.recentBookItem,
+.scanProgress {
+  background:
+    linear-gradient(180deg, rgba(31,38,29,.96), rgba(23,28,22,.97));
+  border-color: #43503c;
+  box-shadow:
+    0 14px 34px rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.uploadCard,
+.workspacePane {
+  position: relative;
+}
+
+.uploadCard::before,
+.workspacePane::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(196,165,106,.05), transparent 28%, transparent 72%, rgba(120,164,125,.045));
+}
+
+.dropzone {
+  border-color: #66745b;
+  background: rgba(8,12,8,.16);
+}
+
+.primary,
+.primaryLink,
+.segmented button.active,
+.progressFill {
+  background: linear-gradient(180deg, #5a8d67, #3f6d4d);
+  border-color: #6b9a74;
+  color: #f6f4e7;
+}
+
+.primary:hover,
+.primaryLink:hover {
+  background: linear-gradient(180deg, #6a9a76, #4c7859);
+}
+
+.button,
+.segmented button,
+.toolTabs button,
+.reviewStrip button,
+.pageSearch input,
+.compactFenInput,
+.engineControlRow select,
+.epField input,
+.castlingGrid label {
+  background: #111510;
+  color: #ecebd8;
+  border-color: #3e4939;
+}
+
+.button:hover,
+.segmented button:hover,
+.toolTabs button:hover {
+  border-color: #6e8f69;
+  background: #182018;
+}
+
+.toolTabs button.active {
+  background: linear-gradient(180deg, rgba(82,126,91,.24), rgba(47,76,54,.18));
+  color: #a9cfac;
+  box-shadow: inset 0 -2px 0 #6f9d73;
+}
+
+.validBadge {
+  background: rgba(72,119,82,.19);
+  color: #a9d5b0;
+  border-color: #567d5d;
+}
+
+.invalidBadge {
+  background: rgba(130,85,44,.18);
+  color: #d9b47a;
+  border-color: #7f6746;
+}
+
+.sourceStage,
+.imageWrap {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(229,231,210,.055), transparent 58%),
+    #111510;
+}
+
+.selectedInfo,
+.reviewStrip,
+.warningBox,
+.confidencePanel,
+.confidenceSummary > div {
+  background: #151a14;
+  border-color: #44513e;
+  color: var(--ink);
+}
+
+.warningBox,
+.reviewStrip {
+  border-color: #705f42;
+}
+
+.galleryToolbar {
+  background: linear-gradient(to bottom, var(--bg) 78%, rgba(16,19,15,0));
+}
+
+.recentBooksCompact > summary {
+  color: #d8d2b5;
+}
+
+.analysisTopbar {
+  border-bottom: 1px solid rgba(196,165,106,.18);
+}
+
+.analysisBrand > strong {
+  color: #e8dfbd;
+  letter-spacing: .01em;
+}
+
+.aiChip {
+  background: rgba(69,113,80,.18);
+  color: #a6d0aa !important;
+  border-color: #55765b;
+}
+
+.toolFooter,
+.paneMeta,
+.subtle,
+.controlLabel,
+.pieceChooserLabel {
+  color: #9ba893;
+}
+
+.saveButton {
+  background: rgba(68,111,78,.22);
+  border-color: #5c8062;
+  color: #dfe9dc;
+}
+
+.evalBar {
+  border-color: #5b664f;
+  background: #11130f;
+}
+
+.engineMiniBoard {
+  border-color: #56634e;
+}
+
+.galleryPager span {
+  color: #a7b29f;
+}
+
+::selection {
+  background: #607c58;
+  color: #fff;
+}
+
+@media (max-width: 760px) {
+  .daoHero {
+    padding-right: 0;
+  }
+
+  .daoSeal {
+    display: none;
+  }
+}

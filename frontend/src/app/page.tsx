@@ -174,17 +174,18 @@ export default function HomePage() {
 
   return (
     <main className={`shell ${positions.length > 0 ? "hasResults" : ""}`}>
-      <section className="hero">
-        <p className="eyebrow">CHESS BOOK READER · PHASE 2.1</p>
-        <h1>Biến sách cờ thành các thế cờ có thể phân tích trực tiếp.</h1>
+      <section className="hero daoHero">
+        <div className="daoSeal" aria-hidden="true">☯</div>
+        <p className="eyebrow">KỲ PHỔ TÀNG KINH · PHASE 2.1</p>
+        <h1>Khai kỳ phổ, luyện thế cờ, nhập cuộc phân tích.</h1>
         <p className="subtle">
-          Upload PDF hoặc DOCX. Hệ thống tìm diagram; khi bạn mở một thế cờ, AI sẽ đọc 64 ô, tự tạo FEN, cho phép sửa quân bằng click rồi mở thẳng thế cờ trên Lichess.
+          Nạp PDF hoặc DOCX. Hệ thống tự tìm diagram, AI đọc 64 ô và dựng FEN; bạn có thể hiệu chỉnh thế cờ rồi tiếp tục nghiên cứu với Stockfish, Lichess hoặc Chess.com.
         </p>
       </section>
 
       <form className="uploadCard" onSubmit={submit}>
         <label className="dropzone">
-          <span className="dropTitle">Chọn sách PDF / DOCX</span>
+          <span className="dropTitle">Nạp kỳ phổ PDF / DOCX</span>
           <span className="subtle">File được xử lý trên backend local của bạn.</span>
           <input
             type="file"
@@ -193,7 +194,7 @@ export default function HomePage() {
           />
         </label>
         <button className="primary" disabled={!file || loading}>
-          {loading ? "Đang quét sách…" : "Tìm các thế cờ"}
+          {loading ? "Đang quét kỳ phổ…" : "Khai phổ · tìm thế cờ"}
         </button>
         {file && <p className="subtle">Đã chọn: {file.name}</p>}
         {scanJob && loading && (
@@ -225,7 +226,7 @@ export default function HomePage() {
       {recentBooks.length > 0 && (
         <details className="recentBooks recentBooksCompact">
           <summary>
-            Sách đã quét gần đây ({recentBooks.length})
+            Tàng Kinh Các · sách đã quét ({recentBooks.length})
           </summary>
           <div className="recentBookList">
             {recentBooks.map((book) => (
@@ -258,7 +259,7 @@ export default function HomePage() {
         <section className="results">
           <div className="galleryToolbar">
             <div>
-              <p className="eyebrow">KẾT QUẢ · {filename}</p>
+              <p className="eyebrow">KỲ PHỔ · {filename}</p>
               <h2>{positions.length} hình cờ</h2>
             </div>
 
