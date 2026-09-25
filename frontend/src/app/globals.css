@@ -4747,3 +4747,249 @@ body {
     animation: none !important;
   }
 }
+
+
+/* =========================================================
+   PHASE 1B · FAUX-GIF TIÊN CẢNH
+   Chỉ background. Không chỉnh UI/card/bàn cờ.
+   ========================================================= */
+
+html,
+body {
+  min-height: 100%;
+  background: #dceeff !important;
+}
+
+body::before,
+body::after,
+.shell::after,
+.analysisApp::after {
+  display: none !important;
+  content: none !important;
+}
+
+.daoAmbient.phaseOneAmbient {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  background: #dceeff !important;
+}
+
+.phaseGifScene {
+  position: absolute;
+  inset: -2.5%;
+  background-image: url("/dao/immortal-theme.webp");
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  will-change: opacity, transform, filter;
+}
+
+.phaseGifSceneA {
+  opacity: 1;
+  animation: phaseGifSceneA 22s ease-in-out infinite;
+}
+
+.phaseGifSceneB {
+  opacity: 0;
+  filter: saturate(1.035) brightness(1.025) hue-rotate(-1deg);
+  animation: phaseGifSceneB 22s ease-in-out infinite;
+}
+
+@keyframes phaseGifSceneA {
+  0%, 38% {
+    opacity: 1;
+    transform: scale(1.025) translate3d(0, 0, 0);
+  }
+
+  50%, 88% {
+    opacity: .12;
+    transform: scale(1.055) translate3d(-.45%, -.28%, 0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1.025) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes phaseGifSceneB {
+  0%, 38% {
+    opacity: 0;
+    transform: scale(1.055) translate3d(.35%, .18%, 0);
+  }
+
+  50%, 88% {
+    opacity: .9;
+    transform: scale(1.025) translate3d(0, 0, 0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.055) translate3d(.35%, .18%, 0);
+  }
+}
+
+.phaseGifGlow {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      circle at 63% 21%,
+      rgba(255, 245, 188, .16),
+      transparent 25%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,.02),
+      transparent 54%,
+      rgba(255,236,244,.025)
+    );
+  mix-blend-mode: screen;
+  animation: phaseGifGlow 8s ease-in-out infinite;
+}
+
+@keyframes phaseGifGlow {
+  0%, 100% { opacity: .56; }
+  50% { opacity: .9; }
+}
+
+.phaseGifCloud {
+  position: absolute;
+  left: -48vw;
+  width: 58vw;
+  height: 16vh;
+  border-radius: 50%;
+  filter: blur(26px);
+  background:
+    radial-gradient(
+      ellipse at 22% 52%,
+      rgba(255,255,255,.86) 0 22%,
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse at 51% 44%,
+      rgba(255,226,238,.74) 0 24%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse at 79% 56%,
+      rgba(255,251,252,.84) 0 22%,
+      transparent 57%
+    );
+  animation: phaseGifCloudDrift linear infinite;
+  will-change: transform;
+}
+
+.phaseGifCloud.cloudA {
+  top: 18vh;
+  opacity: .15;
+  animation-duration: 74s;
+}
+
+.phaseGifCloud.cloudB {
+  top: 53vh;
+  width: 70vw;
+  height: 20vh;
+  opacity: .18;
+  animation-duration: 102s;
+  animation-delay: -39s;
+}
+
+.phaseGifCloud.cloudC {
+  top: 77vh;
+  width: 76vw;
+  height: 19vh;
+  opacity: .13;
+  animation-duration: 128s;
+  animation-delay: -68s;
+}
+
+@keyframes phaseGifCloudDrift {
+  from {
+    transform: translate3d(-8vw, 0, 0) scale(.96);
+  }
+
+  to {
+    transform: translate3d(160vw, -1.2vh, 0) scale(1.06);
+  }
+}
+
+.phaseGifPetals {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.phaseGifPetals i {
+  --i: var(--petal-index);
+  position: absolute;
+  top: -9vh;
+  left: calc((var(--i) * 5.55%) + .5%);
+  width: calc(7px + (var(--i) % 4) * 2px);
+  height: calc(11px + (var(--i) % 3) * 3px);
+  border-radius: 84% 16% 78% 22%;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255,216,228,.88),
+      rgba(238,153,182,.72)
+    );
+  box-shadow: 0 0 7px rgba(235,144,177,.13);
+  opacity: .38;
+  animation:
+    phaseGifPetalFall calc(18s + (var(--i) % 6) * 3s)
+    linear
+    infinite;
+  animation-delay: calc(var(--i) * -2.2s);
+}
+
+@keyframes phaseGifPetalFall {
+  0% {
+    translate: 0 -12vh;
+    rotate: 0deg;
+  }
+
+  28% {
+    translate: 2.8vw 31vh;
+    rotate: 150deg;
+  }
+
+  62% {
+    translate: -1.6vw 68vh;
+    rotate: 320deg;
+  }
+
+  100% {
+    translate: 4.5vw 112vh;
+    rotate: 540deg;
+  }
+}
+
+.shell,
+.analysisApp {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phaseGifScene,
+  .phaseGifGlow,
+  .phaseGifCloud,
+  .phaseGifPetals i {
+    animation: none !important;
+  }
+
+  .phaseGifSceneA {
+    opacity: 1 !important;
+    transform: scale(1.025) !important;
+  }
+
+  .phaseGifSceneB {
+    display: none !important;
+  }
+}
