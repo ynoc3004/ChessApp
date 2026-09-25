@@ -4993,3 +4993,50 @@ body::after,
     display: none !important;
   }
 }
+
+
+/* =========================================================
+   PHASE 1C · ACTUAL AI SCENE ASSET
+   Hotfix: dùng đúng ảnh tiên cảnh AI đã tạo, bỏ lớp tối cũ.
+   ========================================================= */
+
+.daoAmbient.phaseOneAmbient::before,
+.daoAmbient.phaseOneAmbient::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+}
+
+.daoAmbient.phaseOneAmbient {
+  background: #e9f4ff !important;
+}
+
+.phaseGifScene {
+  background-image: url("/dao/immortal-theme.webp") !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  filter: none !important;
+}
+
+.phaseGifSceneA {
+  opacity: 1 !important;
+}
+
+.phaseGifGlow {
+  background:
+    radial-gradient(circle at 63% 21%, rgba(255,246,195,.08), transparent 24%),
+    linear-gradient(180deg, rgba(255,255,255,.01), transparent 58%) !important;
+}
+
+.phaseGifCloud {
+  opacity: .11 !important;
+}
+
+.phaseGifPetals i {
+  opacity: .34 !important;
+}
+
+.shell,
+.analysisApp {
+  background: transparent !important;
+}
