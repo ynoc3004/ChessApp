@@ -37,7 +37,6 @@ import {
   type LocalEngineLine,
 } from "@/lib/browserStockfish";
 import {
-  BOARD_PIECES,
   BOARD_THEME,
   PIECE_ASSET_BY_FEN,
   PIECE_LABEL_BY_FEN,
@@ -701,7 +700,9 @@ export default function AnalysisClient({
   };
 
   const sharedBoardTheme = {
-    pieces: BOARD_PIECES,
+    // Let react-chessboard render its built-in Cburnett set.
+    // Its piece types are known-correct (white stays white, black stays black)
+    // and its drag overlay is sized correctly.
     lightSquareStyle: { backgroundColor: BOARD_THEME.light },
     darkSquareStyle: { backgroundColor: BOARD_THEME.dark },
     lightSquareNotationStyle: {
@@ -739,7 +740,7 @@ export default function AnalysisClient({
     showNotation: true,
     showAnimations: false,
     draggingPieceStyle: {
-      transform: "scale(1.06)",
+      transform: "scale(1.04)",
       zIndex: 1000,
     },
     draggingPieceGhostStyle: {

@@ -1,7 +1,6 @@
-import type { CSSProperties } from "react";
-import type { PieceRenderObject } from "react-chessboard";
-
 export const BOARD_THEME = {
+  // Correct chessboard parity: a8 is light and a1 is dark.
+  // These colors also stay close to the green/cream diagrams in many books.
   light: "#eeeed2",
   dark: "#769656",
   frame: "#38452d",
@@ -51,34 +50,3 @@ export const PIECE_LABEL_BY_FEN: Record<string, string> = {
   n: "Mã đen",
   p: "Tốt đen",
 };
-
-const pieceImageStyle: CSSProperties = {
-  // react-chessboard renders a second "clone" while dragging. That clone
-  // lives in a portal and does not inherit the square's dimensions, so an
-  // unconstrained 100% image can grow to the size of the viewport.
-  // min(100%, 96px) keeps normal pieces square-sized while capping the
-  // drag overlay to a human-sized chess piece.
-  width: "min(100%, 96px)",
-  height: "min(100%, 96px)",
-  maxWidth: "96px",
-  maxHeight: "96px",
-  margin: "auto",
-  objectFit: "contain",
-  display: "block",
-  pointerEvents: "none",
-  userSelect: "none",
-};
-
-export const BOARD_PIECES: PieceRenderObject = Object.fromEntries(
-  Object.entries(PIECE_ASSETS).map(([pieceType, src]) => [
-    pieceType,
-    (props?: { svgStyle?: CSSProperties }) => (
-      <img
-        src={src}
-        alt={pieceType}
-        draggable={false}
-        style={{ ...pieceImageStyle, ...(props?.svgStyle ?? {}) }}
-      />
-    ),
-  ]),
-) as PieceRenderObject;
