@@ -1,9 +1,9 @@
 export const BOARD_THEME = {
   // Correct chessboard parity: a8 is light and a1 is dark.
   // These colors also stay close to the green/cream diagrams in many books.
-  light: "#f2f2d5",
-  dark: "#6f8f52",
-  frame: "#38452d",
+  light: "#f4edd8",
+  dark: "#93ad6d",
+  frame: "#8b9d73",
 } as const;
 
 const PIECE_ASSETS: Record<string, string> = {

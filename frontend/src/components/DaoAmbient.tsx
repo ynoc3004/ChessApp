@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 
 const REMINDERS = [
-  "Đạo hữu, trước khi động quân hãy xem đối phương đang đe dọa gì.",
-  "Tĩnh tâm ba nhịp: kiểm tra nước chiếu, nước bắt và nước đe dọa.",
-  "Một quân đứng đẹp chưa chắc đã hữu dụng — hãy tìm quân yếu nhất của mình.",
-  "Đừng vội xuất chiêu. Xem lại vua, quân treo và ô yếu trước khi đi.",
-  "Kỳ đạo trọng toàn cục: sau mỗi nước, hãy nhìn lại cả bàn một lần.",
-  "Gặp thế khó thì lui một bước quan trận; nước đơn giản thường bền hơn nước hoa mỹ.",
+  "Thái Thanh sư phụ nhắc: trước khi động quân, hãy nhìn xem đối phương đang đe dọa gì.",
+  "Thái Thanh sư phụ nhắc: tĩnh tâm ba nhịp — kiểm tra chiếu, bắt quân và đòn chiến thuật.",
+  "Thái Thanh sư phụ nhắc: nước đơn giản nhưng chắc chắn thường tốt hơn nước hoa mỹ.",
+  "Thái Thanh sư phụ nhắc: sau mỗi nước, hãy nhìn lại toàn bàn cờ một lần.",
+  "Thái Thanh sư phụ nhắc: muốn công thì trước hết phải giữ vua an ổn.",
+  "Thái Thanh sư phụ nhắc: đừng vội xuất chiêu — hãy kiểm tra quân treo và ô yếu.",
 ];
 
 export default function DaoAmbient() {
@@ -26,66 +26,68 @@ export default function DaoAmbient() {
 
   return (
     <div className="daoAmbient" aria-hidden="true">
+      <div className="skyGlow" />
+
       <div className="daoSkyMist mistOne" />
       <div className="daoSkyMist mistTwo" />
       <div className="daoSkyMist mistThree" />
 
-      <div className="daoCloud cloudOne"><i /><i /><i /></div>
-      <div className="daoCloud cloudTwo"><i /><i /><i /></div>
-      <div className="daoCloud cloudThree"><i /><i /><i /></div>
-      <div className="daoCloud cloudFour"><i /><i /><i /></div>
+      <div className="pinkCloud cloudOne"><i /><i /><i /></div>
+      <div className="pinkCloud cloudTwo"><i /><i /><i /></div>
+      <div className="pinkCloud cloudThree"><i /><i /><i /></div>
+      <div className="pinkCloud cloudFour"><i /><i /><i /></div>
 
       <div className="daoMountainRange mountainFar" />
       <div className="daoMountainRange mountainMid" />
       <div className="daoMountainRange mountainNear" />
 
-      <div className="daoTalisman talismanOne">
-        <span className="talismanSeal">敕</span>
-        <b>清</b><em>心</em><b>定</b><em>神</em>
-      </div>
-      <div className="daoTalisman talismanTwo">
-        <span className="talismanSeal">鎮</span>
-        <b>觀</b><em>勢</em><b>守</b><em>一</em>
-      </div>
-      <div className="daoTalisman talismanThree">
-        <span className="talismanSeal">護</span>
-        <b>靜</b><em>思</em><b>後</b><em>行</em>
-      </div>
+      <div className="softTalisman talismanOne">清静</div>
+      <div className="softTalisman talismanTwo">观局</div>
+      <div className="softTalisman talismanThree">守心</div>
 
       <div
         key={reminderIndex}
         className={`daoFriendFlight ${reverse ? "reverse" : ""}`}
       >
         <div className="daoFriendBubble">
-          <span>道友</span>
+          <span>Thái Thanh sư phụ</span>
           {REMINDERS[reminderIndex]}
         </div>
 
         <div className="daoFriendSprite">
-          <svg viewBox="0 0 180 92" role="img">
+          <svg viewBox="0 0 220 112" role="img">
             <defs>
-              <linearGradient id="robe" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="#d9ddc4" />
-                <stop offset="1" stopColor="#68836b" />
+              <linearGradient id="sunriseRobe" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#fffaf4" />
+                <stop offset=".52" stopColor="#f4ddd2" />
+                <stop offset="1" stopColor="#d8b7ad" />
               </linearGradient>
-              <linearGradient id="sword" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0" stopColor="#6e8175" />
-                <stop offset=".5" stopColor="#e7dfbd" />
-                <stop offset="1" stopColor="#6e8175" />
+              <linearGradient id="sunriseSword" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stopColor="#798793" />
+                <stop offset=".5" stopColor="#f7efd9" />
+                <stop offset="1" stopColor="#798793" />
               </linearGradient>
             </defs>
 
-            <path d="M17 75 L163 70 L174 74 L160 78 L18 82 Z" fill="url(#sword)" opacity=".95" />
-            <path d="M28 78 L12 86 L24 72" fill="none" stroke="#d9c48c" strokeWidth="2" />
-            <circle cx="100" cy="24" r="11" fill="#d7c8a6" />
-            <path d="M91 17 Q100 3 110 18 Q101 13 91 17" fill="#161b17" />
-            <path d="M99 34 Q84 43 80 67 L123 65 Q116 42 106 34 Z" fill="url(#robe)" />
-            <path d="M92 41 Q69 48 55 61" fill="none" stroke="#bcc8b3" strokeWidth="6" strokeLinecap="round" />
-            <path d="M110 41 Q128 49 141 59" fill="none" stroke="#bcc8b3" strokeWidth="6" strokeLinecap="round" />
-            <path d="M94 63 L87 76 M111 63 L119 75" stroke="#171c17" strokeWidth="4" strokeLinecap="round" />
-            <path d="M78 67 Q100 58 126 67" fill="none" stroke="#c4a56a" strokeWidth="2" opacity=".8" />
-            <circle cx="96" cy="23" r="1.5" fill="#20251f" />
-            <circle cx="104" cy="23" r="1.5" fill="#20251f" />
+            <path d="M21 91 L194 85 L207 89 L190 94 L23 98 Z" fill="url(#sunriseSword)" opacity=".95" />
+            <path d="M35 93 L17 103 L30 86" fill="none" stroke="#e3c382" strokeWidth="2.2" />
+
+            <circle cx="123" cy="28" r="12.5" fill="#f1d6ba" />
+            <path d="M110 22 Q122 3 137 22 Q126 15 110 22" fill="#5a5350" />
+            <path d="M112 18 Q124 7 135 19" fill="none" stroke="#d4bb8b" strokeWidth="2" />
+
+            <path d="M116 42 Q97 51 91 82 L151 79 Q141 51 129 42 Z" fill="url(#sunriseRobe)" />
+            <path d="M122 44 L122 78" stroke="#d3a890" strokeWidth="2" opacity=".72" />
+
+            <path d="M107 49 Q80 59 61 74" fill="none" stroke="#f2e2d8" strokeWidth="6.2" strokeLinecap="round" />
+            <path d="M134 49 Q154 59 173 72" fill="none" stroke="#f2e2d8" strokeWidth="6.2" strokeLinecap="round" />
+
+            <path d="M107 79 L98 92 M134 78 L142 91" stroke="#5d514c" strokeWidth="4.2" strokeLinecap="round" />
+            <path d="M102 82 Q124 72 153 80" fill="none" stroke="#d8b570" strokeWidth="2.2" opacity=".8" />
+
+            <circle cx="119" cy="28" r="1.4" fill="#403a37" />
+            <circle cx="128" cy="28" r="1.4" fill="#403a37" />
+            <path d="M120 34 Q124 36 129 34" fill="none" stroke="#7f6d63" strokeWidth="1.2" />
           </svg>
         </div>
       </div>

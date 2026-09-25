@@ -192,11 +192,11 @@ export default function HomePage() {
           <span>☰</span><span>☵</span><span>☶</span><span>☷</span>
         </div>
         <p className="eyebrow">KỲ PHỔ TÀNG KINH · HUYỀN MÔN KỲ ĐẠO</p>
-        <h1>Khai cổ phổ, quan trận thế, diễn hóa kỳ đạo.</h1>
+        <h1>Khai cổ phổ giữa mây sớm, diễn hóa thế cờ nơi tiên sơn.</h1>
         <p className="subtle">
-          Nạp PDF hoặc DOCX vào Tàng Kinh Các. Hệ thống tự tìm kỳ đồ, AI đọc 64 ô và dựng FEN; sau đó bạn có thể bố trận, diễn hóa nước đi và vận dụng Tâm pháp Stockfish.
+          Nạp PDF hoặc DOCX vào Tàng Kinh Các. Hệ thống tự tìm kỳ đồ, AI đọc 64 ô và dựng FEN; sau đó bạn có thể bố trận, diễn hóa nước đi và vận dụng Tâm pháp Stockfish trong một tiên cảnh sáng, nhẹ và dễ quan sát.
         </p>
-        <p className="daoQuote">“Tĩnh tâm quan cục · nhất tử định thế · vạn biến quy nhất.”</p>
+        <p className="daoQuote">“Mây sớm khai sơn · tĩnh tâm quan cục · nhất tử định thế.”</p>
       </section>
 
       <form className="uploadCard" onSubmit={submit}>
