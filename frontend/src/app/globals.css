@@ -2625,3 +2625,408 @@ h2,
     animation: none !important;
   }
 }
+
+
+/* =========================================================
+   TIÊN SƠN 2.0 · ẢNH THẬT · MÂY ĐỘNG · THÁI THANH SƯ PHỤ
+   Khối cuối cùng này là override có chủ đích cho theme sáng.
+   ========================================================= */
+
+:root {
+  --bg: #f8f1e8;
+  --paper: rgba(255, 252, 247, .91);
+  --ink: #4d433e;
+  --muted: #7d746d;
+  --line: rgba(207, 191, 177, .86);
+  --accent: #bf898d;
+  --accent-2: #a67276;
+}
+
+html,
+body {
+  background: #f6e7df !important;
+}
+
+.shell,
+.analysisApp {
+  background: transparent !important;
+  isolation: isolate;
+}
+
+.shell > :not(.daoAmbient),
+.analysisApp > :not(.daoAmbient) {
+  position: relative;
+  z-index: 2;
+}
+
+.daoAmbient {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  background: #f8dccd;
+}
+
+.daoPhotoBackdrop {
+  position: absolute;
+  inset: -5%;
+  background-image: url("/dao/bg-mountain-sunrise.webp");
+  background-size: cover;
+  background-position: center 42%;
+  filter: saturate(.92) brightness(1.08) blur(1.1px);
+  transform: scale(1.08);
+  opacity: .92;
+}
+
+.daoDawnVeil {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg,
+      rgba(255, 192, 146, .24) 0%,
+      rgba(255, 215, 211, .20) 19%,
+      rgba(247, 237, 236, .22) 39%,
+      rgba(239, 246, 240, .25) 72%,
+      rgba(222, 237, 227, .32) 100%),
+    radial-gradient(circle at 52% 7%, rgba(255, 223, 177, .38), transparent 24%);
+}
+
+.daoSunGlow {
+  position: absolute;
+  width: 46vw;
+  height: 30vh;
+  left: 27vw;
+  top: -12vh;
+  border-radius: 50%;
+  background: rgba(255, 221, 178, .34);
+  filter: blur(48px);
+  animation: daoSunBreath 8s ease-in-out infinite;
+}
+
+@keyframes daoSunBreath {
+  0%, 100% { opacity: .62; transform: scale(.96); }
+  50% { opacity: .9; transform: scale(1.06); }
+}
+
+.immortalCloud {
+  position: absolute;
+  left: -48vw;
+  width: 54vw;
+  height: 16vh;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 17% 55%, rgba(255, 246, 249, .9) 0 21%, transparent 50%),
+    radial-gradient(ellipse at 42% 43%, rgba(255, 223, 231, .82) 0 23%, transparent 53%),
+    radial-gradient(ellipse at 67% 58%, rgba(255, 244, 247, .86) 0 22%, transparent 51%),
+    radial-gradient(ellipse at 86% 44%, rgba(255, 215, 227, .72) 0 18%, transparent 48%);
+  filter: blur(17px);
+  opacity: .48;
+  animation: immortalCloudDrift linear infinite;
+  will-change: transform;
+}
+
+.cloudOne {
+  top: 8vh;
+  animation-duration: 56s;
+}
+
+.cloudTwo {
+  top: 27vh;
+  width: 63vw;
+  height: 19vh;
+  opacity: .37;
+  animation-duration: 76s;
+  animation-delay: -21s;
+}
+
+.cloudThree {
+  top: 54vh;
+  width: 58vw;
+  height: 18vh;
+  opacity: .31;
+  animation-duration: 94s;
+  animation-delay: -39s;
+}
+
+.cloudFour {
+  top: 72vh;
+  width: 68vw;
+  height: 20vh;
+  opacity: .25;
+  animation-duration: 116s;
+  animation-delay: -58s;
+}
+
+@keyframes immortalCloudDrift {
+  from { transform: translate3d(-8vw, 0, 0) scale(.96); }
+  to { transform: translate3d(158vw, -1.5vh, 0) scale(1.06); }
+}
+
+.daoMist {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 247, 249, .33);
+  filter: blur(34px);
+  opacity: .72;
+  will-change: transform;
+}
+
+.mistOne {
+  width: 44vw;
+  height: 15vh;
+  left: -9vw;
+  bottom: 7vh;
+  animation: immortalMist 23s ease-in-out infinite alternate;
+}
+
+.mistTwo {
+  width: 50vw;
+  height: 17vh;
+  right: -12vw;
+  bottom: 14vh;
+  animation: immortalMist 31s ease-in-out infinite alternate-reverse;
+}
+
+.mistThree {
+  width: 58vw;
+  height: 18vh;
+  left: 20vw;
+  bottom: -3vh;
+  animation: immortalMist 38s ease-in-out infinite alternate;
+}
+
+@keyframes immortalMist {
+  from { transform: translate3d(-3vw, 0, 0) scale(.96); }
+  to { transform: translate3d(5vw, -2vh, 0) scale(1.07); }
+}
+
+/* Ảnh người dùng cung cấp được đặt trong một "tiên ảnh" có crop động.
+   Ảnh bên trong pan/zoom rất nhẹ, còn aura và mây khí chuyển động độc lập. */
+.daoMasterScene {
+  position: absolute;
+  right: 2.1vw;
+  top: 7.5vh;
+  width: clamp(250px, 23vw, 390px);
+  height: clamp(205px, 20vw, 325px);
+  z-index: 1;
+  opacity: .72;
+  animation: masterSceneFloat 8s ease-in-out infinite;
+  filter: drop-shadow(0 16px 24px rgba(107, 79, 63, .15));
+}
+
+@keyframes masterSceneFloat {
+  0%, 100% { transform: translate3d(0, 2px, 0); }
+  50% { transform: translate3d(-5px, -11px, 0); }
+}
+
+.daoMasterViewport {
+  position: absolute;
+  inset: 34px 0 0;
+  overflow: hidden;
+  border-radius: 44% 44% 24% 24% / 35% 35% 18% 18%;
+  -webkit-mask-image: radial-gradient(ellipse at 51% 48%, #000 42%, rgba(0,0,0,.92) 57%, transparent 82%);
+  mask-image: radial-gradient(ellipse at 51% 48%, #000 42%, rgba(0,0,0,.92) 57%, transparent 82%);
+}
+
+.daoMasterImage {
+  position: absolute;
+  width: 128%;
+  height: 128%;
+  left: -15%;
+  top: -12%;
+  object-fit: cover;
+  object-position: 43% 46%;
+  transform-origin: 47% 60%;
+  animation: masterInnerMotion 9s ease-in-out infinite alternate;
+  filter: saturate(.95) brightness(1.07) contrast(.96);
+  will-change: transform;
+}
+
+.pose-1 .daoMasterImage {
+  animation-direction: alternate-reverse;
+}
+
+@keyframes masterInnerMotion {
+  from { transform: scale(1.01) translate3d(-1.2%, 1.2%, 0); }
+  to { transform: scale(1.075) translate3d(2.2%, -1.8%, 0); }
+}
+
+.daoMasterAura {
+  position: absolute;
+  inset: 18% 8% 4%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(255,252,231,.57), rgba(255,220,205,.24) 46%, transparent 70%);
+  filter: blur(18px);
+  animation: masterAuraPulse 5.4s ease-in-out infinite;
+}
+
+@keyframes masterAuraPulse {
+  0%, 100% { opacity: .5; transform: scale(.96); }
+  50% { opacity: .88; transform: scale(1.06); }
+}
+
+.daoMasterSheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(112deg, transparent 28%, rgba(255,255,255,.20) 47%, transparent 63%);
+  transform: translateX(-110%);
+  animation: masterSheen 8.5s ease-in-out infinite;
+}
+
+@keyframes masterSheen {
+  0%, 38% { transform: translateX(-115%); opacity: 0; }
+  48% { opacity: .75; }
+  62%, 100% { transform: translateX(115%); opacity: 0; }
+}
+
+.daoMasterCloudRibbon {
+  position: absolute;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, transparent, rgba(255,240,246,.83), rgba(255,248,244,.75), transparent);
+  filter: blur(9px);
+  opacity: .54;
+  animation: masterRibbon 6.8s ease-in-out infinite;
+}
+
+.ribbonOne {
+  width: 72%;
+  height: 14px;
+  left: 6%;
+  top: 54%;
+}
+
+.ribbonTwo {
+  width: 62%;
+  height: 11px;
+  left: 30%;
+  top: 70%;
+  animation-delay: -3.1s;
+}
+
+@keyframes masterRibbon {
+  0%, 100% { transform: translate3d(-7px, 3px, 0) scaleX(.94); opacity: .33; }
+  50% { transform: translate3d(13px, -4px, 0) scaleX(1.08); opacity: .65; }
+}
+
+.daoMasterBubble {
+  position: absolute;
+  right: 5%;
+  top: 0;
+  width: min(285px, 88%);
+  padding: 9px 11px;
+  border: 1px solid rgba(211, 169, 139, .78);
+  border-radius: 14px 14px 4px 14px;
+  background:
+    linear-gradient(180deg, rgba(255,252,248,.95), rgba(255,241,237,.91));
+  color: #5c4b43;
+  box-shadow: 0 8px 22px rgba(124, 92, 73, .12);
+  font-size: 11px;
+  line-height: 1.45;
+  animation: masterBubbleIn 11s ease-in-out forwards;
+}
+
+.daoMasterBubble span {
+  display: block;
+  margin-bottom: 2px;
+  color: #a66f50;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .045em;
+}
+
+@keyframes masterBubbleIn {
+  0%, 6%, 90%, 100% { opacity: 0; transform: translateY(5px); }
+  13%, 82% { opacity: .97; transform: translateY(0); }
+}
+
+.softTalisman {
+  background: rgba(255,247,231,.78) !important;
+  border-color: rgba(214,176,111,.72) !important;
+  color: #98703f !important;
+  box-shadow: 0 6px 16px rgba(187,142,82,.11) !important;
+}
+
+.uploadCard,
+.workspacePane,
+.card,
+.recentBooksCompact,
+.recentBookItem,
+.scanProgress,
+.panel {
+  background:
+    linear-gradient(180deg, rgba(255,253,249,.93), rgba(251,247,241,.89)) !important;
+  border-color: rgba(206,191,177,.88) !important;
+  box-shadow:
+    0 13px 32px rgba(99,79,65,.10),
+    inset 0 1px 0 rgba(255,255,255,.88) !important;
+  backdrop-filter: blur(12px);
+}
+
+.boardPane {
+  background: rgba(255,253,248,.94) !important;
+}
+
+.sourcePane,
+.toolsPane {
+  background: rgba(255,252,247,.92) !important;
+}
+
+/* Bàn cờ giữ độ tương phản riêng, không bị ảnh nền làm nhòe. */
+.boardStage,
+.engineMiniBoard {
+  isolation: isolate;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+@media (max-width: 1100px) {
+  .daoMasterScene {
+    width: 255px;
+    height: 210px;
+    top: 8vh;
+    right: 1vw;
+    opacity: .55;
+  }
+
+  .daoMasterBubble {
+    width: 205px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 760px) {
+  .daoMasterScene {
+    width: 205px;
+    height: 168px;
+    top: 9vh;
+    right: -34px;
+    opacity: .42;
+  }
+
+  .daoMasterBubble {
+    display: none;
+  }
+
+  .softTalisman {
+    opacity: .36 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daoSunGlow,
+  .immortalCloud,
+  .daoMist,
+  .daoMasterScene,
+  .daoMasterImage,
+  .daoMasterAura,
+  .daoMasterSheen,
+  .daoMasterCloudRibbon,
+  .daoMasterBubble {
+    animation: none !important;
+  }
+}
