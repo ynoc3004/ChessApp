@@ -73,7 +73,8 @@ type PanelTab = "edit" | "fen" | "engine";
 
 const START_PLACEMENT = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 const START_FEN = buildFen(START_PLACEMENT, "w", "KQkq", "-");
-const PIECE_ORDER = ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"];
+const WHITE_PIECES = ["K", "Q", "R", "B", "N", "P"] as const;
+const BLACK_PIECES = ["k", "q", "r", "b", "n", "p"] as const;
 
 function exactBoardParityStyles(): Record<string, CSSProperties> {
   const styles: Record<string, CSSProperties> = {};
@@ -772,7 +773,7 @@ export default function AnalysisClient({
     showNotation: true,
     showAnimations: false,
     draggingPieceStyle: {
-      transform: "scale(1.04)",
+      transform: "scale(1)",
       zIndex: 1000,
     },
     draggingPieceGhostStyle: {
@@ -1039,27 +1040,54 @@ export default function AnalysisClient({
                   </strong>
                 </div>
 
-                <div className="piecePalette compactPalette">
-                  {PIECE_ORDER.map((piece) => (
-                    <button
-                      key={piece}
-                      className={paintPiece === piece ? "active" : ""}
-                      onClick={() => choosePaintPiece(piece)}
-                      title={PIECE_LABEL_BY_FEN[piece] ?? piece}
-                    >
-                      <img
-                        className="palettePieceIcon"
-                        src={PIECE_ASSET_BY_FEN[piece]}
-                        alt={PIECE_LABEL_BY_FEN[piece] ?? piece}
-                        draggable={false}
-                      />
-                    </button>
-                  ))}
+                <div className="pieceChooser">
+                  <div className="pieceChooserRow whiteChooserRow">
+                    <span className="pieceChooserLabel">Trắng</span>
+                    <div className="piecePalette compactPalette">
+                      {WHITE_PIECES.map((piece) => (
+                        <button
+                          key={piece}
+                          className={paintPiece === piece ? "active" : ""}
+                          onClick={() => choosePaintPiece(piece)}
+                          title={PIECE_LABEL_BY_FEN[piece] ?? piece}
+                        >
+                          <img
+                            className="palettePieceIcon"
+                            src={PIECE_ASSET_BY_FEN[piece]}
+                            alt={PIECE_LABEL_BY_FEN[piece] ?? piece}
+                            draggable={false}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pieceChooserRow blackChooserRow">
+                    <span className="pieceChooserLabel">Đen</span>
+                    <div className="piecePalette compactPalette">
+                      {BLACK_PIECES.map((piece) => (
+                        <button
+                          key={piece}
+                          className={paintPiece === piece ? "active" : ""}
+                          onClick={() => choosePaintPiece(piece)}
+                          title={PIECE_LABEL_BY_FEN[piece] ?? piece}
+                        >
+                          <img
+                            className="palettePieceIcon"
+                            src={PIECE_ASSET_BY_FEN[piece]}
+                            alt={PIECE_LABEL_BY_FEN[piece] ?? piece}
+                            draggable={false}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <button
-                    className={paintPiece === null ? "active eraseTool" : "eraseTool"}
+                    className={paintPiece === null ? "active eraseTool chooserErase" : "eraseTool chooserErase"}
                     onClick={() => choosePaintPiece(null)}
                   >
-                    Xóa
+                    Xóa quân
                   </button>
                 </div>
 
