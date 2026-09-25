@@ -130,6 +130,13 @@ function whitePerspective(line: LocalEngineLine | undefined, fen: string) {
   };
 }
 
+function aiRealm(confidence: number) {
+  if (confidence >= 0.97) return { name: "Kim Đan", sigil: "丹", cls: "realm-gold" };
+  if (confidence >= 0.92) return { name: "Trúc Cơ", sigil: "基", cls: "realm-jade" };
+  if (confidence >= 0.84) return { name: "Luyện Khí", sigil: "氣", cls: "realm-mist" };
+  return { name: "Nhập Môn", sigil: "初", cls: "realm-ash" };
+}
+
 function scoreToWhitePercent(score: number, mate: number | null) {
   if (mate !== null) {
     if (mate > 0) return 98;
@@ -198,6 +205,8 @@ export default function AnalysisClient({
     () => scoreToWhitePercent(engineEval.score, engineEval.mate),
     [engineEval],
   );
+  const recognitionRealm = aiRealm(recognition?.averageConfidence ?? 0);
+
   const evalLabel =
     engineEval.mate !== null
       ? `M${engineEval.mate}`
@@ -584,7 +593,7 @@ export default function AnalysisClient({
     applyCandidate(recognition, imageOrientation, sideToMove);
     setWarnings(recognition.warnings ?? []);
     setSavedFen(null);
-    setMessage("Đã khôi phục vị trí AI.");
+    setMessage("Đã hồi nguyên trận thế theo kỳ đồ AI.");
   }
 
   async function saveCurrentPosition() {
@@ -611,7 +620,7 @@ export default function AnalysisClient({
       setSavedFen(data.fen);
       if (data.fen && data.fen !== fen) applyFullFen(data.fen);
       setMessage(
-        "Đã lưu bản thế cờ đã sửa và thêm diagram này vào dữ liệu học local.",
+        "Đã khắc ấn trận thế và nhập mẫu hiệu chỉnh vào dữ liệu tu luyện local.",
       );
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Không lưu được thế cờ");
@@ -632,7 +641,7 @@ export default function AnalysisClient({
   async function downloadBoardImage() {
     if (!boardCaptureRef.current) return;
     try {
-      setMessage("Đang tạo ảnh bàn cờ…");
+      setMessage("Đang họa lại trận đồ…");
       const dataUrl = await toPng(boardCaptureRef.current, {
         cacheBust: true,
         pixelRatio: 2,
@@ -642,7 +651,7 @@ export default function AnalysisClient({
       link.download = `chess-position-${positionId || "current"}.png`;
       link.href = dataUrl;
       link.click();
-      setMessage("Đã tải ảnh bàn cờ hiện tại.");
+      setMessage("Đã thu trận đồ hiện tại.");
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Không tạo được ảnh bàn cờ.");
     }
@@ -670,7 +679,7 @@ export default function AnalysisClient({
 
       const requestId = ++engineRequestRef.current;
       setAnalyzing(true);
-      if (!quiet) setMessage("Stockfish 19 đang tính ngay trên máy…");
+      if (!quiet) setMessage("Tâm pháp Stockfish đang vận chuyển trên máy…");
 
       try {
         const result = await analyzeWithBrowserStockfish(targetFen, engineDepth, 3);
@@ -679,15 +688,15 @@ export default function AnalysisClient({
         if (!quiet) {
           setMessage(
             result.length
-              ? "Stockfish local đã phân tích xong."
-              : "Stockfish không trả về biến thể.",
+              ? "Tâm pháp đã diễn hóa xong kỳ cục."
+              : "Tâm pháp chưa trả về biến thể.",
           );
         }
       } catch (err) {
         if (requestId !== engineRequestRef.current) return;
         if (!quiet) {
           setMessage(
-            err instanceof Error ? err.message : "Không chạy được Stockfish local.",
+            err instanceof Error ? err.message : "Không vận chuyển được Tâm pháp Stockfish.",
           );
         }
       } finally {
@@ -833,10 +842,11 @@ export default function AnalysisClient({
       <header className="analysisTopbar">
         <div className="analysisBrand">
           <strong>☯ Kỳ Phổ Đạo Các</strong>
-          <span>Thế #{positionId || "—"}</span>
+          <span>Kỳ trận #{positionId || "—"}</span>
           {recognition && (
-            <span className="aiChip">
-              {recognition.source} · {Math.round(recognition.averageConfidence * 100)}%
+            <span className={`aiChip realmChip ${recognitionRealm.cls}`}>
+              <b>{recognitionRealm.sigil}</b>
+              {recognitionRealm.name} · {recognition.source} · {Math.round(recognition.averageConfidence * 100)}%
             </span>
           )}
         </div>
@@ -844,15 +854,15 @@ export default function AnalysisClient({
         <nav className="analysisNav">
           {previousPosition && (
             <Link className="button compactButton" href={analysisHref(previousPosition)}>
-              ← Trước
+              ← Tiền trận
             </Link>
           )}
           <Link className="button compactButton" href="/">
-            Gallery
+            Tàng Các
           </Link>
           {nextPosition && (
             <Link className="button compactButton" href={analysisHref(nextPosition)}>
-              Sau →
+              Hậu trận →
             </Link>
           )}
         </nav>
@@ -862,9 +872,9 @@ export default function AnalysisClient({
         <section className="workspacePane sourcePane">
           <div className="paneHeader">
             <div>
-              <strong>Ảnh từ kỳ phổ</strong>
+              <strong>Kỳ đồ từ cổ phổ</strong>
               <span className="paneMeta">
-                {recognizing ? "Đang nhận dạng…" : message || "Ảnh gốc để đối chiếu"}
+                {recognizing ? "Đang quan sát trận đồ…" : message || "Nguyên đồ dùng để đối chiếu"}
               </span>
             </div>
             <button
@@ -872,7 +882,7 @@ export default function AnalysisClient({
               onClick={() => void recognize(true)}
               disabled={recognizing}
             >
-              Nhận dạng lại
+              Thi triển lại
             </button>
           </div>
 
@@ -887,7 +897,7 @@ export default function AnalysisClient({
 
           <div className="sourceStatus">
             <div>
-              <span>AI</span>
+              <span>Pháp khí AI</span>
               <strong>
                 {recognition
                   ? `${recognition.source}${
@@ -900,7 +910,7 @@ export default function AnalysisClient({
               </strong>
             </div>
             <div>
-              <span>Tin cậy</span>
+              <span>Linh ứng</span>
               <strong>
                 {recognition
                   ? `${Math.round(recognition.averageConfidence * 100)}%`
@@ -908,7 +918,7 @@ export default function AnalysisClient({
               </strong>
             </div>
             <div>
-              <span>Cần kiểm tra</span>
+              <span>Tạp niệm</span>
               <strong>{uncertainSquares.length}</strong>
             </div>
           </div>
@@ -924,7 +934,7 @@ export default function AnalysisClient({
                   setActiveTab("edit");
                 }}
               >
-                Sửa thế cờ
+                Bày trận
               </button>
               <button
                 className={!editMode ? "active" : ""}
@@ -933,11 +943,11 @@ export default function AnalysisClient({
                   setPaintPiece(undefined);
                 }}
               >
-                Thử nước
+                Diễn hóa
               </button>
             </div>
             <span className={isLegal ? "validBadge" : "invalidBadge"}>
-              {isLegal ? "✓ Hợp lệ" : "⚠ Chưa hợp lệ"}
+              {isLegal ? "✓ Trận pháp ổn định" : "⚠ Trận pháp hỗn loạn"}
             </span>
           </div>
 
@@ -967,7 +977,7 @@ export default function AnalysisClient({
                 className="button compactButton"
                 onClick={() => void downloadBoardImage()}
               >
-                Tải hình bàn cờ
+                Thu trận đồ
               </button>
               <button
                 className="button compactButton"
@@ -977,7 +987,7 @@ export default function AnalysisClient({
                   )
                 }
               >
-                Lật bàn
+                Chuyển trận
               </button>
             </div>
           </div>
@@ -1010,7 +1020,7 @@ export default function AnalysisClient({
               <div className="compactToolSection">
                 {uncertainSquares.length > 0 && (
                   <div className="reviewStrip">
-                    <span>Ô AI chưa chắc:</span>
+                    <span>Ô linh ứng bất định:</span>
                     <div>
                       {uncertainSquares.map((square) => (
                         <button
@@ -1028,7 +1038,7 @@ export default function AnalysisClient({
                 )}
 
                 <div className="selectedInfo">
-                  <span>Ô đang chọn</span>
+                  <span>Vị trí đang điểm</span>
                   <strong>
                     {selectedSquare ?? "—"}
                     {selectedPiece
@@ -1097,44 +1107,44 @@ export default function AnalysisClient({
                     onClick={undoEdit}
                     disabled={history.length === 0}
                   >
-                    Hoàn tác
+                    Hồi chiêu
                   </button>
                   <button
                     className="button"
                     onClick={() => commitPlacement(clearPlacement())}
                   >
-                    Xóa bàn
+                    Tán trận
                   </button>
                   <button
                     className="button"
                     onClick={resetToAi}
                     disabled={!recognition}
                   >
-                    Khôi phục AI
+                    Hồi nguyên AI
                   </button>
                   <button
                     className="button"
                     onClick={() => setPaintPiece(undefined)}
                   >
-                    Dừng công cụ
+                    Thu pháp
                   </button>
                 </div>
 
                 {recognition && (
                   <>
-                    <span className="controlLabel">Hướng hình trong sách</span>
+                    <span className="controlLabel">Phương vị cổ phổ</span>
                     <div className="segmented">
                       <button
                         className={imageOrientation === "white" ? "active" : ""}
                         onClick={() => chooseImageOrientation("white")}
                       >
-                        Trắng dưới
+                        Bạch phương dưới
                       </button>
                       <button
                         className={imageOrientation === "black" ? "active" : ""}
                         onClick={() => chooseImageOrientation("black")}
                       >
-                        Đen dưới
+                        Hắc phương dưới
                       </button>
                     </div>
                   </>
@@ -1153,7 +1163,7 @@ export default function AnalysisClient({
             {activeTab === "fen" && (
               <div className="compactToolSection">
                 <label className="controlLabel" htmlFor="fen">
-                  FEN hiện tại
+                  Kỳ văn FEN hiện tại
                 </label>
                 <textarea
                   id="fen"
@@ -1165,10 +1175,10 @@ export default function AnalysisClient({
 
                 <div className="toolActionGrid">
                   <button className="button" onClick={loadFen}>
-                    Nạp FEN
+                    Nạp kỳ văn
                   </button>
                   <button className="button" onClick={() => void copyFen()}>
-                    Copy FEN
+                    Sao chép kỳ văn
                   </button>
                   <button
                     className="button saveButton"
@@ -1179,11 +1189,11 @@ export default function AnalysisClient({
                       ? "Đang lưu…"
                       : savedFen === fen
                         ? "✓ Đã lưu"
-                        : "Lưu bản sửa"}
+                        : "Khắc ấn bản sửa"}
                   </button>
                 </div>
 
-                <span className="controlLabel">Quyền nhập thành</span>
+                <span className="controlLabel">Nhập thành</span>
                 <div className="castlingGrid compactCastling">
                   {(["K", "Q", "k", "q"] as const).map((right) => (
                     <label key={right}>
@@ -1198,7 +1208,7 @@ export default function AnalysisClient({
                 </div>
 
                 <label className="epField">
-                  <span className="controlLabel">En passant</span>
+                  <span className="controlLabel">Bắt tốt qua đường</span>
                   <input
                     value={enPassant}
                     onChange={(event) => setEnPassant(event.target.value || "-")}
@@ -1233,7 +1243,7 @@ export default function AnalysisClient({
                       setLines([]);
                     }}
                   >
-                    Về thế gốc
+                    Hồi nguyên
                   </button>
                   <label className="engineAutoToggle">
                     <input
@@ -1241,13 +1251,13 @@ export default function AnalysisClient({
                       checked={engineAuto}
                       onChange={(event) => setEngineAuto(event.target.checked)}
                     />
-                    Tự phân tích
+                    Tự vận công
                   </label>
                 </div>
 
                 <div className="engineControlRow">
                   <label>
-                    <span>Depth</span>
+                    <span>Tầng tâm pháp</span>
                     <select
                       value={engineDepth}
                       onChange={(event) => setEngineDepth(Number(event.target.value))}
@@ -1264,7 +1274,7 @@ export default function AnalysisClient({
                     onClick={() => void runEngine(engineFen)}
                     disabled={analyzing || !engineLegal}
                   >
-                    {analyzing ? "Đang tính…" : "Stockfish 19 local"}
+                    {analyzing ? "Đang tính…" : "Vận Tâm pháp Stockfish"}
                   </button>
                 </div>
 

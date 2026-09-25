@@ -11,6 +11,14 @@ import {
   type UploadResponse,
 } from "@/lib/api";
 
+function cultivationStage(progress: number) {
+  if (progress < 20) return { name: "Khai Phổ", mark: "壹", note: "Mở kinh quyển, định vị kỳ đồ" };
+  if (progress < 50) return { name: "Quan Trận", mark: "貳", note: "Dò tìm thế cờ trong cổ phổ" };
+  if (progress < 80) return { name: "Ngộ Cục", mark: "參", note: "Tách trận đồ, hội tụ kỳ thế" };
+  if (progress < 100) return { name: "Khắc Ấn", mark: "肆", note: "Hoàn thiện dữ liệu và nhập tàng" };
+  return { name: "Viên Mãn", mark: "成", note: "Kỳ phổ đã nhập Tàng Kinh Các" };
+}
+
 export default function HomePage() {
   const [file, setFile] = useState<File | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -37,6 +45,8 @@ export default function HomePage() {
     1,
     Math.ceil(filteredPositions.length / PAGE_SIZE),
   );
+
+  const scanCultivation = cultivationStage(scanJob?.progress ?? 0);
 
   const visiblePositions = filteredPositions.slice(
     (galleryPage - 1) * PAGE_SIZE,
@@ -176,17 +186,21 @@ export default function HomePage() {
     <main className={`shell ${positions.length > 0 ? "hasResults" : ""}`}>
       <section className="hero daoHero">
         <div className="daoSeal" aria-hidden="true">☯</div>
-        <p className="eyebrow">KỲ PHỔ TÀNG KINH · PHASE 2.1</p>
-        <h1>Khai kỳ phổ, luyện thế cờ, nhập cuộc phân tích.</h1>
+        <div className="daoTrigrams" aria-hidden="true">
+          <span>☰</span><span>☵</span><span>☶</span><span>☷</span>
+        </div>
+        <p className="eyebrow">KỲ PHỔ TÀNG KINH · HUYỀN MÔN KỲ ĐẠO</p>
+        <h1>Khai cổ phổ, quan trận thế, diễn hóa kỳ đạo.</h1>
         <p className="subtle">
-          Nạp PDF hoặc DOCX. Hệ thống tự tìm diagram, AI đọc 64 ô và dựng FEN; bạn có thể hiệu chỉnh thế cờ rồi tiếp tục nghiên cứu với Stockfish, Lichess hoặc Chess.com.
+          Nạp PDF hoặc DOCX vào Tàng Kinh Các. Hệ thống tự tìm kỳ đồ, AI đọc 64 ô và dựng FEN; sau đó bạn có thể bố trận, diễn hóa nước đi và vận dụng Tâm pháp Stockfish.
         </p>
+        <p className="daoQuote">“Tĩnh tâm quan cục · nhất tử định thế · vạn biến quy nhất.”</p>
       </section>
 
       <form className="uploadCard" onSubmit={submit}>
         <label className="dropzone">
-          <span className="dropTitle">Nạp kỳ phổ PDF / DOCX</span>
-          <span className="subtle">File được xử lý trên backend local của bạn.</span>
+          <span className="dropTitle">Nạp kỳ phổ vào Tàng Kinh Các</span>
+          <span className="subtle">PDF / DOCX được xử lý hoàn toàn trên backend local của bạn.</span>
           <input
             type="file"
             accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -194,16 +208,19 @@ export default function HomePage() {
           />
         </label>
         <button className="primary" disabled={!file || loading}>
-          {loading ? "Đang quét kỳ phổ…" : "Khai phổ · tìm thế cờ"}
+          {loading ? "Đang khai mở kỳ phổ…" : "Khai phổ · nhập Tàng Kinh"}
         </button>
         {file && <p className="subtle">Đã chọn: {file.name}</p>}
         {scanJob && loading && (
-          <div className="scanProgress">
-            <div className="scanProgressHeader">
-              <strong>
-                {scanJob.status === "queued" ? "Đang chuẩn bị…" : "Đang quét sách…"}
-              </strong>
-              <span>{scanJob.progress.toFixed(1)}%</span>
+          <div className="scanProgress cultivationProgress">
+            <div className="cultivationHeader">
+              <div className="realmSeal" aria-hidden="true">{scanCultivation.mark}</div>
+              <div>
+                <span className="realmKicker">CẢNH GIỚI QUÉT PHỔ</span>
+                <strong>{scanJob.status === "queued" ? "Tụ Khí" : scanCultivation.name}</strong>
+                <small>{scanJob.status === "queued" ? "Đang chuẩn bị pháp trận xử lý" : scanCultivation.note}</small>
+              </div>
+              <span className="realmPercent">{scanJob.progress.toFixed(1)}%</span>
             </div>
             <div className="progressTrack" aria-label="Tiến trình quét">
               <div
@@ -215,11 +232,11 @@ export default function HomePage() {
               {scanJob.total > 0
                 ? `Đã xử lý ${scanJob.current} / ${scanJob.total}`
                 : "Đang đọc thông tin tài liệu"}{" "}
-              · đã tìm thấy {scanJob.count} hình cờ.
+              · đã lĩnh hội {scanJob.count} kỳ đồ.
             </p>
           </div>
         )}
-        {restoring && <p className="subtle">Đang khôi phục lần quét gần nhất…</p>}
+        {restoring && <p className="subtle daoStatus">☁ Đang triệu hồi kỳ phổ gần nhất từ Tàng Kinh Các…</p>}
         {error && <p className="error">{error}</p>}
       </form>
 
@@ -237,13 +254,13 @@ export default function HomePage() {
                 </div>
                 <div className="actions">
                   <button className="button" onClick={() => openBook(book)}>
-                    Mở gallery
+                    Nhập Các
                   </button>
                   <a className="button" href={`${API_BASE}/api/books/${book.jobId}/download`}>
-                    ZIP
+                    Thu kinh ZIP
                   </a>
                   <a className="button" href={`${API_BASE}/api/books/${book.jobId}/recognized.json`}>
-                    FEN
+                    Kỳ văn FEN
                   </a>
                   <button className="button dangerButton" onClick={() => void deleteBook(book)}>
                     Xóa
@@ -260,11 +277,11 @@ export default function HomePage() {
           <div className="galleryToolbar">
             <div>
               <p className="eyebrow">KỲ PHỔ · {filename}</p>
-              <h2>{positions.length} hình cờ</h2>
+              <h2>{positions.length} kỳ đồ đã khai mở</h2>
             </div>
 
             <div className="pageSearch">
-              <label htmlFor="page-search">Tìm theo trang PDF</label>
+              <label htmlFor="page-search">Truy tìm theo trang cổ phổ</label>
               <div>
                 <input
                   id="page-search"
@@ -294,10 +311,10 @@ export default function HomePage() {
               {jobId && (
                 <>
                   <a className="button compactButton" href={`${API_BASE}/api/books/${jobId}/download`}>
-                    Tải ZIP
+                    Thu toàn bộ ảnh
                   </a>
                   <a className="button compactButton" href={`${API_BASE}/api/books/${jobId}/recognized.json`}>
-                    Xuất FEN
+                    Xuất kỳ văn FEN
                   </a>
                 </>
               )}
@@ -319,7 +336,7 @@ export default function HomePage() {
                 </div>
                 <div className="cardBody">
                   <div>
-                    <strong>Thế #{position.id}</strong>
+                    <strong>Kỳ trận #{position.id}</strong>
                     <p className="subtle">
                       Trang / ảnh nguồn: {position.page} · độ tin cậy detector {(position.confidence * 100).toFixed(0)}%
                     </p>
@@ -330,7 +347,7 @@ export default function HomePage() {
                       className="button primaryLink"
                       href={`/analysis?job=${jobId}&position=${position.id}&image=${encodeURIComponent(position.imageUrl)}`}
                     >
-                      AI đọc FEN & phân tích
+                      Quan trận · nhập đạo
                     </Link>
                   </div>
                 </div>

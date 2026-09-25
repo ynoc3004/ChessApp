@@ -1500,3 +1500,321 @@ h1 {
     display: none;
   }
 }
+
+
+/* =========================================================
+   PHƯƠNG ÁN B · ĐẬM CHẤT TU TIÊN / HUYỀN MÔN
+   ========================================================= */
+.daoTrigrams {
+  position: absolute;
+  left: -4px;
+  bottom: -30px;
+  display: flex;
+  gap: 18px;
+  color: rgba(197, 177, 123, .32);
+  font-size: 21px;
+  letter-spacing: .06em;
+  user-select: none;
+  pointer-events: none;
+}
+
+.daoQuote {
+  margin: 12px 0 0;
+  max-width: 720px;
+  color: #cbbb8f;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13px;
+  font-style: italic;
+  letter-spacing: .035em;
+}
+
+.daoHero::before {
+  content: "道";
+  position: absolute;
+  right: 94px;
+  top: -20px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 112px;
+  line-height: 1;
+  color: rgba(194, 165, 106, .035);
+  pointer-events: none;
+}
+
+.daoSeal::before,
+.daoSeal::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 1px solid rgba(120,164,125,.14);
+}
+
+.daoSeal::after {
+  inset: -16px;
+  border-style: dashed;
+  border-color: rgba(196,165,106,.11);
+  animation: daoRotate 28s linear infinite;
+}
+
+@keyframes daoRotate {
+  to { transform: rotate(360deg); }
+}
+
+.uploadCard::after,
+.workspacePane::after,
+.card::after {
+  content: "☰  ☵  ☶  ☷";
+  position: absolute;
+  right: 10px;
+  bottom: 7px;
+  color: rgba(197,177,123,.09);
+  font-size: 10px;
+  letter-spacing: .18em;
+  pointer-events: none;
+}
+
+.cultivationProgress {
+  position: relative;
+  overflow: hidden;
+}
+
+.cultivationProgress::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 12% 50%, rgba(121,164,125,.13), transparent 26%),
+    radial-gradient(circle at 88% 30%, rgba(196,165,106,.08), transparent 24%);
+  pointer-events: none;
+}
+
+.cultivationHeader {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.realmSeal {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(196,165,106,.48);
+  border-radius: 50%;
+  color: #d8c18a;
+  background: rgba(10,15,10,.56);
+  font-family: Georgia, serif;
+  font-size: 16px;
+  box-shadow: inset 0 0 15px rgba(196,165,106,.08);
+}
+
+.realmKicker {
+  display: block;
+  margin-bottom: 2px;
+  color: #829a80;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.cultivationHeader strong {
+  display: block;
+  color: #eee8cf;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 15px;
+}
+
+.cultivationHeader small {
+  display: block;
+  margin-top: 2px;
+  color: #9ca794;
+  font-size: 10px;
+}
+
+.realmPercent {
+  color: #d2bd86;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.progressTrack {
+  position: relative;
+  z-index: 1;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.02), rgba(196,165,106,.05)),
+    #0a0e0a;
+  border-color: #40503d;
+}
+
+.progressFill {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, #355641, #6d9a72 55%, #baa269);
+  box-shadow: 0 0 12px rgba(111,157,115,.28);
+}
+
+.progressFill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,.22) 45%, transparent 70%);
+  animation: qiFlow 2.4s ease-in-out infinite;
+}
+
+@keyframes qiFlow {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(140%); }
+}
+
+.daoStatus::before {
+  content: "☁";
+  margin-right: 5px;
+  color: #9bb89d;
+}
+
+.realmChip {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px !important;
+}
+
+.realmChip b {
+  width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  font-family: Georgia, serif;
+  font-size: 10px;
+  background: rgba(0,0,0,.2);
+  border: 1px solid currentColor;
+}
+
+.realm-gold {
+  color: #dcc78f !important;
+  border-color: #8f7b4b !important;
+  background: rgba(134,105,49,.14) !important;
+}
+
+.realm-jade {
+  color: #a9d2ad !important;
+  border-color: #577d5e !important;
+  background: rgba(69,113,80,.18) !important;
+}
+
+.realm-mist {
+  color: #b7c5b2 !important;
+  border-color: #667360 !important;
+  background: rgba(93,108,91,.15) !important;
+}
+
+.realm-ash {
+  color: #afa99a !important;
+  border-color: #625e53 !important;
+  background: rgba(90,84,72,.14) !important;
+}
+
+.analysisTopbar::after {
+  content: "☯  一子落 · 萬象生";
+  margin-left: auto;
+  color: rgba(202,183,132,.36);
+  font-family: Georgia, serif;
+  font-size: 10px;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+
+.boardPane {
+  position: relative;
+}
+
+.boardPane::before {
+  content: "棋";
+  position: absolute;
+  left: 14px;
+  bottom: 8px;
+  color: rgba(200,182,130,.06);
+  font-family: Georgia, serif;
+  font-size: 90px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.boardToolbar,
+.boardStage,
+.boardQuickbar {
+  position: relative;
+  z-index: 1;
+}
+
+.toolTabs button:nth-child(1)::before {
+  content: "陣 ";
+  color: #9dc4a2;
+}
+
+.toolTabs button:nth-child(2)::before {
+  content: "文 ";
+  color: #c7ad77;
+}
+
+.toolTabs button:nth-child(3)::before {
+  content: "悟 ";
+  color: #a8bea5;
+}
+
+.engineTools::before {
+  content: "太極生兩儀 · 兩儀演四象 · 四象定勝負";
+  display: block;
+  padding: 7px 9px;
+  border: 1px solid rgba(196,165,106,.17);
+  border-radius: 8px;
+  color: rgba(220,205,165,.62);
+  background: rgba(11,15,11,.38);
+  font-family: Georgia, serif;
+  font-size: 9px;
+  text-align: center;
+  letter-spacing: .035em;
+}
+
+.compactEngineLine {
+  background:
+    linear-gradient(90deg, rgba(70,105,77,.08), transparent),
+    #121712;
+  border-color: #3e4b3b;
+}
+
+.compactEngineLine strong {
+  color: #d7c28f;
+}
+
+.sourcePane .paneHeader strong::before {
+  content: "卷 · ";
+  color: #bda66e;
+}
+
+.validBadge {
+  box-shadow: 0 0 16px rgba(78,128,88,.08);
+}
+
+.invalidBadge {
+  box-shadow: 0 0 16px rgba(161,104,59,.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daoSeal::after,
+  .progressFill::after {
+    animation: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .analysisTopbar::after,
+  .daoTrigrams {
+    display: none;
+  }
+}
