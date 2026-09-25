@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9fd8ff"/>
+      <stop offset=".27" stop-color="#f6c8d7"/>
+      <stop offset=".52" stop-color="#ffe4cc"/>
+      <stop offset="1" stop-color="#dcebdc"/>
+    </linearGradient>
+    <linearGradient id="mountainFar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fa7b7" stop-opacity=".38"/>
+      <stop offset="1" stop-color="#607887" stop-opacity=".08"/>
+    </linearGradient>
+    <linearGradient id="mountainNear" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#738c82" stop-opacity=".54"/>
+      <stop offset="1" stop-color="#425f57" stop-opacity=".14"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="50%" cy="42%" r="50%">
+      <stop offset="0" stop-color="#fffdf0" stop-opacity=".95"/>
+      <stop offset=".22" stop-color="#ffe3ac" stop-opacity=".7"/>
+      <stop offset=".62" stop-color="#ffd8d7" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="island" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#81948a"/>
+      <stop offset=".42" stop-color="#657a70"/>
+      <stop offset="1" stop-color="#3f5a52"/>
+    </linearGradient>
+    <linearGradient id="waterfall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6ffff" stop-opacity=".9"/>
+      <stop offset=".65" stop-color="#c7ecff" stop-opacity=".45"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="blur12"><feGaussianBlur stdDeviation="12"/></filter>
+    <filter id="blur24"><feGaussianBlur stdDeviation="24"/></filter>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+  <circle cx="1000" cy="210" r="430" fill="url(#sun)"/>
+
+  <g opacity=".38" filter="url(#blur12)">
+    <path d="M0 615 L150 470 L260 555 L420 360 L570 520 L760 330 L910 515 L1100 305 L1260 490 L1450 345 L1580 500 L1760 390 L1920 535 L1920 800 L0 800Z" fill="url(#mountainFar)"/>
+  </g>
+
+  <g opacity=".58">
+    <path d="M0 770 L120 650 L240 700 L360 560 L500 690 L650 520 L805 705 L980 545 L1110 690 L1270 515 L1435 680 L1570 560 L1715 690 L1920 580 L1920 900 L0 900Z" fill="url(#mountainNear)"/>
+  </g>
+
+  <g transform="translate(290 205)">
+    <path d="M0 215 C45 90 185 55 265 135 C345 55 500 105 520 235 C475 295 390 320 270 330 C150 318 55 292 0 215Z" fill="url(#island)" opacity=".72"/>
+    <path d="M88 235 C120 315 150 420 167 570" stroke="url(#waterfall)" stroke-width="28" stroke-linecap="round" opacity=".78"/>
+    <path d="M350 238 C372 330 400 418 414 520" stroke="url(#waterfall)" stroke-width="22" stroke-linecap="round" opacity=".63"/>
+    <g fill="#7b6b67" opacity=".72">
+      <path d="M205 95 h105 l-18 17 h-70z"/>
+      <path d="M224 74 h68 l-12 14 h-45z"/>
+      <rect x="235" y="111" width="42" height="54" rx="4"/>
+      <path d="M165 120 h44 l-9 12 h-29z"/>
+      <rect x="177" y="132" width="20" height="34"/>
+      <path d="M318 125 h46 l-10 12 h-27z"/>
+      <rect x="330" y="137" width="21" height="36"/>
+    </g>
+  </g>
+
+  <g transform="translate(1260 255) scale(.78)" opacity=".76">
+    <path d="M0 215 C45 90 185 55 265 135 C345 55 500 105 520 235 C475 295 390 320 270 330 C150 318 55 292 0 215Z" fill="url(#island)"/>
+    <path d="M110 240 C125 340 145 440 150 580" stroke="url(#waterfall)" stroke-width="24" stroke-linecap="round"/>
+    <path d="M350 235 C375 335 385 410 405 535" stroke="url(#waterfall)" stroke-width="18" stroke-linecap="round" opacity=".7"/>
+    <g fill="#766763">
+      <path d="M202 92 h112 l-20 18 h-72z"/>
+      <path d="M225 67 h68 l-13 15 h-43z"/>
+      <rect x="239" y="110" width="42" height="58" rx="4"/>
+    </g>
+  </g>
+
+  <g opacity=".35">
+    <path d="M100 845 C310 720 420 755 590 815 C735 866 860 810 1010 775 C1220 725 1380 780 1530 840 C1675 895 1810 850 1920 800 L1920 1080 L0 1080 L0 900Z" fill="#eef8f2"/>
+    <path d="M0 930 C220 820 390 890 540 935 C735 990 900 900 1085 880 C1300 858 1450 935 1600 965 C1740 990 1830 948 1920 900 L1920 1080 L0 1080Z" fill="#f9f1f5" opacity=".85"/>
+  </g>
+
+  <g opacity=".18" filter="url(#blur24)">
+    <ellipse cx="390" cy="765" rx="360" ry="86" fill="#fff"/>
+    <ellipse cx="1040" cy="730" rx="480" ry="96" fill="#fff"/>
+    <ellipse cx="1570" cy="820" rx="390" ry="84" fill="#ffddeb"/>
+  </g>
+</svg>

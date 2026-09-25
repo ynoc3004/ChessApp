@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 
 const REMINDERS = [
-  "Trước khi động quân, hãy nhìn xem đối phương đang đe dọa gì.",
-  "Tĩnh tâm ba nhịp: kiểm tra chiếu, bắt quân và đòn chiến thuật.",
-  "Nước đơn giản nhưng chắc chắn thường tốt hơn nước hoa mỹ.",
-  "Sau mỗi nước, hãy nhìn lại toàn bàn cờ một lần.",
-  "Muốn công thì trước hết phải giữ vua an ổn.",
-  "Đừng vội xuất chiêu: kiểm tra quân treo và ô yếu trước đã.",
+  "Trước khi xuất thủ, hãy xem đối phương có nước chiếu, bắt quân hay đe dọa nào không.",
+  "Tĩnh tâm ba nhịp. Kiểm tra vua, quân treo và ô yếu rồi mới hạ tử.",
+  "Đừng chỉ nhìn nước mình muốn đi. Hãy hỏi: đối thủ muốn làm gì ở nước kế tiếp?",
+  "Một quân đứng đẹp chưa chắc hữu dụng. Hãy tìm quân yếu nhất của mình để cải thiện.",
+  "Khi thế cờ rối, ưu tiên nước chắc chắn: an toàn vua, phát triển quân và giữ liên kết.",
+  "Sau mỗi nước, nhìn lại toàn bàn một lần. Kỳ đạo trọng toàn cục hơn một đòn đẹp mắt.",
 ];
 
 export default function DaoAmbient() {
@@ -17,53 +17,77 @@ export default function DaoAmbient() {
   useEffect(() => {
     const timer = window.setInterval(() => {
       setReminderIndex((index) => (index + 1) % REMINDERS.length);
-    }, 11000);
+    }, 14500);
 
     return () => window.clearInterval(timer);
   }, []);
 
   return (
     <div className="daoAmbient" aria-hidden="true">
-      <div className="daoPhotoBackdrop" />
-      <div className="daoDawnVeil" />
-      <div className="daoSunGlow" />
+      <div className="immortalRealmPhoto" />
+      <div className="immortalRealmArt" />
+      <div className="immortalLightVeil" />
+      <div className="immortalSunHalo" />
 
-      <div className="immortalCloud cloudOne" />
-      <div className="immortalCloud cloudTwo" />
-      <div className="immortalCloud cloudThree" />
-      <div className="immortalCloud cloudFour" />
+      <div className="pinkSeaCloud cloudSeaOne" />
+      <div className="pinkSeaCloud cloudSeaTwo" />
+      <div className="pinkSeaCloud cloudSeaThree" />
+      <div className="pinkSeaCloud cloudSeaFour" />
 
-      <div className="daoMist mistOne" />
-      <div className="daoMist mistTwo" />
-      <div className="daoMist mistThree" />
+      <div className="celestialMist celestialMistOne" />
+      <div className="celestialMist celestialMistTwo" />
 
       <div
         key={reminderIndex}
-        className={`daoMasterScene pose-${reminderIndex % 2}`}
+        className={`thaiThanhFlight flightVariant${reminderIndex % 3}`}
       >
-        <div className="daoMasterAura" />
-
-        <div className="daoMasterViewport">
-          <img
-            className="daoMasterImage"
-            src="/dao/taithanh-master.webp"
-            alt=""
-            draggable={false}
-          />
-          <div className="daoMasterSheen" />
-          <div className="daoMasterCloudRibbon ribbonOne" />
-          <div className="daoMasterCloudRibbon ribbonTwo" />
+        <div className="masterCloudMount">
+          <i />
+          <i />
+          <i />
+          <i />
         </div>
 
-        <div className="daoMasterBubble">
-          <span>Thái Thanh sư phụ</span>
-          {REMINDERS[reminderIndex]}
+        <div className="thaiThanhFigure">
+          <div className="masterAuraRing" />
+
+          <div className="masterLayer masterBaseLayer">
+            <img src="/dao/taithanh-master.webp" alt="" draggable={false} />
+          </div>
+
+          <div className="masterLayer masterHairLayer">
+            <img src="/dao/taithanh-master.webp" alt="" draggable={false} />
+          </div>
+
+          <div className="masterLayer masterSleeveLayer">
+            <img src="/dao/taithanh-master.webp" alt="" draggable={false} />
+          </div>
+
+          <div className="masterLayer masterFanLayer">
+            <img src="/dao/taithanh-master.webp" alt="" draggable={false} />
+          </div>
+
+          <div className="masterMouthMotion" />
+          <div className="masterLightSweep" />
+          <div className="masterQiRibbon qiRibbonOne" />
+          <div className="masterQiRibbon qiRibbonTwo" />
+        </div>
+
+        <div className="thaiThanhReminder">
+          <strong>Thái Thanh sư phụ</strong>
+          <span>{REMINDERS[reminderIndex]}</span>
         </div>
       </div>
 
-      <div className="softTalisman talismanOne">清静</div>
-      <div className="softTalisman talismanTwo">观局</div>
-      <div className="softTalisman talismanThree">守心</div>
+      <div className="floatingTalisman talismanA">
+        <b>清</b><span>心</span>
+      </div>
+      <div className="floatingTalisman talismanB">
+        <b>觀</b><span>局</span>
+      </div>
+      <div className="floatingTalisman talismanC">
+        <b>守</b><span>一</span>
+      </div>
     </div>
   );
 }
