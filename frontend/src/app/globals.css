@@ -1209,55 +1209,19 @@ h2 { font-family: Georgia, 'Times New Roman', serif; margin: 0; }
   font-weight: 800;
 }
 
-/* Lichess-like drag:
-   react-chessboard renders the dragged clone in a portal. Its internal
-   width/height are 100%, which can resolve against a huge overlay box and
-   make the piece jump far away from the cursor. The app measures the actual
-   source square on drag start and writes --drag-piece-size. */
-:root {
-  --drag-piece-size: 72px;
-}
-
-[data-piece] {
-  width: var(--drag-piece-size) !important;
-  height: var(--drag-piece-size) !important;
-  max-width: var(--drag-piece-size) !important;
-  max-height: var(--drag-piece-size) !important;
-}
-
-/* Pieces that are still on a board must continue to fill their own square.
-   The fixed size above therefore applies only to the portal clone. */
+/* Drag behavior is patched in react-chessboard itself.
+   Keep board pieces and the drag clone at the library's native square size. */
 .boardCapture [data-piece],
 .engineMiniBoard [data-piece] {
   width: 100% !important;
   height: 100% !important;
-  max-width: none !important;
-  max-height: none !important;
 }
 
 [data-piece] > svg {
   width: 100% !important;
   height: 100% !important;
-  max-width: none !important;
-  max-height: none !important;
   display: block !important;
-  margin: 0 !important;
 }
-
-@media (max-width: 820px) {
-  .pieceChooserRow {
-    grid-template-columns: 38px minmax(0, 1fr);
-  }
-
-  .pieceChooser .compactPalette {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .pieceChooser .compactPalette button {
-    height: 48px;
-  }
-}
-
 
 /* =========================================================
    TU TIÊN / ĐẠO GIÁO INSPIRED FRONTEND THEME
