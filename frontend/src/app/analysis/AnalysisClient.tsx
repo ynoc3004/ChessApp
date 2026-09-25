@@ -9,6 +9,7 @@ import {
   type CSSProperties,
 } from "react";
 import Link from "next/link";
+import DaoAmbient from "@/components/DaoAmbient";
 import { Chess } from "chess.js";
 import { toPng } from "html-to-image";
 import {
@@ -844,6 +845,7 @@ export default function AnalysisClient({
 
   return (
     <main className="analysisApp">
+      <DaoAmbient />
       <header className="analysisTopbar">
         <div className="analysisBrand">
           <strong>☯ Kỳ Phổ Đạo Các</strong>

@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import DaoAmbient from "@/components/DaoAmbient";
 import {
   API_BASE,
   type BookListResponse,
@@ -184,6 +185,7 @@ export default function HomePage() {
 
   return (
     <main className={`shell ${positions.length > 0 ? "hasResults" : ""}`}>
+      <DaoAmbient />
       <section className="hero daoHero">
         <div className="daoSeal" aria-hidden="true">☯</div>
         <div className="daoTrigrams" aria-hidden="true">
