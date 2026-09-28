@@ -1,4 +1,7 @@
-/* Immortal hero motion layer: Bagua rotation, drifting clouds, soft wind and falling petals. */
+/* Lightweight immortal hero motion layer.
+ * Keep motion transform-only where possible so the landing page remains smooth
+ * on integrated GPUs and in Next.js development mode.
+ */
 
 main:has(#upload) section[aria-labelledby="welcome-title"] {
   --motion-jade: #315f5b;
@@ -9,243 +12,170 @@ main:has(#upload) section[aria-labelledby="welcome-title"] {
   overflow: hidden !important;
 }
 
-/* Keep all real hero content above the atmospheric layers. */
 main:has(#upload) section[aria-labelledby="welcome-title"] > * {
   position: relative;
   z-index: 4;
 }
 
-/* Slow camera drift over the fairyland panorama behind the page. */
+/* The panorama stays static and sharp. Animating a full-screen background plus
+ * filter every frame was expensive and could make the dev page feel frozen. */
 main:has(#upload)::before {
-  animation: immortalBackdropBreathe 26s ease-in-out infinite alternate;
-  will-change: background-position, filter;
+  animation: none !important;
+  will-change: auto !important;
+  filter: saturate(1.06) brightness(1.04) !important;
 }
 
-@keyframes immortalBackdropBreathe {
-  0% {
-    background-position: 48% 34% !important;
-    filter: saturate(1.05) brightness(1.04);
-  }
-  100% {
-    background-position: 52% 31% !important;
-    filter: saturate(1.10) brightness(1.07);
-  }
-}
-
-/* Wide cloud veil drifting through the middle distance. */
+/* One soft cloud bank, moving with transform only. */
 main:has(#upload) section[aria-labelledby="welcome-title"]::after {
   content: "" !important;
   position: absolute !important;
   z-index: 2 !important;
   pointer-events: none !important;
-  left: -22%;
-  right: -22%;
-  top: 5%;
-  height: 84%;
-  opacity: .48;
+  left: -14%;
+  right: -14%;
+  top: 13%;
+  height: 62%;
+  opacity: .30;
   background:
-    radial-gradient(ellipse at 5% 30%, rgba(255,255,255,.75) 0 8%, rgba(255,255,255,.32) 18%, transparent 38%),
-    radial-gradient(ellipse at 27% 65%, rgba(255,244,247,.62) 0 10%, rgba(255,255,255,.22) 23%, transparent 42%),
-    radial-gradient(ellipse at 50% 38%, rgba(255,255,255,.68) 0 11%, rgba(246,247,255,.20) 25%, transparent 44%),
-    radial-gradient(ellipse at 72% 68%, rgba(255,249,239,.56) 0 9%, rgba(255,255,255,.18) 23%, transparent 42%),
-    radial-gradient(ellipse at 94% 34%, rgba(255,255,255,.68) 0 8%, rgba(255,243,247,.22) 22%, transparent 40%);
-  filter: blur(16px);
-  transform: translate3d(-3%, 0, 0) scale(1.05);
-  animation: heroCloudSea 30s ease-in-out infinite alternate;
+    radial-gradient(ellipse at 14% 45%, rgba(255,255,255,.72) 0 10%, rgba(255,255,255,.22) 24%, transparent 43%),
+    radial-gradient(ellipse at 48% 58%, rgba(255,245,248,.64) 0 11%, rgba(255,255,255,.18) 25%, transparent 44%),
+    radial-gradient(ellipse at 82% 42%, rgba(255,255,255,.68) 0 10%, rgba(255,247,240,.16) 24%, transparent 43%);
+  filter: blur(7px);
+  transform: translate3d(-2%, 0, 0);
+  animation: heroCloudDrift 32s ease-in-out infinite alternate;
   will-change: transform;
 }
 
-@keyframes heroCloudSea {
-  0% { transform: translate3d(-4%, 1%, 0) scale(1.03); }
-  45% { transform: translate3d(1%, -2%, 0) scale(1.08); }
-  100% { transform: translate3d(5%, 1%, 0) scale(1.04); }
+@keyframes heroCloudDrift {
+  from { transform: translate3d(-2%, 0, 0); }
+  to { transform: translate3d(4%, -1.5%, 0); }
 }
 
-/* A second, lower cloud bank uses the copy block pseudo element so the two
-   cloud layers move at different speeds and create parallax. */
-main:has(#upload) section[aria-labelledby="welcome-title"] > div:first-child::after {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  pointer-events: none;
-  width: 165%;
-  height: 52%;
-  left: -28%;
-  bottom: -12%;
-  opacity: .42;
-  background:
-    radial-gradient(ellipse at 20% 55%, rgba(255,255,255,.85) 0 12%, transparent 39%),
-    radial-gradient(ellipse at 48% 52%, rgba(255,239,244,.70) 0 14%, transparent 42%),
-    radial-gradient(ellipse at 75% 55%, rgba(235,246,255,.72) 0 12%, transparent 40%);
-  filter: blur(13px);
-  animation: lowerCloudDrift 22s ease-in-out infinite alternate;
-}
-
-@keyframes lowerCloudDrift {
-  from { transform: translate3d(-2%, 0, 0) scale(1); }
-  to { transform: translate3d(7%, -5%, 0) scale(1.09); }
-}
-
-/* Soft wind ribbons crossing the scene. */
+/* Thin wind streaks; no masks or huge animated filters. */
 main:has(#upload) section[aria-labelledby="welcome-title"] > div:first-child::before {
   content: "";
   position: absolute;
   z-index: 1;
   pointer-events: none;
-  inset: -20% -150% -20% -40%;
-  opacity: .13;
-  background:
-    repeating-linear-gradient(166deg,
-      transparent 0 48px,
-      rgba(255,255,255,.78) 50px 51px,
-      transparent 53px 100px);
-  mask-image: linear-gradient(90deg, transparent 0%, #000 24%, #000 76%, transparent 100%);
-  animation: immortalWind 18s linear infinite;
+  inset: 0 -35% 0 -20%;
+  opacity: .07;
+  background: repeating-linear-gradient(
+    168deg,
+    transparent 0 72px,
+    rgba(255,255,255,.72) 73px 74px,
+    transparent 75px 145px
+  );
+  animation: immortalWindLite 25s linear infinite;
+  will-change: transform;
 }
 
-@keyframes immortalWind {
-  from { transform: translate3d(-12%, 0, 0); }
-  to { transform: translate3d(18%, -3%, 0); }
+@keyframes immortalWindLite {
+  from { transform: translate3d(-4%, 0, 0); }
+  to { transform: translate3d(7%, -1%, 0); }
 }
 
-/* Falling peach petals. They are pure CSS, so no extra image asset is loaded. */
-main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child::before,
-main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child::after {
+/* A small amount of peach blossom fall. One layer only keeps repaint cost low. */
+main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child::before {
   content: "";
   position: absolute;
   z-index: -1;
   pointer-events: none;
-  top: -46%;
-  left: -115%;
-  width: 230%;
-  height: 190%;
-  opacity: .66;
+  top: -35%;
+  left: -92%;
+  width: 195%;
+  height: 165%;
+  opacity: .52;
   background-image:
-    radial-gradient(ellipse at center, rgba(245,137,166,.95) 0 28%, rgba(255,195,207,.82) 31% 52%, transparent 57%),
-    radial-gradient(ellipse at center, rgba(238,116,150,.90) 0 28%, rgba(255,211,220,.70) 31% 51%, transparent 57%),
-    radial-gradient(ellipse at center, rgba(255,183,198,.90) 0 30%, rgba(250,134,165,.68) 32% 52%, transparent 57%),
-    radial-gradient(ellipse at center, rgba(237,129,155,.86) 0 28%, rgba(255,203,215,.68) 31% 51%, transparent 57%);
-  background-size: 13px 18px, 9px 14px, 11px 16px, 8px 12px;
-  background-position: 7% 1%, 38% 12%, 68% 5%, 91% 18%;
+    radial-gradient(ellipse, rgba(244,133,163,.92) 0 28%, rgba(255,203,215,.68) 31% 52%, transparent 57%),
+    radial-gradient(ellipse, rgba(255,181,198,.90) 0 28%, rgba(240,125,157,.62) 31% 52%, transparent 57%),
+    radial-gradient(ellipse, rgba(239,128,157,.85) 0 28%, rgba(255,209,220,.66) 31% 52%, transparent 57%);
+  background-size: 11px 15px, 8px 12px, 10px 14px;
+  background-position: 14% 6%, 53% 3%, 86% 15%;
   background-repeat: no-repeat;
-  filter: drop-shadow(0 4px 6px rgba(121,70,78,.16));
-  animation: peachPetalFall 15s linear infinite;
+  animation: peachPetalFallLite 18s linear infinite;
+  will-change: transform;
 }
 
 main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child::after {
-  opacity: .42;
-  transform: scale(.72);
-  animation-duration: 21s;
-  animation-delay: -8s;
-  filter: blur(.2px) drop-shadow(0 3px 5px rgba(121,70,78,.12));
+  content: none !important;
 }
 
-@keyframes peachPetalFall {
-  0% {
-    transform: translate3d(-2%, -16%, 0) rotate(0deg);
-  }
-  33% {
-    transform: translate3d(7%, 22%, 0) rotate(108deg);
-  }
-  66% {
-    transform: translate3d(-4%, 61%, 0) rotate(226deg);
-  }
-  100% {
-    transform: translate3d(9%, 112%, 0) rotate(360deg);
-  }
+@keyframes peachPetalFallLite {
+  0% { transform: translate3d(-2%, -12%, 0) rotate(0deg); }
+  50% { transform: translate3d(5%, 48%, 0) rotate(150deg); }
+  100% { transform: translate3d(-1%, 105%, 0) rotate(300deg); }
 }
 
-/* Bagua: outer trigram ring turns clockwise while the taiji heart breathes
-   and counter-rotates very slowly. */
+/* Bagua ring remains animated; SVG transforms are cheap compared with full-page
+ * backdrop/filter animation. */
 main:has(#upload) section[aria-labelledby="welcome-title"] svg {
   overflow: visible;
   transform: translateZ(0);
-  filter:
-    drop-shadow(0 8px 22px rgba(79,56,38,.18))
-    drop-shadow(0 0 18px rgba(255,235,193,.34));
+  filter: drop-shadow(0 6px 14px rgba(79,56,38,.16));
 }
 
 main:has(#upload) .bagua-orbit {
   transform-box: fill-box;
   transform-origin: center;
-  animation: baguaOrbit 28s linear infinite;
+  animation: baguaOrbit 30s linear infinite;
   will-change: transform;
 }
 
 main:has(#upload) .bagua-core {
   transform-box: fill-box;
   transform-origin: center;
-  animation: baguaCore 34s linear infinite reverse, baguaBreath 5.4s ease-in-out infinite;
-  will-change: transform, opacity;
+  animation: baguaCore 42s linear infinite reverse;
+  will-change: transform;
 }
 
-@keyframes baguaOrbit {
-  to { transform: rotate(360deg); }
-}
+@keyframes baguaOrbit { to { transform: rotate(360deg); } }
+@keyframes baguaCore { to { transform: rotate(360deg); } }
 
-@keyframes baguaCore {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes baguaBreath {
-  0%, 100% { opacity: .92; filter: drop-shadow(0 0 0 rgba(226,178,105,0)); }
-  50% { opacity: 1; filter: drop-shadow(0 0 9px rgba(226,178,105,.42)); }
-}
-
-/* The seal itself floats almost imperceptibly, like suspended spiritual qi. */
 main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child {
-  animation: sealFloat 6.5s ease-in-out infinite;
+  animation: sealFloat 8s ease-in-out infinite;
   will-change: transform;
 }
 
 @keyframes sealFloat {
   0%, 100% { transform: translate3d(0, 0, 0); }
-  50% { transform: translate3d(0, -7px, 0); }
+  50% { transform: translate3d(0, -5px, 0); }
 }
 
-/* Make the hero feel like a window into the landscape instead of a dark card. */
 main:has(#upload) section[aria-labelledby="welcome-title"] {
   background: linear-gradient(90deg,
-    rgba(49,52,47,.50) 0%,
-    rgba(58,57,51,.34) 39%,
-    rgba(255,248,238,.08) 68%,
-    rgba(255,248,238,.02) 100%) !important;
+    rgba(49,52,47,.48) 0%,
+    rgba(58,57,51,.31) 39%,
+    rgba(255,248,238,.07) 68%,
+    rgba(255,248,238,.015) 100%) !important;
   border-color: rgba(255,247,235,.30) !important;
-  box-shadow:
-    0 24px 65px rgba(51,45,37,.16),
-    inset 0 1px 0 rgba(255,255,255,.20) !important;
+  box-shadow: 0 18px 46px rgba(51,45,37,.14), inset 0 1px 0 rgba(255,255,255,.18) !important;
 }
 
 main:has(#upload) section[aria-labelledby="welcome-title"] h1 {
   color: #eef8f6 !important;
-  text-shadow: 0 2px 12px rgba(28,30,27,.28), 0 1px 0 rgba(255,255,255,.08) !important;
+  text-shadow: 0 2px 10px rgba(28,30,27,.24) !important;
 }
 
 main:has(#upload) section[aria-labelledby="welcome-title"] p,
 main:has(#upload) section[aria-labelledby="welcome-title"] a {
-  text-shadow: 0 2px 10px rgba(24,27,25,.24);
+  text-shadow: 0 2px 8px rgba(24,27,25,.20);
 }
 
-/* Keep the atmospheric layers subtle on phones. */
 @media (max-width: 760px) {
   main:has(#upload) section[aria-labelledby="welcome-title"]::after {
-    opacity: .30;
-    filter: blur(12px);
+    opacity: .22;
+    filter: blur(5px);
   }
-  main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child::before,
-  main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child::after {
-    opacity: .34;
+  main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child::before {
+    opacity: .30;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  main:has(#upload)::before,
   main:has(#upload) section[aria-labelledby="welcome-title"]::after,
   main:has(#upload) section[aria-labelledby="welcome-title"] > div:first-child::before,
-  main:has(#upload) section[aria-labelledby="welcome-title"] > div:first-child::after,
   main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child,
   main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child::before,
-  main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child::after,
   main:has(#upload) .bagua-orbit,
   main:has(#upload) .bagua-core {
     animation: none !important;
