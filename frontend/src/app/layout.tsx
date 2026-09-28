@@ -6,16 +6,20 @@ import "./analysis-theme.css";
 import "./analysis-polish.css";
 import "./analysis-layout-fix.css";
 import type { Metadata } from "next";
+import HanVietMode from "@/components/HanVietMode";
 
 export const metadata: Metadata = {
-  title: "Kỳ Phổ Đạo Các | Không gian học cờ",
-  description: "Khám phá thế cờ từ sách PDF, DOCX và phân tích từng nước đi cùng Stockfish.",
+  title: "Kỳ Phổ Đạo Các | Tham ngộ kỳ đạo",
+  description: "Khai phổ PDF, DOCX; tầm kỳ đồ và diễn toán chư biến cùng Stockfish.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="vi">
-      <body>{children}</body>
+      <body>
+        <HanVietMode />
+        {children}
+      </body>
     </html>
   );
 }
