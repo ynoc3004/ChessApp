@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import styles from "./home.module.css";
+import BaguaSeal from "@/components/BaguaSeal";
 import {
   API_BASE,
   type BookListResponse,
@@ -226,8 +227,15 @@ export default function HomePage() {
           <p className={styles.intro}>Mang kỳ phổ lên bàn cờ. Tách hình từ sách, thử từng nước đi và khám phá thế trận cùng Stockfish.</p>
           <a className={styles.heroLink} href="#upload">Bắt đầu với một cuốn sách <span aria-hidden="true">↗</span></a>
         </div>
-        <div className={styles.heroCaption}><span>TIÊN SƠN VÂN HẢI</span><p>Tĩnh tâm quan cục.</p></div>
+        <div className={styles.sealScene}>
+          <BaguaSeal className={styles.baguaSeal} />
+          <p>BÁT QUÁI · TỨ TƯỢNG</p>
+          <span>Tĩnh tâm quan cục</span>
+        </div>
       </section>
+      <div className={styles.guardianRibbon} aria-label="Tứ Tượng">
+        <span>Thanh Long</span><i aria-hidden="true">✦</i><span>Bạch Hổ</span><i aria-hidden="true">✦</i><span>Chu Tước</span><i aria-hidden="true">✦</i><span>Huyền Vũ</span>
+      </div>
       <div className={styles.workspace}>
       <section className={styles.importSection} id="upload" aria-labelledby="import-title">
         <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>01 / KHAI PHỔ</p><h2 id="import-title">Nhập sách của bạn</h2></div><span className={styles.formatBadge}>PDF · DOCX</span></div>
