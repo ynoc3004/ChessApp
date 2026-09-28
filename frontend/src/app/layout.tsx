@@ -1,5 +1,6 @@
 import "./globals.css";
 import "./fairyland-theme.css";
+import "./home-typography.css";
 import "./analysis-theme.css";
 import "./analysis-polish.css";
 import "./analysis-layout-fix.css";
