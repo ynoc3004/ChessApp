@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from .detector import extract_from_docx, extract_from_pdf
 from .recognizer import recognize_board
 from .preprocess import ensure_book_variants
+from .puzzles import router as puzzle_router
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -44,6 +45,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.mount("/files", StaticFiles(directory=OUTPUT_DIR), name="files")
+app.include_router(puzzle_router)
 
 
 class AnalyzeRequest(BaseModel):

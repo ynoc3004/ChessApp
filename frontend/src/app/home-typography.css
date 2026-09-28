@@ -1,0 +1,148 @@
+/* Home-page typography polish
+ * Classical Vietnamese-friendly headings + clean UI text.
+ * Scoped to the book-import home page so analysis boards are untouched.
+ */
+
+main:has(#upload) {
+  --font-ui: "Segoe UI Variable", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-display: Cambria, "Times New Roman", Times, serif;
+  font-family: var(--font-ui) !important;
+  font-feature-settings: "kern" 1, "liga" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Brand: elegant but compact; Vietnamese accents stay clear on Windows. */
+main:has(#upload) > header strong,
+main:has(#upload) > header a strong {
+  font-family: var(--font-display) !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  line-height: 1.05 !important;
+  letter-spacing: .005em !important;
+}
+
+main:has(#upload) > header small,
+main:has(#upload) > header nav,
+main:has(#upload) > header a:not(:has(strong)) {
+  font-family: var(--font-ui) !important;
+  letter-spacing: .01em !important;
+}
+
+/* Hero title: replace the thin Georgia look with a calmer book-serif. */
+main:has(#upload) section[aria-labelledby="welcome-title"] h1 {
+  font-family: var(--font-display) !important;
+  font-size: clamp(40px, 5vw, 62px) !important;
+  font-weight: 700 !important;
+  line-height: 1.06 !important;
+  letter-spacing: -.025em !important;
+  word-spacing: .02em !important;
+  text-wrap: balance;
+  font-kerning: normal;
+}
+
+main:has(#upload) section[aria-labelledby="welcome-title"] p {
+  font-family: var(--font-ui) !important;
+  font-size: 14px !important;
+  line-height: 1.72 !important;
+  letter-spacing: 0 !important;
+}
+
+main:has(#upload) section[aria-labelledby="welcome-title"] a {
+  font-family: var(--font-ui) !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  letter-spacing: .015em !important;
+}
+
+/* Eyebrows / small Dao labels: crisp sans serif, not decorative serif. */
+main:has(#upload) [class*="eyebrow"],
+main:has(#upload) [class*="kicker"] {
+  font-family: var(--font-ui) !important;
+  font-size: 10px !important;
+  font-weight: 750 !important;
+  line-height: 1.35 !important;
+  letter-spacing: .14em !important;
+  text-transform: uppercase;
+}
+
+/* Section headings retain a classical feel but become much easier to read. */
+main:has(#upload) h2,
+main:has(#upload) h3 {
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  letter-spacing: -.012em !important;
+  font-kerning: normal;
+}
+
+main:has(#upload) section#upload h2,
+main:has(#upload) section#library h2 {
+  font-size: clamp(24px, 2.4vw, 30px) !important;
+  line-height: 1.15 !important;
+}
+
+main:has(#upload) aside[aria-labelledby="guide-title"] h2 {
+  font-size: clamp(30px, 3.1vw, 39px) !important;
+  line-height: 1.08 !important;
+  text-wrap: balance;
+}
+
+/* All controls and practical reading copy use the UI font. */
+main:has(#upload) button,
+main:has(#upload) input,
+main:has(#upload) textarea,
+main:has(#upload) label,
+main:has(#upload) nav,
+main:has(#upload) li,
+main:has(#upload) [class*="subtle"],
+main:has(#upload) [class*="badge"],
+main:has(#upload) [class*="button"] {
+  font-family: var(--font-ui) !important;
+}
+
+main:has(#upload) button,
+main:has(#upload) [class*="button"] {
+  font-weight: 650 !important;
+  letter-spacing: .005em !important;
+}
+
+/* Guide steps: clearer hierarchy. */
+main:has(#upload) aside[aria-labelledby="guide-title"] strong {
+  font-family: var(--font-ui) !important;
+  font-weight: 700 !important;
+  line-height: 1.45 !important;
+}
+
+main:has(#upload) aside[aria-labelledby="guide-title"] p:not(:last-child) {
+  font-family: var(--font-ui) !important;
+  line-height: 1.65 !important;
+}
+
+/* Quotes and Dao-flavoured captions get restrained italics. */
+main:has(#upload) em,
+main:has(#upload) blockquote,
+main:has(#upload) [class*="Note"],
+main:has(#upload) [class*="Caption"] p {
+  font-family: var(--font-display) !important;
+  font-style: italic;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+}
+
+/* Gallery/book metadata should be compact and highly legible. */
+main:has(#upload) section#library,
+main:has(#upload) section#library button,
+main:has(#upload) section#library input {
+  font-family: var(--font-ui) !important;
+}
+
+@media (max-width: 680px) {
+  main:has(#upload) section[aria-labelledby="welcome-title"] h1 {
+    font-size: clamp(36px, 11vw, 48px) !important;
+    line-height: 1.04 !important;
+  }
+
+  main:has(#upload) aside[aria-labelledby="guide-title"] h2 {
+    font-size: 30px !important;
+  }
+}

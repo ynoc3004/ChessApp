@@ -1,0 +1,183 @@
+/* Lightweight immortal hero motion layer.
+ * Keep motion transform-only where possible so the landing page remains smooth
+ * on integrated GPUs and in Next.js development mode.
+ */
+
+main:has(#upload) section[aria-labelledby="welcome-title"] {
+  --motion-jade: #315f5b;
+  --motion-rose: #e8a7b8;
+  --motion-gold: #d4aa6a;
+  position: relative !important;
+  isolation: isolate;
+  overflow: hidden !important;
+}
+
+main:has(#upload) section[aria-labelledby="welcome-title"] > * {
+  position: relative;
+  z-index: 4;
+}
+
+/* The panorama stays static and sharp. Animating a full-screen background plus
+ * filter every frame was expensive and could make the dev page feel frozen. */
+main:has(#upload)::before {
+  animation: none !important;
+  will-change: auto !important;
+  filter: saturate(1.06) brightness(1.04) !important;
+}
+
+/* One soft cloud bank, moving with transform only. */
+main:has(#upload) section[aria-labelledby="welcome-title"]::after {
+  content: "" !important;
+  position: absolute !important;
+  z-index: 2 !important;
+  pointer-events: none !important;
+  left: -14%;
+  right: -14%;
+  top: 13%;
+  height: 62%;
+  opacity: .30;
+  background:
+    radial-gradient(ellipse at 14% 45%, rgba(255,255,255,.72) 0 10%, rgba(255,255,255,.22) 24%, transparent 43%),
+    radial-gradient(ellipse at 48% 58%, rgba(255,245,248,.64) 0 11%, rgba(255,255,255,.18) 25%, transparent 44%),
+    radial-gradient(ellipse at 82% 42%, rgba(255,255,255,.68) 0 10%, rgba(255,247,240,.16) 24%, transparent 43%);
+  filter: blur(7px);
+  transform: translate3d(-2%, 0, 0);
+  animation: heroCloudDrift 32s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes heroCloudDrift {
+  from { transform: translate3d(-2%, 0, 0); }
+  to { transform: translate3d(4%, -1.5%, 0); }
+}
+
+/* Thin wind streaks; no masks or huge animated filters. */
+main:has(#upload) section[aria-labelledby="welcome-title"] > div:first-child::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  inset: 0 -35% 0 -20%;
+  opacity: .07;
+  background: repeating-linear-gradient(
+    168deg,
+    transparent 0 72px,
+    rgba(255,255,255,.72) 73px 74px,
+    transparent 75px 145px
+  );
+  animation: immortalWindLite 25s linear infinite;
+  will-change: transform;
+}
+
+@keyframes immortalWindLite {
+  from { transform: translate3d(-4%, 0, 0); }
+  to { transform: translate3d(7%, -1%, 0); }
+}
+
+/* A small amount of peach blossom fall. One layer only keeps repaint cost low. */
+main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  top: -35%;
+  left: -92%;
+  width: 195%;
+  height: 165%;
+  opacity: .52;
+  background-image:
+    radial-gradient(ellipse, rgba(244,133,163,.92) 0 28%, rgba(255,203,215,.68) 31% 52%, transparent 57%),
+    radial-gradient(ellipse, rgba(255,181,198,.90) 0 28%, rgba(240,125,157,.62) 31% 52%, transparent 57%),
+    radial-gradient(ellipse, rgba(239,128,157,.85) 0 28%, rgba(255,209,220,.66) 31% 52%, transparent 57%);
+  background-size: 11px 15px, 8px 12px, 10px 14px;
+  background-position: 14% 6%, 53% 3%, 86% 15%;
+  background-repeat: no-repeat;
+  animation: peachPetalFallLite 18s linear infinite;
+  will-change: transform;
+}
+
+main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child::after {
+  content: none !important;
+}
+
+@keyframes peachPetalFallLite {
+  0% { transform: translate3d(-2%, -12%, 0) rotate(0deg); }
+  50% { transform: translate3d(5%, 48%, 0) rotate(150deg); }
+  100% { transform: translate3d(-1%, 105%, 0) rotate(300deg); }
+}
+
+/* Bagua ring remains animated; SVG transforms are cheap compared with full-page
+ * backdrop/filter animation. */
+main:has(#upload) section[aria-labelledby="welcome-title"] svg {
+  overflow: visible;
+  transform: translateZ(0);
+  filter: drop-shadow(0 6px 14px rgba(79,56,38,.16));
+}
+
+main:has(#upload) .bagua-orbit {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: baguaOrbit 30s linear infinite;
+  will-change: transform;
+}
+
+main:has(#upload) .bagua-core {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: baguaCore 42s linear infinite reverse;
+  will-change: transform;
+}
+
+@keyframes baguaOrbit { to { transform: rotate(360deg); } }
+@keyframes baguaCore { to { transform: rotate(360deg); } }
+
+main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child {
+  animation: sealFloat 8s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes sealFloat {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -5px, 0); }
+}
+
+main:has(#upload) section[aria-labelledby="welcome-title"] {
+  background: linear-gradient(90deg,
+    rgba(49,52,47,.48) 0%,
+    rgba(58,57,51,.31) 39%,
+    rgba(255,248,238,.07) 68%,
+    rgba(255,248,238,.015) 100%) !important;
+  border-color: rgba(255,247,235,.30) !important;
+  box-shadow: 0 18px 46px rgba(51,45,37,.14), inset 0 1px 0 rgba(255,255,255,.18) !important;
+}
+
+main:has(#upload) section[aria-labelledby="welcome-title"] h1 {
+  color: #eef8f6 !important;
+  text-shadow: 0 2px 10px rgba(28,30,27,.24) !important;
+}
+
+main:has(#upload) section[aria-labelledby="welcome-title"] p,
+main:has(#upload) section[aria-labelledby="welcome-title"] a {
+  text-shadow: 0 2px 8px rgba(24,27,25,.20);
+}
+
+@media (max-width: 760px) {
+  main:has(#upload) section[aria-labelledby="welcome-title"]::after {
+    opacity: .22;
+    filter: blur(5px);
+  }
+  main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child::before {
+    opacity: .30;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main:has(#upload) section[aria-labelledby="welcome-title"]::after,
+  main:has(#upload) section[aria-labelledby="welcome-title"] > div:first-child::before,
+  main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child,
+  main:has(#upload) section[aria-labelledby="welcome-title"] > div:last-child::before,
+  main:has(#upload) .bagua-orbit,
+  main:has(#upload) .bagua-core {
+    animation: none !important;
+  }
+}

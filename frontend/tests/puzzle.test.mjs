@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { Chess } from 'chess.js';
+import { startPuzzle, attemptPuzzle } from '../src/lib/puzzle.ts';
+const puzzle = { id:'00sHx', fen:'q3k1nr/1pp1nQpp/3p4/1P2p3/4P3/B1PP1b2/B5PP/5K2 b k - 0 17', moves:'e8d7 a2e6 d7d8 f7f8', rating:1760, themes:'mate mateIn2' };
+const start = startPuzzle(puzzle);
+assert.equal(start.turn(),'w'); assert.equal(start.get('d7').type,'k');
+assert.equal(attemptPuzzle(puzzle,start.fen(),1,'a2b3'),null);
+assert.equal(attemptPuzzle(puzzle,start.fen(),1,'a1a8'),null);
+const first = attemptPuzzle(puzzle,start.fen(),1,'a2e6');
+assert.equal(first.done,false); assert.equal(first.ply,3); assert.equal(new Chess(first.fen).get('d8').type,'k');
+assert.equal(attemptPuzzle(puzzle,first.fen,first.ply,'f7f8').done,true);
+assert.equal(attemptPuzzle({ ...puzzle, moves:'a1a2 f7f8' },'7k/5Q2/6K1/8/8/8/8/8 w - - 0 1',1,'f7g7').done,true);
+assert.equal(attemptPuzzle({ ...puzzle, moves:'a1a2 c7c8n' },'8/k1P5/2K5/8/8/8/8/8 w - - 0 1',1,'c7c8n').done,true);
+console.log('PASS: first opponent move, wrong/illegal moves, forced replies, full solution, alternate mate and underpromotion');

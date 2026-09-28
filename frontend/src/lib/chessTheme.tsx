@@ -37,16 +37,16 @@ export const PIECE_ASSET_BY_FEN: Record<string, string> = {
 };
 
 export const PIECE_LABEL_BY_FEN: Record<string, string> = {
-  K: "Vua trắng",
-  Q: "Hậu trắng",
-  R: "Xe trắng",
-  B: "Tượng trắng",
-  N: "Mã trắng",
-  P: "Tốt trắng",
-  k: "Vua đen",
-  q: "Hậu đen",
-  r: "Xe đen",
-  b: "Tượng đen",
-  n: "Mã đen",
-  p: "Tốt đen",
+  K: "Bạch Vương",
+  Q: "Bạch Hậu",
+  R: "Bạch Xa",
+  B: "Bạch Tượng",
+  N: "Bạch Mã",
+  P: "Bạch Tốt",
+  k: "Hắc Vương",
+  q: "Hắc Hậu",
+  r: "Hắc Xa",
+  b: "Hắc Tượng",
+  n: "Hắc Mã",
+  p: "Hắc Tốt",
 };

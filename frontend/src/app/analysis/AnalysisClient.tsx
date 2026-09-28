@@ -10,6 +10,7 @@ import {
 } from "react";
 import Link from "next/link";
 import DaoAmbient from "@/components/DaoAmbient";
+import SavePosition from "@/components/SavePosition";
 import { Chess } from "chess.js";
 import { toPng } from "html-to-image";
 import {
@@ -859,6 +860,7 @@ export default function AnalysisClient({
         </div>
 
         <nav className="analysisNav">
+          <Link className="button compactButton" href="/collection">Tàng Kinh Các</Link>
           {previousPosition && (
             <Link className="button compactButton" href={analysisHref(previousPosition)}>
               ← Tiền trận
@@ -1032,6 +1034,20 @@ export default function AnalysisClient({
           </div>
 
           <div className="toolBody">
+            {jobId && positionId > 0 && (
+              <SavePosition
+                key={`${jobId}:${positionId}`}
+                disabled={recognizing || !isLegal}
+                position={{
+                  id: `book:${jobId}:${positionId}`,
+                  title: `Kỳ trận #${positionId}`,
+                  fen,
+                  source: "book",
+                  sourcePath: `/analysis?job=${encodeURIComponent(jobId)}&position=${positionId}&image=${encodeURIComponent(imageUrl)}`,
+                  themes: "",
+                }}
+              />
+            )}
             {activeTab === "edit" && (
               <div className="compactToolSection">
                 {uncertainSquares.length > 0 && (

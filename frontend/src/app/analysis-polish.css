@@ -1,0 +1,295 @@
+/*
+ * Analysis workspace v3 polish
+ * ----------------------------
+ * Final overrides for wide / zoomed-out desktop layouts.  The previous
+ * max-width made the workstation occupy only the left part of a large
+ * viewport (especially when Chrome/Edge was at 75–90% zoom).  This pass lets
+ * the three-column workstation use the full viewport while keeping the board
+ * height-limited so it never forces vertical scrolling.
+ */
+
+.analysisApp {
+  color-scheme: only light;
+  forced-color-adjust: none;
+  padding: 12px 14px 16px !important;
+}
+
+/* Keep the panorama crisp.  No blur, no transform, no enlargement. */
+.analysisApp::before {
+  inset: 0 !important;
+  background-image:
+    linear-gradient(180deg, rgba(255, 250, 244, .015), rgba(255, 248, 243, .025)),
+    url('/dao/immortal-four-guardians-v2.png') !important;
+  background-size: cover !important;
+  background-position: center 44% !important;
+  background-repeat: no-repeat !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+/* A very shallow moving mist only at the bottom.  Do not blur the scenery. */
+.analysisApp::after {
+  bottom: -28vh !important;
+  height: 46vh !important;
+  opacity: .16 !important;
+  filter: blur(14px) !important;
+}
+
+/* The important fix: use the viewport instead of a 1540px cap. */
+.analysisTopbar,
+.analysisWorkspace {
+  width: calc(100vw - 28px) !important;
+  max-width: none !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.analysisTopbar {
+  min-height: 56px !important;
+  margin-bottom: 10px !important;
+  border-radius: 16px !important;
+  background-color: rgba(255, 250, 242, .86) !important;
+  background-image: linear-gradient(rgba(255, 253, 248, .78), rgba(250, 244, 235, .72)) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.analysisWorkspace {
+  height: calc(100dvh - 94px) !important;
+  grid-template-columns:
+    minmax(300px, .68fr)
+    minmax(620px, 1.34fr)
+    minmax(380px, .82fr) !important;
+  gap: 12px !important;
+}
+
+/* Panels are translucent paper, not dark frosted glass.  Avoid backdrop blur
+ * because it made the beautiful background look low-resolution through every
+ * panel. */
+.workspacePane {
+  border-radius: 18px !important;
+  background-color: rgba(255, 250, 242, .82) !important;
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 253, 248, .78),
+    rgba(248, 242, 233, .72)
+  ) !important;
+  border-color: rgba(255, 255, 255, .70) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow:
+    0 14px 34px rgba(58, 55, 47, .13),
+    inset 0 1px 0 rgba(255, 255, 255, .86) !important;
+  color: #33413f !important;
+}
+
+.boardPane {
+  background-color: rgba(255, 250, 242, .84) !important;
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 253, 248, .80),
+    rgba(249, 242, 233, .70)
+  ) !important;
+}
+
+.toolsPane {
+  min-width: 0;
+  background-color: rgba(255, 250, 242, .88) !important;
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 253, 248, .84),
+    rgba(249, 244, 237, .78)
+  ) !important;
+}
+
+/* Source image gets more visual weight on wide screens. */
+.sourceStage {
+  padding: clamp(12px, 1.2vw, 22px) !important;
+  background-color: rgba(246, 241, 232, .44) !important;
+  background-image:
+    radial-gradient(circle at 50% 48%, rgba(255,255,255,.72), rgba(244,239,229,.28) 64%, transparent 100%) !important;
+}
+
+.sourceStage img {
+  width: min(100%, 520px) !important;
+  height: auto !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  image-rendering: auto !important;
+  filter: none !important;
+  box-shadow: 0 14px 30px rgba(50, 50, 45, .13) !important;
+}
+
+/* Main board remains the focus but is limited by available vertical space. */
+.boardStage {
+  width: min(100%, 820px, calc(100dvh - 184px)) !important;
+  max-width: 820px !important;
+}
+
+.boardCapture {
+  box-shadow:
+    0 18px 44px rgba(43, 48, 39, .20),
+    0 0 0 1px rgba(255, 255, 255, .78) !important;
+}
+
+/* Keep tool tabs readable even at browser zoom below 100%. */
+.toolTabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 4px !important;
+  padding: 5px !important;
+}
+
+.toolTabs button {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px !important;
+}
+
+.toolBody {
+  padding: 13px !important;
+}
+
+/* Make inactive controls look like light parchment rather than black pills. */
+.analysisApp .button,
+.analysisApp .compactButton,
+.toolActionGrid .button,
+.externalActions .button,
+.engineBoardActions .button,
+.boardPane .segmented,
+.toolsPane .segmented,
+.selectedInfo,
+.compactFenInput,
+.epField input,
+.castlingGrid label {
+  color-scheme: only light;
+}
+
+.analysisApp .button,
+.analysisApp .compactButton,
+.toolActionGrid .button,
+.externalActions .button,
+.engineBoardActions .button {
+  background-color: rgba(255, 252, 246, .90) !important;
+  background-image: linear-gradient(rgba(255,253,249,.88), rgba(247,241,232,.80)) !important;
+  color: #455956 !important;
+  border-color: rgba(73, 101, 95, .25) !important;
+}
+
+.boardPane .segmented,
+.toolsPane .segmented {
+  background-color: rgba(255, 252, 246, .90) !important;
+  background-image: linear-gradient(rgba(255,253,249,.86), rgba(247,241,232,.76)) !important;
+}
+
+.boardPane .segmented button:not(.active),
+.toolsPane .segmented button:not(.active) {
+  background: transparent !important;
+  color: #4f615e !important;
+}
+
+/* Stockfish panel: larger analysis board and more legible lines when the tools
+ * column has room. */
+.engineBoardShell {
+  width: min(100%, 400px) !important;
+  grid-template-columns: 28px minmax(0, 1fr) !important;
+  gap: 8px !important;
+}
+
+.engineMiniBoard {
+  border-radius: 10px !important;
+  box-shadow: 0 12px 28px rgba(42, 50, 40, .17) !important;
+}
+
+.evalBar {
+  border-radius: 8px !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.12) !important;
+}
+
+.compactEngineLine {
+  grid-template-columns: 74px minmax(0, 1fr) auto !important;
+  min-height: 43px;
+  border-radius: 10px !important;
+  background-color: rgba(255, 252, 246, .90) !important;
+  background-image: linear-gradient(rgba(255,255,255,.72), rgba(248,244,237,.72)) !important;
+  border-color: rgba(74, 101, 94, .20) !important;
+}
+
+.compactEngineLine:first-child {
+  border-color: rgba(184, 137, 74, .48) !important;
+  background-image: linear-gradient(rgba(255,247,221,.92), rgba(250,236,203,.80)) !important;
+  box-shadow: 0 8px 20px rgba(161, 124, 67, .10);
+}
+
+.compactEngineLine:first-child strong::after {
+  content: ' · Tối ưu';
+  color: #9a6b2f;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+/* Breakpoints: preserve a useful 3-column layout longer, then fall back to the
+ * existing two/one-column responsive rules. */
+@media (max-width: 1380px) {
+  .analysisWorkspace {
+    grid-template-columns:
+      minmax(275px, .72fr)
+      minmax(540px, 1.28fr)
+      minmax(340px, .82fr) !important;
+  }
+
+  .boardStage {
+    width: min(100%, 740px, calc(100dvh - 184px)) !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  .analysisTopbar,
+  .analysisWorkspace {
+    width: calc(100vw - 20px) !important;
+  }
+
+  .analysisWorkspace {
+    height: auto !important;
+    grid-template-columns: minmax(280px, .78fr) minmax(500px, 1.22fr) !important;
+  }
+
+  .toolsPane {
+    grid-column: 1 / -1 !important;
+    min-height: 430px !important;
+  }
+
+  .engineBoardShell {
+    width: min(100%, 420px) !important;
+  }
+}
+
+@media (max-width: 820px) {
+  .analysisApp {
+    padding: 8px !important;
+  }
+
+  .analysisTopbar,
+  .analysisWorkspace {
+    width: calc(100vw - 16px) !important;
+  }
+
+  .analysisWorkspace {
+    grid-template-columns: 1fr !important;
+  }
+
+  .boardStage {
+    width: min(100%, 94vw) !important;
+  }
+
+  .sourceStage img {
+    width: min(100%, 560px) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .analysisApp::after {
+    animation: none !important;
+  }
+}

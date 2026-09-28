@@ -1,0 +1,260 @@
+.page {
+  --dao-accent: #557b70;
+  --dao-accent-soft: rgba(85, 123, 112, .18);
+  --dao-ink: #31423f;
+  min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+  color: var(--dao-ink);
+  overflow-x: hidden;
+}
+
+.page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  background:
+    linear-gradient(180deg, rgba(255,248,238,.12), rgba(255,247,239,.2)),
+    url('/dao/immortal-four-guardians-v2.png') center / cover no-repeat;
+}
+
+.page::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255,255,255,.26), transparent 25%),
+    linear-gradient(90deg, rgba(255,251,245,.16), rgba(255,248,239,.04));
+}
+
+.page[data-dao="thanh-long"] { --dao-accent: #477c70; --dao-accent-soft: rgba(71,124,112,.2); --dao-ink: #294942; }
+.page[data-dao="bach-ho"] { --dao-accent: #83796d; --dao-accent-soft: rgba(131,121,109,.2); --dao-ink: #4b443d; }
+.page[data-dao="chu-tuoc"] { --dao-accent: #b45f59; --dao-accent-soft: rgba(180,95,89,.19); --dao-ink: #663c39; }
+.page[data-dao="huyen-vu"] { --dao-accent: #435f69; --dao-accent-soft: rgba(67,95,105,.2); --dao-ink: #304850; }
+
+.clouds {
+  position: fixed;
+  left: -15vw;
+  right: -15vw;
+  bottom: -12vh;
+  height: 44vh;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .42;
+  filter: blur(20px);
+  background:
+    radial-gradient(ellipse at 12% 60%, rgba(255,255,255,.88) 0 12%, transparent 34%),
+    radial-gradient(ellipse at 35% 45%, rgba(255,239,244,.72) 0 15%, transparent 37%),
+    radial-gradient(ellipse at 58% 66%, rgba(255,255,255,.82) 0 16%, transparent 39%),
+    radial-gradient(ellipse at 82% 48%, rgba(238,247,255,.72) 0 15%, transparent 36%);
+  animation: drift 28s ease-in-out infinite alternate;
+}
+
+@keyframes drift {
+  from { transform: translate3d(-3vw, 0, 0) scale(1.02); }
+  to { transform: translate3d(5vw, -2vh, 0) scale(1.07); }
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 13px max(22px, calc((100vw - 1240px) / 2));
+  background: rgba(255,250,243,.7);
+  border-bottom: 1px solid rgba(255,255,255,.55);
+  backdrop-filter: blur(18px) saturate(125%);
+  box-shadow: 0 8px 28px rgba(65,55,45,.08);
+}
+
+.brand, .topnav a {
+  color: var(--dao-ink);
+  text-decoration: none;
+}
+.brand { font: 700 18px/1.2 Cambria, Georgia, serif; }
+.topnav { display: flex; gap: 20px; font-size: 12px; font-weight: 700; }
+.topnav a:hover { color: var(--dao-accent); }
+
+.shell {
+  width: min(1240px, calc(100% - 42px));
+  margin: 28px auto 48px;
+}
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 330px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, .65fr);
+  gap: 24px;
+  align-items: center;
+  padding: 42px;
+  border: 1px solid rgba(255,255,255,.58);
+  border-radius: 28px;
+  background: linear-gradient(105deg, rgba(255,252,247,.79), rgba(255,250,243,.48) 55%, rgba(255,255,255,.17));
+  backdrop-filter: blur(12px) saturate(125%);
+  box-shadow: 0 26px 70px rgba(66,53,41,.13), inset 0 1px rgba(255,255,255,.7);
+}
+
+.hero::after {
+  content: attr(data-han);
+  position: absolute;
+  right: 3%;
+  top: -8%;
+  font: 700 clamp(120px, 18vw, 240px)/1 Cambria, Georgia, serif;
+  color: var(--dao-accent);
+  opacity: .075;
+  pointer-events: none;
+}
+
+.kicker {
+  margin: 0 0 12px;
+  color: var(--dao-accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .18em;
+}
+
+.hero h1 {
+  margin: 0;
+  font: 700 clamp(42px, 6vw, 74px)/.98 Cambria, Georgia, serif;
+  letter-spacing: -.035em;
+  color: var(--dao-ink);
+}
+
+.epithet {
+  margin: 12px 0 0;
+  color: var(--dao-accent);
+  font: 600 21px/1.4 Cambria, Georgia, serif;
+}
+
+.intro {
+  max-width: 690px;
+  margin: 24px 0 0;
+  color: #5e5a52;
+  font-size: 14px;
+  line-height: 1.85;
+}
+
+.doctrine {
+  position: relative;
+  z-index: 1;
+  padding: 24px;
+  border-radius: 22px;
+  border: 1px solid rgba(255,255,255,.55);
+  background: rgba(255,251,246,.48);
+  box-shadow: inset 0 1px rgba(255,255,255,.68);
+}
+.doctrine span { display: block; color: var(--dao-accent); font-size: 10px; font-weight: 800; letter-spacing: .16em; margin-bottom: 10px; }
+.doctrine p { margin: 0; font: italic 17px/1.65 Cambria, Georgia, serif; color: #5d5148; }
+
+.pathSwitcher {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 18px 0 28px;
+}
+.pathSwitcher a {
+  text-align: center;
+  text-decoration: none;
+  padding: 12px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.55);
+  background: rgba(255,250,244,.64);
+  color: #66594d;
+  font: 700 13px/1.2 Cambria, Georgia, serif;
+  backdrop-filter: blur(12px);
+  transition: transform .18s ease, background .18s ease, color .18s ease;
+}
+.pathSwitcher a:hover { transform: translateY(-2px); background: rgba(255,255,255,.83); }
+.pathSwitcher .active { background: var(--dao-accent); color: #fffaf3; border-color: transparent; box-shadow: 0 10px 24px var(--dao-accent-soft); }
+
+.sectionHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 20px;
+  margin: 0 0 18px;
+}
+.sectionHead p { margin: 0; color: var(--dao-accent); font-size: 10px; font-weight: 800; letter-spacing: .16em; }
+.sectionHead h2 { margin: 6px 0 0; font: 700 32px/1.1 Cambria, Georgia, serif; color: var(--dao-ink); }
+.sectionNote { max-width: 420px; color: #6b6259; font-size: 12px; line-height: 1.6; text-align: right; }
+
+.modules {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.moduleCard {
+  position: relative;
+  min-height: 250px;
+  padding: 22px;
+  border: 1px solid rgba(255,255,255,.55);
+  border-radius: 20px;
+  background: rgba(255,251,245,.68);
+  backdrop-filter: blur(14px) saturate(120%);
+  box-shadow: 0 16px 36px rgba(61,50,40,.09), inset 0 1px rgba(255,255,255,.7);
+  overflow: hidden;
+}
+.moduleCard::after {
+  content: attr(data-index);
+  position: absolute;
+  right: 14px;
+  top: 8px;
+  color: var(--dao-accent);
+  opacity: .08;
+  font: 700 68px/1 Cambria, Georgia, serif;
+}
+.moduleCard h3 { position: relative; z-index: 1; margin: 0; color: var(--dao-ink); font: 700 23px/1.2 Cambria, Georgia, serif; }
+.moduleCard > span { display: block; margin-top: 5px; color: var(--dao-accent); font-size: 11px; font-weight: 800; letter-spacing: .07em; }
+.moduleCard p { margin: 18px 0; color: #685f56; font-size: 12.5px; line-height: 1.7; }
+.tags { display: flex; flex-wrap: wrap; gap: 7px; }
+.tags span { padding: 6px 9px; border-radius: 999px; background: var(--dao-accent-soft); color: var(--dao-ink); font-size: 10px; font-weight: 700; }
+
+.sourcePanel {
+  margin-top: 26px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.sourceCard {
+  padding: 22px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,.55);
+  background: rgba(255,250,244,.58);
+  backdrop-filter: blur(13px);
+}
+.sourceCard strong { display: block; margin-bottom: 8px; color: var(--dao-ink); font: 700 18px/1.3 Cambria, Georgia, serif; }
+.sourceCard p { margin: 0; color: #675e56; font-size: 12px; line-height: 1.7; }
+
+.footer { margin-top: 30px; padding: 20px 0; display: flex; justify-content: space-between; gap: 18px; color: #665d55; font-size: 11px; }
+.footer a { color: var(--dao-accent); font-weight: 800; text-decoration: none; }
+
+@media (max-width: 900px) {
+  .hero { grid-template-columns: 1fr; padding: 32px; }
+  .modules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sourcePanel { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  .shell { width: calc(100% - 24px); margin-top: 14px; }
+  .topbar { padding: 12px 16px; }
+  .topnav { gap: 12px; font-size: 11px; }
+  .hero { padding: 24px; border-radius: 22px; min-height: 0; }
+  .pathSwitcher { grid-template-columns: repeat(2, 1fr); }
+  .modules { grid-template-columns: 1fr; }
+  .sectionHead { align-items: flex-start; flex-direction: column; }
+  .sectionNote { text-align: left; }
+  .footer { flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clouds { animation: none; }
+}
