@@ -2,6 +2,7 @@ import "./globals.css";
 import "./fairyland-theme.css";
 import "./analysis-theme.css";
 import "./analysis-polish.css";
+import "./analysis-layout-fix.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
