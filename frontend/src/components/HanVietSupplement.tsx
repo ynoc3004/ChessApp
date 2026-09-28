@@ -70,21 +70,20 @@ function convert(input: string) {
 
 function apply(root: ParentNode) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  const nodes: Text[] = [];
   let cursor = walker.nextNode();
   while (cursor) {
-    nodes.push(cursor as Text);
+    const text = cursor as Text;
+    if (!text.parentElement?.closest("script, style, code, pre")) {
+      const next = convert(text.data);
+      if (next !== text.data) text.data = next;
+    }
     cursor = walker.nextNode();
-  }
-  for (const text of nodes) {
-    if (text.parentElement?.closest("script, style, code, pre")) continue;
-    const next = convert(text.data);
-    if (next !== text.data) text.data = next;
   }
 
   const elements = root instanceof Element
     ? [root, ...Array.from(root.querySelectorAll("[title], [aria-label], [placeholder], [alt]"))]
     : Array.from(root.querySelectorAll("[title], [aria-label], [placeholder], [alt]"));
+
   for (const element of elements) {
     for (const attr of ["title", "aria-label", "placeholder", "alt"]) {
       const value = element.getAttribute(attr);
@@ -98,27 +97,43 @@ function apply(root: ParentNode) {
 export default function HanVietSupplement() {
   useEffect(() => {
     apply(document.body);
+
+    // Batch newly mounted React nodes once per animation frame. We deliberately
+    // avoid observing characterData/attributes because those mutations were
+    // causing excessive work together with Next.js HMR and the navigation layer.
+    const pending = new Set<ParentNode>();
+    let frame = 0;
+
+    const flush = () => {
+      frame = 0;
+      const roots = Array.from(pending);
+      pending.clear();
+      roots.forEach((root) => apply(root));
+    };
+
+    const schedule = (root: ParentNode) => {
+      pending.add(root);
+      if (!frame) frame = window.requestAnimationFrame(flush);
+    };
+
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
-        if (mutation.type === "characterData" && mutation.target instanceof Text) {
-          const next = convert(mutation.target.data);
-          if (next !== mutation.target.data) mutation.target.data = next;
-        }
         mutation.addedNodes.forEach((node) => {
-          if (node instanceof Element) apply(node);
-          if (node instanceof Text) {
-            const next = convert(node.data);
-            if (next !== node.data) node.data = next;
-          }
+          if (node instanceof Element) schedule(node);
+          else if (node instanceof Text && node.parentElement) schedule(node.parentElement);
         });
       }
     });
-    observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+
+    observer.observe(document.body, { subtree: true, childList: true });
 
     const previousConfirm = window.confirm.bind(window);
     window.confirm = (message?: string) => previousConfirm(convert(String(message ?? "")));
+
     return () => {
       observer.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
+      pending.clear();
       window.confirm = previousConfirm;
     };
   }, []);
