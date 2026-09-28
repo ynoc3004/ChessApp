@@ -15,6 +15,24 @@ python -m pip install -r requirements.txt
 
 Nếu đã có môi trường Python của backend, chỉ cần kích hoạt nó và cập nhật requirements.
 
+### Cập nhật nhanh mỗi khi Lichess có dữ liệu mới
+
+Trong thư mục `backend`, với môi trường `.venv` đã kích hoạt, chạy:
+
+```bat
+python scripts/update_lichess_puzzles.py
+```
+
+Lệnh kiểm tra phiên bản tệp puzzle chính thức, chỉ tải và xây lại kho khi dữ liệu thay đổi. Chạy lại bất cứ lúc nào; có thể chạy hằng tuần. Chỉ xem có bản mới mà chưa tải:
+
+```bat
+python scripts/update_lichess_puzzles.py --check
+```
+
+Nếu cần tải lại cùng phiên bản, thêm `--force`. Muốn thử nhanh 50.000 câu, thêm `--limit 50000`; lần cập nhật đầy đủ sau đó vẫn được tải lại. **Tắt backend trước khi cập nhật trên Windows**, bật lại sau khi lệnh hoàn tất. Dự trù chỗ trống cho tệp nén tải về và SQLite mới tạm thời; tải lần đầu có thể mất thời gian. Không cần gửi database cho người phát triển hoặc đưa tệp nặng vào Git.
+
+### Nhập thủ công nếu bạn đã có tệp tải về
+
 Tải **lichess_db_puzzle.csv.zst** từ https://database.lichess.org/#puzzles (không phải database ván đấu). Giữ nguyên tệp nén. Nhập đường dẫn thật trên máy, ví dụ:
 
 ```bat
@@ -27,7 +45,7 @@ python scripts/import_lichess_puzzles.py "D:\Downloads\lichess_db_puzzle.csv.zst
 python scripts/import_lichess_puzzles.py "D:\Downloads\lichess_db_puzzle.csv.zst"
 ```
 
-Trình nhập đọc tuần tự, tạo chỉ mục chủ đề/rating trong SQLite. Cần dung lượng trống cho tệp tải và SQLite; khi thay thế kho cũ còn cần chỗ cho kho mới tạm. Chạy một tiến trình nhập tại một thời điểm, không luyện câu đố lúc thay kho trên Windows. Nhập lại thành công thay kho puzzle, không xóa sách hoặc bộ sưu tập. Tệp sai định dạng không thay kho cũ.
+Trình nhập đọc tuần tự, tạo chỉ mục chủ đề/rating trong SQLite. Cần dung lượng trống cho tệp tải và SQLite; khi thay thế kho cũ còn cần chỗ cho kho mới tạm. Chạy một tiến trình nhập tại một thời điểm, không luyện câu đố lúc thay kho trên Windows. Nhập lại thành công thay kho puzzle, không xóa sách hoặc bộ sưu tập. Tệp sai định dạng không thay kho cũ. Sau khi nhập thủ công, lệnh cập nhật tự động sẽ tải lại một lần để ghi nhận phiên bản nguồn.
 
 Bật backend:
 

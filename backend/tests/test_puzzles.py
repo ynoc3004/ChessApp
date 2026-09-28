@@ -1,4 +1,5 @@
 import csv
+import io
 from pathlib import Path
 import tempfile
 import unittest
@@ -7,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from app import puzzles
 from scripts.import_lichess_puzzles import import_database
+from scripts.update_lichess_puzzles import update_database
 
 SAMPLE = {"PuzzleId": "00sHx", "FEN": "q3k1nr/1pp1nQpp/3p4/1P2p3/4P3/B1PP1b2/B5PP/5K2 b k - 0 17", "Moves": "e8d7 a2e6 d7d8 f7f8", "Rating": "1760", "Themes": "mate mateIn2 middlegame short"}
 
@@ -41,6 +43,30 @@ class PuzzleTests(unittest.TestCase):
         import zstandard
         compressed = self.root/'puzzles.csv.zst'; compressed.write_bytes(zstandard.ZstdCompressor().compress(self.source.read_bytes()))
         self.assertEqual(import_database(compressed, puzzles.PUZZLES, 1), 1)
+    def test_update_downloads_once_and_keeps_old_data_on_failure(self):
+        import zstandard
+        archive = zstandard.ZstdCompressor().compress(self.source.read_bytes())
+        calls = []
+        headers = {'ETag': 'version-1', 'Content-Length': str(len(archive))}
+        def opener(request, timeout):
+            calls.append(request.get_method())
+            response = io.BytesIO(archive if request.get_method() == 'GET' else b'')
+            response.headers = headers
+            return response
+        self.assertTrue(update_database(puzzles.PUZZLES, opener=opener))
+        before = puzzles.PUZZLES.read_bytes()
+        self.assertFalse(update_database(puzzles.PUZZLES, opener=opener))
+        self.assertEqual(calls, ['HEAD', 'GET', 'HEAD'])
+        headers['ETag'] = 'version-2'
+        self.assertTrue(update_database(puzzles.PUZZLES, check=True, opener=opener))
+        def broken(request, timeout):
+            response = io.BytesIO(b'bad' if request.get_method() == 'GET' else b'')
+            response.headers = headers
+            return response
+        with self.assertRaises(ValueError):
+            update_database(puzzles.PUZZLES, opener=broken)
+        self.assertEqual(puzzles.PUZZLES.read_bytes(), before)
+        self.assertEqual(list(self.root.glob('lichess-download-*')), [])
     def test_saved_position_validity_and_notes(self):
         item = dict(id='lichess:00sHx', title='Bài hay', fen=SAMPLE['FEN'], source='lichess', sourcePath='https://lichess.org/training/00sHx', note='Chiếu hết', themes='mate')
         self.assertEqual(self.client.put('/api/collection', json=item).status_code, 200)
