@@ -1,0 +1,202 @@
+/*
+ * Analysis layout hard-fix
+ * ------------------------
+ * The analysis workstation must use the actual viewport, not an inherited
+ * content width.  Keep all three working panes visible on normal desktop and
+ * laptop widths; collapse only on genuinely narrow screens.
+ */
+
+html,
+body {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+body:has(.analysisApp) {
+  overflow-x: hidden;
+}
+
+.analysisApp {
+  width: 100vw !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 10px 12px 14px !important;
+  overflow: hidden !important;
+}
+
+.analysisApp .analysisTopbar,
+.analysisApp .analysisWorkspace {
+  box-sizing: border-box !important;
+  width: calc(100vw - 24px) !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.analysisApp .analysisTopbar {
+  height: 54px !important;
+  min-height: 54px !important;
+  margin-bottom: 8px !important;
+}
+
+.analysisApp .analysisWorkspace {
+  height: calc(100dvh - 86px) !important;
+  display: grid !important;
+  grid-template-columns:
+    minmax(250px, 0.70fr)
+    minmax(500px, 1.42fr)
+    minmax(300px, 0.86fr) !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+  overflow: hidden !important;
+}
+
+.analysisApp .workspacePane {
+  min-width: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  height: 100% !important;
+}
+
+.analysisApp .sourcePane,
+.analysisApp .boardPane,
+.analysisApp .toolsPane {
+  grid-column: auto !important;
+  grid-row: auto !important;
+}
+
+.analysisApp .sourceStage,
+.analysisApp .boardStage,
+.analysisApp .toolBody {
+  min-width: 0 !important;
+}
+
+.analysisApp .boardStage {
+  width: min(100%, 760px, calc(100dvh - 176px)) !important;
+  max-width: 760px !important;
+}
+
+.analysisApp .toolsPane {
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  overflow: hidden !important;
+}
+
+.analysisApp .toolBody {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* Medium desktop / laptop.  Still keep three panes visible. */
+@media (max-width: 1280px) {
+  .analysisApp .analysisWorkspace {
+    grid-template-columns:
+      minmax(230px, 0.66fr)
+      minmax(460px, 1.34fr)
+      minmax(280px, 0.82fr) !important;
+    gap: 8px !important;
+  }
+
+  .analysisApp .boardStage {
+    width: min(100%, 700px, calc(100dvh - 174px)) !important;
+  }
+
+  .analysisApp .paneHeader,
+  .analysisApp .toolBody,
+  .analysisApp .boardPane {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+}
+
+/* Small laptop.  Three columns are still more useful than hiding the tools
+ * pane below the fold. */
+@media (max-width: 1080px) {
+  .analysisApp {
+    padding: 8px !important;
+  }
+
+  .analysisApp .analysisTopbar,
+  .analysisApp .analysisWorkspace {
+    width: calc(100vw - 16px) !important;
+  }
+
+  .analysisApp .analysisWorkspace {
+    height: calc(100dvh - 78px) !important;
+    grid-template-columns:
+      minmax(210px, 0.62fr)
+      minmax(420px, 1.30fr)
+      minmax(260px, 0.78fr) !important;
+    gap: 7px !important;
+  }
+
+  .analysisApp .analysisTopbar {
+    height: 52px !important;
+    min-height: 52px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .analysisApp .boardStage {
+    width: min(100%, 650px, calc(100dvh - 166px)) !important;
+  }
+
+  .analysisApp .toolTabs button {
+    font-size: 12px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
+}
+
+/* Only here do we intentionally move the tools panel below the main board. */
+@media (max-width: 900px) {
+  body:has(.analysisApp) {
+    overflow-y: auto;
+  }
+
+  .analysisApp {
+    overflow: visible !important;
+  }
+
+  .analysisApp .analysisWorkspace {
+    height: auto !important;
+    overflow: visible !important;
+    grid-template-columns: minmax(220px, 0.72fr) minmax(430px, 1.28fr) !important;
+  }
+
+  .analysisApp .sourcePane,
+  .analysisApp .boardPane {
+    min-height: 720px !important;
+  }
+
+  .analysisApp .toolsPane {
+    grid-column: 1 / -1 !important;
+    min-height: 520px !important;
+    height: auto !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .analysisApp .analysisTopbar {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .analysisApp .analysisWorkspace {
+    grid-template-columns: 1fr !important;
+  }
+
+  .analysisApp .sourcePane,
+  .analysisApp .boardPane,
+  .analysisApp .toolsPane {
+    grid-column: 1 !important;
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  .analysisApp .boardStage {
+    width: min(100%, 94vw) !important;
+  }
+}
