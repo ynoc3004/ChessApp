@@ -1,6 +1,6 @@
-/*
- * Fairyland panorama overrides for the Tàng Kinh Các home page.
- * Scoped with :has(#upload) so analysis/reader pages keep their own styling.
+/* Fairyland panorama overrides for the Tàng Kinh Các home page.
+ * Performance pass: preserve the transparent immortal-realm look without
+ * expensive full-screen blur/filter work on every frame.
  */
 
 main:has(#upload) {
@@ -20,7 +20,6 @@ main:has(#upload) {
   overflow-x: clip;
 }
 
-/* Primary fairyland art: Four Guardians panorama supplied for this theme. */
 main:has(#upload)::before {
   content: "" !important;
   position: fixed !important;
@@ -28,203 +27,159 @@ main:has(#upload)::before {
   z-index: -4 !important;
   pointer-events: none !important;
   background:
-    linear-gradient(180deg, rgba(255, 250, 243, .02) 0%, rgba(255, 239, 227, .02) 52%, rgba(230, 243, 246, .06) 100%),
+    linear-gradient(180deg, rgba(255,250,243,.02) 0%, rgba(255,239,227,.02) 52%, rgba(230,243,246,.05) 100%),
     url('/dao/immortal-four-guardians-v2.png') center 42% / cover no-repeat !important;
   filter: saturate(1.03) brightness(1.02);
-  transform: scale(1.012);
 }
 
-/* Moving sea of clouds. Keep it subtle so the dragon, phoenix, tiger and
- * Huyền Vũ remain visible rather than hidden behind CSS fog. */
+/* A single low-cost cloud sea. Transform-only animation avoids repainting the
+ * large panorama on each frame. */
 main:has(#upload)::after {
   content: "";
   position: fixed;
   z-index: -3;
   pointer-events: none;
-  left: -30vw;
-  right: -30vw;
-  bottom: -20vh;
-  height: 55vh;
-  opacity: .34;
+  left: -18vw;
+  right: -18vw;
+  bottom: -13vh;
+  height: 42vh;
+  opacity: .20;
   background:
-    radial-gradient(ellipse at 10% 60%, rgba(255,255,255,.82) 0 13%, transparent 34%),
-    radial-gradient(ellipse at 30% 42%, rgba(255,232,241,.58) 0 15%, transparent 38%),
-    radial-gradient(ellipse at 50% 65%, rgba(255,255,255,.76) 0 16%, transparent 40%),
-    radial-gradient(ellipse at 72% 46%, rgba(231,244,255,.62) 0 15%, transparent 37%),
-    radial-gradient(ellipse at 91% 62%, rgba(255,244,248,.70) 0 14%, transparent 36%);
-  filter: blur(19px);
-  animation: fairyCloudDrift 34s ease-in-out infinite alternate;
+    radial-gradient(ellipse at 16% 58%, rgba(255,255,255,.76) 0 14%, transparent 36%),
+    radial-gradient(ellipse at 50% 62%, rgba(255,245,249,.68) 0 16%, transparent 39%),
+    radial-gradient(ellipse at 84% 55%, rgba(238,248,255,.66) 0 14%, transparent 36%);
+  filter: blur(7px);
+  transform: translate3d(-2vw,0,0);
+  animation: fairyCloudDrift 42s ease-in-out infinite alternate;
   will-change: transform;
 }
 
 @keyframes fairyCloudDrift {
-  0% { transform: translate3d(-3vw, 0, 0) scale(1.03); }
-  50% { transform: translate3d(3vw, -2vh, 0) scale(1.08); }
-  100% { transform: translate3d(7vw, 1vh, 0) scale(1.04); }
+  from { transform: translate3d(-2vw,0,0); }
+  to { transform: translate3d(4vw,-1vh,0); }
 }
 
-/* Top navigation becomes a light jade glass strip instead of a solid bar. */
 main:has(#upload) > header {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: rgba(252, 249, 242, .55) !important;
-  border-bottom: 1px solid rgba(var(--fairy-line), .18) !important;
-  box-shadow: 0 8px 30px rgba(53, 77, 79, .07);
-  backdrop-filter: blur(14px) saturate(130%) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(130%) !important;
+  background: rgba(252,249,242,.68) !important;
+  border-bottom: 1px solid rgba(var(--fairy-line),.18) !important;
+  box-shadow: 0 8px 24px rgba(53,77,79,.06);
+  backdrop-filter: blur(6px) saturate(112%) !important;
+  -webkit-backdrop-filter: blur(6px) saturate(112%) !important;
 }
 
-main:has(#upload) > header a {
-  color: #314d4d !important;
-}
+main:has(#upload) > header a { color: #314d4d !important; }
 
-/* Hero: let the scenery breathe. Only the text side gets a gentle veil. */
 main:has(#upload) section[aria-labelledby="welcome-title"] {
   min-height: 500px !important;
   margin-top: 22px !important;
   border: 1px solid rgba(255,255,255,.42) !important;
   border-radius: 28px !important;
-  box-shadow:
-    0 28px 70px rgba(49, 73, 74, .11),
-    inset 0 1px rgba(255,255,255,.68) !important;
+  box-shadow: 0 22px 52px rgba(49,73,74,.10), inset 0 1px rgba(255,255,255,.64) !important;
   background: linear-gradient(90deg,
-    rgba(255,252,246,.70) 0%,
-    rgba(255,252,246,.48) 35%,
-    rgba(255,252,246,.10) 62%,
-    rgba(255,252,246,.00) 82%) !important;
-  backdrop-filter: blur(1.5px) saturate(110%);
-  -webkit-backdrop-filter: blur(1.5px) saturate(110%);
+    rgba(255,252,246,.68) 0%,
+    rgba(255,252,246,.45) 35%,
+    rgba(255,252,246,.09) 62%,
+    rgba(255,252,246,0) 82%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   overflow: hidden;
 }
 
 main:has(#upload) section[aria-labelledby="welcome-title"]::before {
   background:
-    radial-gradient(circle at 15% 20%, rgba(255, 229, 236, .48), transparent 30%),
-    linear-gradient(90deg, rgba(255,255,255,.28), transparent 58%) !important;
+    radial-gradient(circle at 15% 20%, rgba(255,229,236,.42), transparent 30%),
+    linear-gradient(90deg, rgba(255,255,255,.24), transparent 58%) !important;
 }
 
 main:has(#upload) section[aria-labelledby="welcome-title"] h1 {
   color: #29464a !important;
-  text-shadow: 0 2px 0 rgba(255,255,255,.76), 0 12px 30px rgba(89,75,66,.10) !important;
+  text-shadow: 0 2px 0 rgba(255,255,255,.72), 0 10px 26px rgba(89,75,66,.09) !important;
   font-weight: 500 !important;
 }
 
-main:has(#upload) section[aria-labelledby="welcome-title"] p {
-  color: #526363;
-}
-
+main:has(#upload) section[aria-labelledby="welcome-title"] p { color: #526363; }
 main:has(#upload) section[aria-labelledby="welcome-title"] a {
   color: var(--fairy-jade-dark) !important;
   border-color: rgba(63,117,110,.48) !important;
 }
 
-/* Bagua / Tứ Tượng zone is deliberately delicate and luminous. */
 main:has(#upload) section[aria-labelledby="welcome-title"] svg {
-  filter: drop-shadow(0 8px 20px rgba(45, 82, 78, .16)) drop-shadow(0 0 20px rgba(255, 234, 196, .34));
+  filter: drop-shadow(0 6px 14px rgba(45,82,78,.14));
 }
 
-/* Main functional panels: translucent paper-glass so the fairyland stays visible. */
+/* Semi-transparent paper without large-area backdrop blur. The background is
+ * still visible, but scrolling/clicking remains responsive. */
 main:has(#upload) section#upload,
 main:has(#upload) aside[aria-labelledby="guide-title"],
 main:has(#upload) section#library {
-  background: rgba(var(--fairy-paper), .61) !important;
+  background: rgba(var(--fairy-paper),.64) !important;
   border: 1px solid rgba(255,255,255,.56) !important;
-  box-shadow:
-    0 22px 56px rgba(57, 76, 78, .10),
-    inset 0 1px rgba(255,255,255,.72) !important;
-  backdrop-filter: blur(12px) saturate(126%) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(126%) !important;
+  box-shadow: 0 18px 42px rgba(57,76,78,.09), inset 0 1px rgba(255,255,255,.68) !important;
+  backdrop-filter: blur(3px) !important;
+  -webkit-backdrop-filter: blur(3px) !important;
 }
 
 main:has(#upload) aside[aria-labelledby="guide-title"] {
-  background: rgba(248, 251, 244, .56) !important;
+  background: rgba(248,251,244,.60) !important;
 }
 
 main:has(#upload) section#upload h2,
 main:has(#upload) aside[aria-labelledby="guide-title"] h2,
-main:has(#upload) section#library h2 {
-  color: #29494a !important;
-}
+main:has(#upload) section#library h2 { color: #29494a !important; }
 
-/* Upload dropzone feels like a talisman sheet instead of a generic grey box. */
 main:has(#upload) section#upload form > label {
-  background:
-    linear-gradient(135deg, rgba(255,255,255,.54), rgba(246,236,221,.36)) !important;
-  border-color: rgba(77, 115, 106, .36) !important;
-  box-shadow: inset 0 0 38px rgba(255,255,255,.23);
+  background: linear-gradient(135deg, rgba(255,255,255,.56), rgba(246,236,221,.40)) !important;
+  border-color: rgba(77,115,106,.36) !important;
+  box-shadow: inset 0 0 30px rgba(255,255,255,.20);
 }
 
 main:has(#upload) section#upload form > label:hover {
-  background: rgba(250, 246, 236, .68) !important;
+  background: rgba(250,246,236,.70) !important;
   border-color: rgba(63,117,110,.66) !important;
 }
 
-/* Primary action: jade seal with warm gold sheen. */
 main:has(#upload) button[type="submit"] {
-  background: linear-gradient(135deg, #4e8179, #315f5b) !important;
-  border-color: rgba(36, 84, 80, .72) !important;
+  background: linear-gradient(135deg,#4e8179,#315f5b) !important;
+  border-color: rgba(36,84,80,.72) !important;
   color: #fffdf6 !important;
-  box-shadow: 0 10px 24px rgba(42, 90, 84, .18), inset 0 1px rgba(255,255,255,.24);
+  box-shadow: 0 8px 20px rgba(42,90,84,.16), inset 0 1px rgba(255,255,255,.22);
 }
 
 main:has(#upload) button[type="submit"]:hover:not(:disabled) {
-  background: linear-gradient(135deg, #5b9187, #376a64) !important;
+  background: linear-gradient(135deg,#5b9187,#376a64) !important;
   transform: translateY(-1px);
 }
 
-/* Gallery area: keep board images crisp, make only the cards translucent. */
 main:has(#upload) section#library ~ section,
-main:has(#upload) section#library + section {
-  background: transparent;
-}
+main:has(#upload) section#library + section { background: transparent; }
 
-main:has(#upload) img {
-  opacity: 1 !important;
-  filter: none !important;
-}
-
+main:has(#upload) img { opacity: 1 !important; filter: none !important; }
 main:has(#upload) article,
-main:has(#upload) [class*="card"] {
-  border-color: rgba(89, 111, 105, .24) !important;
-}
-
-/* Let the scenery breathe between major blocks. */
-main:has(#upload) section#library {
-  margin-bottom: 32px;
-}
-
+main:has(#upload) [class*="card"] { border-color: rgba(89,111,105,.24) !important; }
+main:has(#upload) section#library { margin-bottom: 32px; }
 main:has(#upload) footer {
   color: #324e4e !important;
   text-shadow: 0 1px 4px rgba(255,255,255,.92) !important;
 }
 
 @media (max-width: 900px) {
-  main:has(#upload)::before {
-    background-position: 52% 42% !important;
-  }
-  main:has(#upload) section[aria-labelledby="welcome-title"] {
-    min-height: 420px !important;
-  }
+  main:has(#upload)::before { background-position: 52% 42% !important; }
+  main:has(#upload) section[aria-labelledby="welcome-title"] { min-height: 420px !important; }
 }
 
 @media (max-width: 680px) {
-  main:has(#upload)::before {
-    background-position: 52% top !important;
-  }
-  main:has(#upload)::after {
-    opacity: .26;
-    height: 45vh;
-  }
+  main:has(#upload)::before { background-position: 52% top !important; }
+  main:has(#upload)::after { opacity: .14; height: 38vh; filter: blur(5px); }
   main:has(#upload) section[aria-labelledby="welcome-title"] {
     min-height: 350px !important;
-    background: linear-gradient(90deg, rgba(255,252,246,.78), rgba(255,252,246,.28)) !important;
+    background: linear-gradient(90deg,rgba(255,252,246,.78),rgba(255,252,246,.28)) !important;
   }
   main:has(#upload) section#upload,
   main:has(#upload) aside[aria-labelledby="guide-title"],
-  main:has(#upload) section#library {
-    background: rgba(var(--fairy-paper), .71) !important;
-  }
+  main:has(#upload) section#library { background: rgba(var(--fairy-paper),.72) !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
