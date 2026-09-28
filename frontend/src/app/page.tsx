@@ -216,7 +216,9 @@ export default function HomePage() {
         </Link>
         <nav className={styles.navigation} aria-label="Điều hướng chính">
           <a href="#upload">Nhập kỳ phổ</a>
-          <a href="#library">Thư viện</a>
+          <a href="#library">Thư viện sách</a>
+          <Link href="/collection">Tàng Kinh Các</Link>
+          <Link href="/realms">Bí Cảnh</Link>
         </nav>
       </header>
       <div className={styles.content}>
@@ -227,11 +229,11 @@ export default function HomePage() {
           <p className={styles.intro}>Mang kỳ phổ lên bàn cờ. Tách hình từ sách, thử từng nước đi và khám phá thế trận cùng Stockfish.</p>
           <a className={styles.heroLink} href="#upload">Bắt đầu với một cuốn sách <span aria-hidden="true">↗</span></a>
         </div>
-        <div className={styles.sealScene}>
+        <Link href="/realms" className={styles.sealScene} aria-label="Mở Bát Quái Bí Cảnh">
           <BaguaSeal className={styles.baguaSeal} />
           <p>BÁT QUÁI · TỨ TƯỢNG</p>
-          <span>Tĩnh tâm quan cục</span>
-        </div>
+          <span>Mở cửa luyện tập →</span>
+        </Link>
       </section>
       <div className={styles.guardianRibbon} aria-label="Tứ Tượng">
         <span>Thanh Long</span><i aria-hidden="true">✦</i><span>Bạch Hổ</span><i aria-hidden="true">✦</i><span>Chu Tước</span><i aria-hidden="true">✦</i><span>Huyền Vũ</span>

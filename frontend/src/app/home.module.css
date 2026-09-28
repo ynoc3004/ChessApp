@@ -116,3 +116,7 @@
   .baguaSeal { width: 160px; height: 160px; }
   .guardianRibbon { gap: 10px; padding: 12px; font-size: 12px; }
 }
+
+.navigation { flex-wrap: wrap; column-gap: 18px; }
+.sealScene { color: inherit; text-decoration: none; }
+.sealScene:hover { transform: translateY(-2px); }
