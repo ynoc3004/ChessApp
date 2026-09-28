@@ -1,0 +1,186 @@
+/*
+ * Analysis glass override
+ * -----------------------
+ * Imported last so the analysis workspace keeps all existing behaviour while
+ * allowing the fairyland panorama to remain visible through the UI, matching
+ * the home-page visual language.
+ */
+
+.analysisApp {
+  background: transparent !important;
+}
+
+/* Same panorama treatment as the library/home page. */
+.analysisApp::before {
+  background:
+    linear-gradient(180deg, rgba(255,250,243,.015) 0%, rgba(255,239,227,.015) 52%, rgba(230,243,246,.045) 100%),
+    url('/dao/immortal-four-guardians-v2.png') center 42% / cover no-repeat !important;
+  filter: saturate(1.03) brightness(1.02) !important;
+  transform: none !important;
+}
+
+.analysisApp::after {
+  opacity: .20 !important;
+  filter: blur(18px) !important;
+}
+
+/* Top bar becomes a clear glass strip. */
+.analysisTopbar {
+  background: rgba(255,252,247,.44) !important;
+  border-color: rgba(255,255,255,.48) !important;
+  box-shadow:
+    0 12px 34px rgba(67,60,49,.09),
+    inset 0 1px 0 rgba(255,255,255,.54) !important;
+  backdrop-filter: blur(14px) saturate(128%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(128%) !important;
+}
+
+/* Three principal panes: transparent enough to see mountains/clouds while
+   retaining enough milkiness for chess pieces and text to stay readable. */
+.analysisApp .workspacePane,
+.analysisApp .sourcePane,
+.analysisApp .boardPane,
+.analysisApp .toolsPane {
+  background: rgba(255,250,244,.36) !important;
+  border-color: rgba(255,255,255,.44) !important;
+  box-shadow:
+    0 18px 46px rgba(71,58,45,.10),
+    inset 0 1px 0 rgba(255,255,255,.46) !important;
+  backdrop-filter: blur(16px) saturate(122%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(122%) !important;
+}
+
+/* Header/footer chrome should not turn back into opaque cream strips. */
+.analysisApp .paneHeader,
+.analysisApp .sourceStatus,
+.analysisApp .toolTabs,
+.analysisApp .toolFooter,
+.analysisApp .compactBoardToolbar,
+.analysisApp .boardQuickbar {
+  background: rgba(255,252,247,.22) !important;
+  border-color: rgba(108,93,76,.12) !important;
+  backdrop-filter: blur(8px) saturate(118%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(118%) !important;
+}
+
+/* Source image area: remove the large opaque radial sheet from behind the scan. */
+.analysisApp .sourceStage {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,248,240,.08)) !important;
+}
+
+.analysisApp .sourceStage img {
+  background: rgba(255,255,255,.72) !important;
+  border: 1px solid rgba(255,255,255,.60);
+  box-shadow: 0 12px 28px rgba(57,51,43,.14) !important;
+}
+
+/* Main board stays fully readable; only its surrounding stage is transparent. */
+.analysisApp .boardStage {
+  background: rgba(255,255,255,.08) !important;
+}
+
+.analysisApp .boardCapture {
+  background: transparent !important;
+  box-shadow:
+    0 18px 44px rgba(39,49,41,.16),
+    0 0 0 1px rgba(255,255,255,.52) !important;
+}
+
+/* Tool inputs/cards get lightweight translucent paper instead of opaque white. */
+.analysisApp .selectedInfo,
+.analysisApp .reviewStrip,
+.analysisApp .compactFenInput,
+.analysisApp .castlingGrid label,
+.analysisApp .epField input,
+.analysisApp .compactWarning,
+.analysisApp .analysis-card,
+.analysisApp .sourceMetaBox {
+  background: rgba(255,252,247,.34) !important;
+  border-color: rgba(255,255,255,.36) !important;
+  backdrop-filter: blur(8px) saturate(116%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(116%) !important;
+}
+
+.analysisApp .toolActionGrid .button,
+.analysisApp .externalActions .button,
+.analysisApp .engineBoardActions .button,
+.analysisApp .compactButton,
+.analysisApp .analysisNav .button {
+  background: rgba(255,253,249,.48) !important;
+  border-color: rgba(255,255,255,.40) !important;
+  box-shadow: 0 5px 14px rgba(65,55,45,.05) !important;
+  backdrop-filter: blur(7px) !important;
+  -webkit-backdrop-filter: blur(7px) !important;
+}
+
+.analysisApp .toolActionGrid .button:hover,
+.analysisApp .externalActions .button:hover,
+.analysisApp .engineBoardActions .button:hover,
+.analysisApp .compactButton:hover,
+.analysisApp .analysisNav .button:hover {
+  background: rgba(255,255,255,.72) !important;
+}
+
+.analysisApp .boardPane .segmented,
+.analysisApp .toolsPane .segmented,
+.analysisApp .miniSegmented {
+  background: rgba(255,253,248,.34) !important;
+  border-color: rgba(255,255,255,.40) !important;
+  backdrop-filter: blur(7px) !important;
+  -webkit-backdrop-filter: blur(7px) !important;
+}
+
+/* Stockfish surface: keep evaluation/moves readable while showing scenery. */
+.analysisApp .engineTools,
+.analysisApp .engineBoardShell,
+.analysisApp .engineLines,
+.analysisApp .engineLine,
+.analysisApp .engineSummary,
+.analysisApp .analysisResult,
+.analysisApp .fenSection {
+  background-color: transparent !important;
+}
+
+.analysisApp .engineLine,
+.analysisApp .engineSummary,
+.analysisApp .analysisResult {
+  background: rgba(255,252,247,.32) !important;
+  border-color: rgba(255,255,255,.34) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* Prevent legacy pale blocks from covering the panorama. */
+.analysisApp [style*="background: rgb(255"],
+.analysisApp [style*="background-color: rgb(255"] {
+  background-color: rgba(255,252,247,.42) !important;
+}
+
+/* On smaller screens increase milkiness slightly to preserve legibility. */
+@media (max-width: 1100px) {
+  .analysisApp .workspacePane,
+  .analysisApp .sourcePane,
+  .analysisApp .boardPane,
+  .analysisApp .toolsPane {
+    background: rgba(255,250,244,.47) !important;
+    backdrop-filter: blur(15px) saturate(120%) !important;
+    -webkit-backdrop-filter: blur(15px) saturate(120%) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .analysisTopbar,
+  .analysisApp .workspacePane,
+  .analysisApp .sourcePane,
+  .analysisApp .boardPane,
+  .analysisApp .toolsPane {
+    background: rgba(255,250,244,.58) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .analysisApp::after {
+    animation: none !important;
+  }
+}
