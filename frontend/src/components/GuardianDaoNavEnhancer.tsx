@@ -25,92 +25,66 @@ function findRibbon() {
   );
   if (byLabel) return byLabel;
 
-  // Fallback in case another terminology layer changes the aria-label.
   return Array.from(document.querySelectorAll<HTMLElement>("div")).find((element) => {
     const text = normalize(element.textContent);
     return PATHS.every((path) => text.includes(path.label));
   }) ?? null;
 }
 
-function decorateRibbon() {
-  const ribbon = findRibbon();
-  if (!ribbon) return;
-
-  ribbon.dataset.daoEnhanced = "true";
-  ribbon.setAttribute("aria-label", "Tứ Tượng Đạo Lộ");
-
-  const items = Array.from(ribbon.children).filter(
-    (child): child is HTMLElement => child instanceof HTMLElement && Boolean(resolvePath(child)),
-  );
-
-  items.forEach((item) => {
-    const path = resolvePath(item);
-    if (!path) return;
-
-    item.classList.add("guardian-dao-link");
-    item.dataset.dao = path.slug;
-    item.dataset.href = `/dao/${path.slug}`;
-    item.setAttribute("role", "link");
-    item.setAttribute("tabindex", "0");
-    item.setAttribute("title", `${path.label} Đạo · ${path.note}`);
-    item.setAttribute("aria-label", `${path.label} Đạo · ${path.note}`);
-  });
-}
-
-function targetDaoElement(target: EventTarget | null) {
-  if (!(target instanceof Element)) return null;
-  const candidate = target.closest<HTMLElement>(".guardian-dao-link, [data-dao]");
-  if (!candidate) return null;
-
-  const ribbon = candidate.closest<HTMLElement>('[aria-label="Tứ Tượng Đạo Lộ"], [aria-label="Tứ Tượng"]');
-  if (!ribbon) return null;
-
-  const path = candidate.dataset.dao
-    ? PATHS.find((item) => item.slug === candidate.dataset.dao)
-    : resolvePath(candidate);
-
-  return path ? { candidate, path } : null;
-}
-
 export default function GuardianDaoNavEnhancer() {
   useEffect(() => {
-    decorateRibbon();
+    let ribbon: HTMLElement | null = null;
 
-    const observer = new MutationObserver(() => decorateRibbon());
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ["aria-label"],
-    });
+    const decorateRibbon = () => {
+      ribbon = findRibbon();
+      if (!ribbon) return;
 
-    // Capture phase makes the navigation work even if another UI layer stops
-    // bubbling, which can happen with animated/glass hero overlays.
+      ribbon.dataset.daoEnhanced = "true";
+      ribbon.setAttribute("aria-label", "Tứ Tượng Đạo Lộ");
+
+      Array.from(ribbon.children).forEach((child) => {
+        if (!(child instanceof HTMLElement)) return;
+        const path = resolvePath(child);
+        if (!path) return;
+
+        child.classList.add("guardian-dao-link");
+        child.dataset.dao = path.slug;
+        child.setAttribute("role", "link");
+        child.setAttribute("tabindex", "0");
+        child.setAttribute("title", `${path.label} Đạo · ${path.note}`);
+        child.setAttribute("aria-label", `${path.label} Đạo · ${path.note}`);
+      });
+    };
+
+    const open = (target: EventTarget | null) => {
+      if (!(target instanceof Element) || !ribbon) return false;
+      const candidate = target.closest<HTMLElement>(".guardian-dao-link");
+      if (!candidate || !ribbon.contains(candidate)) return false;
+      const path = PATHS.find((item) => item.slug === candidate.dataset.dao) ?? resolvePath(candidate);
+      if (!path) return false;
+      window.location.assign(`/dao/${path.slug}`);
+      return true;
+    };
+
     const onClick = (event: MouseEvent) => {
-      const match = targetDaoElement(event.target);
-      if (!match) return;
-      event.preventDefault();
-      event.stopPropagation();
-      window.location.href = `/dao/${match.path.slug}`;
+      if (open(event.target)) event.preventDefault();
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Enter" && event.key !== " ") return;
-      const match = targetDaoElement(event.target);
-      if (!match) return;
-      event.preventDefault();
-      event.stopPropagation();
-      window.location.href = `/dao/${match.path.slug}`;
+      if (open(event.target)) event.preventDefault();
     };
 
-    document.addEventListener("click", onClick, true);
-    document.addEventListener("keydown", onKeyDown, true);
+    const frame = window.requestAnimationFrame(() => {
+      decorateRibbon();
+      ribbon?.addEventListener("click", onClick);
+      ribbon?.addEventListener("keydown", onKeyDown);
+    });
 
     return () => {
-      observer.disconnect();
-      document.removeEventListener("click", onClick, true);
-      document.removeEventListener("keydown", onKeyDown, true);
+      window.cancelAnimationFrame(frame);
+      ribbon?.removeEventListener("click", onClick);
+      ribbon?.removeEventListener("keydown", onKeyDown);
     };
   }, []);
 
