@@ -7,6 +7,7 @@ import "./analysis-polish.css";
 import "./analysis-layout-fix.css";
 import type { Metadata } from "next";
 import HanVietMode from "@/components/HanVietMode";
+import HanVietSupplement from "@/components/HanVietSupplement";
 
 export const metadata: Metadata = {
   title: "Kỳ Phổ Đạo Các | Tham ngộ kỳ đạo",
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="vi">
       <body>
         <HanVietMode />
+        <HanVietSupplement />
         {children}
       </body>
     </html>
