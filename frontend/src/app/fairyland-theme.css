@@ -1,0 +1,233 @@
+/*
+ * Fairyland panorama overrides for the Tàng Kinh Các home page.
+ * Scoped with :has(#upload) so analysis/reader pages keep their own styling.
+ */
+
+main:has(#upload) {
+  --fairy-ink: #263a3a;
+  --fairy-muted: #56686a;
+  --fairy-jade: #3f756e;
+  --fairy-jade-dark: #2e5e59;
+  --fairy-gold: #b98a46;
+  --fairy-rose: #c77886;
+  --fairy-paper: 255 252 246;
+  --fairy-line: 87 115 109;
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  background: transparent !important;
+  color: var(--fairy-ink) !important;
+  overflow-x: clip;
+}
+
+/* Full-screen immortal panorama. Keep the scenery bright and readable. */
+main:has(#upload)::before {
+  content: "" !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: -4 !important;
+  pointer-events: none !important;
+  background:
+    linear-gradient(180deg, rgba(230, 246, 255, .08) 0%, rgba(255, 244, 233, .04) 45%, rgba(245, 235, 255, .10) 100%),
+    url('/dao/immortal-theme.webp') center 34% / cover no-repeat !important;
+  filter: saturate(1.08) brightness(1.05);
+  transform: scale(1.015);
+}
+
+/* Moving sea of clouds. The gradients are intentionally soft so the image
+ * beneath remains the main visual, not a CSS fog wall. */
+main:has(#upload)::after {
+  content: "";
+  position: fixed;
+  z-index: -3;
+  pointer-events: none;
+  left: -28vw;
+  right: -28vw;
+  bottom: -18vh;
+  height: 58vh;
+  opacity: .48;
+  background:
+    radial-gradient(ellipse at 10% 60%, rgba(255,255,255,.88) 0 13%, transparent 34%),
+    radial-gradient(ellipse at 30% 42%, rgba(255,237,246,.70) 0 15%, transparent 38%),
+    radial-gradient(ellipse at 50% 65%, rgba(255,255,255,.82) 0 16%, transparent 40%),
+    radial-gradient(ellipse at 72% 46%, rgba(231,244,255,.72) 0 15%, transparent 37%),
+    radial-gradient(ellipse at 91% 62%, rgba(255,244,248,.80) 0 14%, transparent 36%);
+  filter: blur(18px);
+  animation: fairyCloudDrift 34s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes fairyCloudDrift {
+  0% { transform: translate3d(-3vw, 0, 0) scale(1.03); }
+  50% { transform: translate3d(3vw, -2vh, 0) scale(1.08); }
+  100% { transform: translate3d(7vw, 1vh, 0) scale(1.04); }
+}
+
+/* Top navigation becomes a light jade glass strip instead of a solid bar. */
+main:has(#upload) > header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(252, 249, 242, .62) !important;
+  border-bottom: 1px solid rgba(var(--fairy-line), .20) !important;
+  box-shadow: 0 8px 30px rgba(53, 77, 79, .08);
+  backdrop-filter: blur(18px) saturate(135%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(135%) !important;
+}
+
+main:has(#upload) > header a {
+  color: #314d4d !important;
+}
+
+/* Hero: no opaque rectangle. Text floats over the sky with a small mist veil
+ * only behind the copy, leaving the mountains visible on the right. */
+main:has(#upload) section[aria-labelledby="welcome-title"] {
+  min-height: 500px !important;
+  margin-top: 22px !important;
+  border: 1px solid rgba(255,255,255,.42) !important;
+  border-radius: 28px !important;
+  box-shadow:
+    0 28px 70px rgba(49, 73, 74, .14),
+    inset 0 1px rgba(255,255,255,.72) !important;
+  background: linear-gradient(90deg,
+    rgba(255,252,246,.76) 0%,
+    rgba(255,252,246,.57) 37%,
+    rgba(255,252,246,.15) 64%,
+    rgba(255,252,246,.02) 82%) !important;
+  backdrop-filter: blur(2px) saturate(112%);
+  -webkit-backdrop-filter: blur(2px) saturate(112%);
+  overflow: hidden;
+}
+
+main:has(#upload) section[aria-labelledby="welcome-title"]::before {
+  background:
+    radial-gradient(circle at 15% 20%, rgba(255, 229, 236, .62), transparent 30%),
+    linear-gradient(90deg, rgba(255,255,255,.34), transparent 58%) !important;
+}
+
+main:has(#upload) section[aria-labelledby="welcome-title"] h1 {
+  color: #29464a !important;
+  text-shadow: 0 2px 0 rgba(255,255,255,.76), 0 12px 30px rgba(89,75,66,.10) !important;
+  font-weight: 500 !important;
+}
+
+main:has(#upload) section[aria-labelledby="welcome-title"] p {
+  color: #526363;
+}
+
+main:has(#upload) section[aria-labelledby="welcome-title"] a {
+  color: var(--fairy-jade-dark) !important;
+  border-color: rgba(63,117,110,.48) !important;
+}
+
+/* Bagua / Tứ Tượng zone is deliberately delicate and luminous. */
+main:has(#upload) section[aria-labelledby="welcome-title"] svg {
+  filter: drop-shadow(0 8px 20px rgba(45, 82, 78, .16)) drop-shadow(0 0 20px rgba(255, 234, 196, .34));
+}
+
+/* Main functional panels: translucent paper-glass. Background remains visible. */
+main:has(#upload) section#upload,
+main:has(#upload) aside[aria-labelledby="guide-title"],
+main:has(#upload) section#library {
+  background: rgba(var(--fairy-paper), .69) !important;
+  border: 1px solid rgba(255,255,255,.58) !important;
+  box-shadow:
+    0 22px 56px rgba(57, 76, 78, .12),
+    inset 0 1px rgba(255,255,255,.74) !important;
+  backdrop-filter: blur(15px) saturate(130%) !important;
+  -webkit-backdrop-filter: blur(15px) saturate(130%) !important;
+}
+
+main:has(#upload) aside[aria-labelledby="guide-title"] {
+  background: rgba(248, 251, 244, .62) !important;
+}
+
+main:has(#upload) section#upload h2,
+main:has(#upload) aside[aria-labelledby="guide-title"] h2,
+main:has(#upload) section#library h2 {
+  color: #29494a !important;
+}
+
+/* Upload dropzone feels like a talisman sheet instead of a generic grey box. */
+main:has(#upload) section#upload form > label {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.58), rgba(246,236,221,.42)) !important;
+  border-color: rgba(77, 115, 106, .38) !important;
+  box-shadow: inset 0 0 38px rgba(255,255,255,.25);
+}
+
+main:has(#upload) section#upload form > label:hover {
+  background: rgba(250, 246, 236, .74) !important;
+  border-color: rgba(63,117,110,.66) !important;
+}
+
+/* Primary action: jade seal with warm gold sheen. */
+main:has(#upload) button[type="submit"] {
+  background: linear-gradient(135deg, #4e8179, #315f5b) !important;
+  border-color: rgba(36, 84, 80, .72) !important;
+  color: #fffdf6 !important;
+  box-shadow: 0 10px 24px rgba(42, 90, 84, .18), inset 0 1px rgba(255,255,255,.24);
+}
+
+main:has(#upload) button[type="submit"]:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5b9187, #376a64) !important;
+  transform: translateY(-1px);
+}
+
+/* Gallery area: keep board images crisp, make only the cards translucent. */
+main:has(#upload) section#library ~ section,
+main:has(#upload) section#library + section {
+  background: transparent;
+}
+
+main:has(#upload) img {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+main:has(#upload) article,
+main:has(#upload) [class*="card"] {
+  border-color: rgba(89, 111, 105, .24) !important;
+}
+
+/* Let the scenery breathe between major blocks. */
+main:has(#upload) section#library {
+  margin-bottom: 32px;
+}
+
+main:has(#upload) footer {
+  color: #324e4e !important;
+  text-shadow: 0 1px 4px rgba(255,255,255,.92) !important;
+}
+
+@media (max-width: 900px) {
+  main:has(#upload)::before {
+    background-position: 58% 30% !important;
+  }
+  main:has(#upload) section[aria-labelledby="welcome-title"] {
+    min-height: 420px !important;
+  }
+}
+
+@media (max-width: 680px) {
+  main:has(#upload)::before {
+    background-position: 58% top !important;
+  }
+  main:has(#upload)::after {
+    opacity: .34;
+    height: 45vh;
+  }
+  main:has(#upload) section[aria-labelledby="welcome-title"] {
+    min-height: 350px !important;
+    background: linear-gradient(90deg, rgba(255,252,246,.82), rgba(255,252,246,.34)) !important;
+  }
+  main:has(#upload) section#upload,
+  main:has(#upload) aside[aria-labelledby="guide-title"],
+  main:has(#upload) section#library {
+    background: rgba(var(--fairy-paper), .76) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main:has(#upload)::after { animation: none !important; }
+}
