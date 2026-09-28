@@ -1,0 +1,780 @@
+/*
+ * Analysis workspace v2
+ * ---------------------
+ * Keeps all existing recognition / FEN / Stockfish logic intact and only
+ * reshapes the page into a clearer three-column workstation.  The supplied
+ * Four Guardians artwork stays sharp because it is rendered as a fixed image
+ * layer without blur or oversized transforms.
+ */
+
+.analysisApp {
+  --analysis-ink: #303b3b;
+  --analysis-muted: #667676;
+  --analysis-jade: #46786f;
+  --analysis-jade-dark: #315f59;
+  --analysis-rose: #c57d8d;
+  --analysis-rose-dark: #9f5d6b;
+  --analysis-gold: #b8894a;
+  --analysis-paper: 255 252 246;
+  --analysis-line: 88 112 106;
+  position: relative !important;
+  isolation: isolate;
+  min-height: 100dvh !important;
+  padding: 14px 18px 20px !important;
+  overflow-x: hidden !important;
+  background: transparent !important;
+  color: var(--analysis-ink);
+}
+
+/* The original ambient component is useful on the library page, but its old
+ * blurred scenes compete with the analysis board.  The analysis page owns its
+ * own lighter atmospheric layers below. */
+.analysisApp > .daoAmbient {
+  display: none !important;
+}
+
+.analysisApp::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255,250,244,.04) 0%, rgba(255,247,242,.02) 48%, rgba(243,249,250,.06) 100%),
+    url('/dao/immortal-four-guardians-v2.png') center 46% / cover no-repeat;
+  /* Do not blur / scale this layer: keeping source pixels untouched prevents
+     the soft, broken-looking background seen in the previous layout. */
+  filter: none;
+}
+
+.analysisApp::after {
+  content: "";
+  position: fixed;
+  z-index: 1;
+  pointer-events: none;
+  left: -22vw;
+  right: -22vw;
+  bottom: -24vh;
+  height: 55vh;
+  opacity: .24;
+  background:
+    radial-gradient(ellipse at 10% 60%, rgba(255,255,255,.86) 0 14%, transparent 35%),
+    radial-gradient(ellipse at 32% 42%, rgba(255,226,238,.60) 0 14%, transparent 36%),
+    radial-gradient(ellipse at 53% 66%, rgba(255,255,255,.82) 0 16%, transparent 40%),
+    radial-gradient(ellipse at 74% 44%, rgba(230,244,255,.62) 0 15%, transparent 37%),
+    radial-gradient(ellipse at 92% 60%, rgba(255,240,245,.70) 0 14%, transparent 36%);
+  filter: blur(18px);
+  animation: analysisCloudDrift 30s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes analysisCloudDrift {
+  0% { transform: translate3d(-2vw, 0, 0) scale(1.02); }
+  50% { transform: translate3d(2vw, -1.5vh, 0) scale(1.055); }
+  100% { transform: translate3d(5vw, .7vh, 0) scale(1.025); }
+}
+
+.analysisTopbar,
+.analysisWorkspace {
+  position: relative;
+  z-index: 2;
+}
+
+/* ───────────────────────────── top bar ───────────────────────────── */
+.analysisTopbar {
+  width: min(1540px, calc(100vw - 36px)) !important;
+  max-width: none !important;
+  min-height: 58px !important;
+  height: auto !important;
+  margin: 0 auto 12px !important;
+  padding: 9px 12px 9px 15px;
+  border: 1px solid rgba(255,255,255,.62);
+  border-radius: 18px;
+  background: rgba(255,252,247,.73);
+  box-shadow:
+    0 14px 34px rgba(68,75,70,.12),
+    inset 0 1px 0 rgba(255,255,255,.80);
+  backdrop-filter: blur(8px) saturate(126%);
+  -webkit-backdrop-filter: blur(8px) saturate(126%);
+}
+
+.analysisBrand {
+  gap: 9px !important;
+  flex-wrap: wrap;
+}
+
+.analysisBrand > strong {
+  color: #385a58;
+  font-size: 1.22rem !important;
+  letter-spacing: .01em;
+  text-shadow: 0 1px rgba(255,255,255,.80);
+}
+
+.analysisBrand > span:not(.aiChip) {
+  color: #687675 !important;
+  font-weight: 700;
+}
+
+.analysisBrand .aiChip {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-color: rgba(80,131,113,.34);
+  background: rgba(225,245,235,.80);
+  color: #356a56 !important;
+  box-shadow: inset 0 1px rgba(255,255,255,.72);
+}
+
+.analysisNav {
+  gap: 7px !important;
+}
+
+.analysisNav .button,
+.analysisApp .compactButton {
+  min-height: 36px;
+  border-radius: 10px;
+  border-color: rgba(77,105,99,.24);
+  background: rgba(255,253,248,.78);
+  color: #455b59;
+  font-weight: 750;
+  box-shadow: 0 5px 14px rgba(66,83,78,.06);
+}
+
+.analysisNav .button:hover,
+.analysisApp .compactButton:hover {
+  border-color: rgba(63,117,110,.48);
+  background: rgba(255,255,255,.94);
+}
+
+/* ───────────────────────────── workspace ─────────────────────────── */
+.analysisWorkspace {
+  width: min(1540px, calc(100vw - 36px)) !important;
+  max-width: none !important;
+  height: calc(100dvh - 104px) !important;
+  margin: 0 auto !important;
+  grid-template-columns: 300px minmax(600px, 1fr) 370px !important;
+  gap: 14px !important;
+  align-items: stretch;
+}
+
+.workspacePane {
+  border-radius: 20px !important;
+  border: 1px solid rgba(255,255,255,.62) !important;
+  background: rgba(var(--analysis-paper), .76) !important;
+  box-shadow:
+    0 18px 42px rgba(54,69,66,.13),
+    inset 0 1px 0 rgba(255,255,255,.80) !important;
+  backdrop-filter: blur(7px) saturate(125%);
+  -webkit-backdrop-filter: blur(7px) saturate(125%);
+}
+
+/* ───────────────────────────── source pane ───────────────────────── */
+.sourcePane {
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+}
+
+.paneHeader {
+  min-height: 62px;
+  padding: 12px 13px !important;
+  border-bottom-color: rgba(var(--analysis-line), .18) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.36), transparent);
+}
+
+.paneHeader strong {
+  color: #415957;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1rem;
+}
+
+.paneMeta {
+  color: var(--analysis-muted) !important;
+  max-width: 200px !important;
+}
+
+.sourceStage {
+  padding: 14px !important;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255,255,255,.68), rgba(244,239,229,.34) 55%, rgba(223,233,229,.26)) !important;
+}
+
+.sourceStage img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain !important;
+  image-rendering: auto;
+  filter: none !important;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(59,59,51,.10);
+}
+
+.sourceStatus {
+  border-top-color: rgba(var(--analysis-line), .18) !important;
+  background: rgba(249,248,242,.70);
+}
+
+.sourceStatus > div {
+  padding: 10px 11px !important;
+}
+
+.sourceStatus > div + div {
+  border-left-color: rgba(var(--analysis-line), .16) !important;
+}
+
+.sourceStatus span {
+  color: #76837f !important;
+  font-size: 9px !important;
+  font-weight: 800;
+}
+
+.sourceStatus strong {
+  color: #3f5451;
+}
+
+/* ───────────────────────────── main board ────────────────────────── */
+.boardPane {
+  padding: 12px !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+  background: rgba(255,252,246,.70) !important;
+}
+
+.compactBoardToolbar {
+  min-height: 48px;
+  margin: 0 0 10px !important;
+  gap: 10px !important;
+}
+
+.boardPane .segmented,
+.toolsPane .segmented {
+  border-color: rgba(75,107,99,.22) !important;
+  background: rgba(255,253,248,.66);
+}
+
+.boardPane .segmented button,
+.toolsPane .segmented button {
+  background: transparent;
+  color: #566764;
+  font-weight: 800;
+}
+
+.boardPane .segmented button.active,
+.toolsPane .segmented button.active {
+  background: linear-gradient(135deg, #d78d9d, #bf7486) !important;
+  color: #fffdf9 !important;
+  box-shadow: inset 0 1px rgba(255,255,255,.24);
+}
+
+.boardToolbarActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.validBadge,
+.invalidBadge {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px !important;
+}
+
+.validBadge {
+  background: rgba(222,244,231,.86) !important;
+  border-color: rgba(74,135,104,.30) !important;
+  color: #326a51 !important;
+}
+
+.invalidBadge {
+  background: rgba(255,237,221,.90) !important;
+  border-color: rgba(184,112,60,.34) !important;
+  color: #965429 !important;
+}
+
+.boardStage {
+  width: min(100%, 760px, calc(100dvh - 196px)) !important;
+  min-width: 0;
+  margin: auto !important;
+  border-radius: 16px !important;
+  background: rgba(255,255,255,.25);
+  box-shadow: none;
+}
+
+.boardCapture {
+  border-radius: 15px !important;
+  box-shadow:
+    0 18px 45px rgba(38,53,46,.18),
+    0 0 0 1px rgba(255,255,255,.70) !important;
+  background: #eeeed2 !important;
+}
+
+.boardQuickbar {
+  min-height: 48px;
+  padding-top: 10px !important;
+  border-top: 1px solid rgba(var(--analysis-line), .11);
+}
+
+.miniSegmented {
+  width: min(250px, 100%) !important;
+}
+
+.boardQuickActions {
+  gap: 7px !important;
+}
+
+/* ───────────────────────────── tools pane ────────────────────────── */
+.toolsPane {
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+  background: rgba(255,252,247,.80) !important;
+}
+
+.toolTabs {
+  min-height: 54px;
+  padding: 5px;
+  gap: 5px;
+  border-bottom: 1px solid rgba(var(--analysis-line), .14) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.35), transparent);
+}
+
+.toolTabs button {
+  border-radius: 11px;
+  padding: 10px 6px !important;
+  color: #687673 !important;
+  transition: background .18s ease, color .18s ease, transform .18s ease;
+}
+
+.toolTabs button:hover {
+  background: rgba(255,255,255,.62);
+}
+
+.toolTabs button.active {
+  color: #70404c !important;
+  background: linear-gradient(135deg, rgba(242,207,216,.95), rgba(225,169,184,.94)) !important;
+  box-shadow: none !important;
+}
+
+.toolBody {
+  padding: 12px !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(81,111,104,.28) transparent;
+}
+
+.compactToolSection {
+  gap: 10px !important;
+}
+
+.selectedInfo,
+.reviewStrip,
+.compactFenInput,
+.castlingGrid label,
+.epField input {
+  border-color: rgba(var(--analysis-line), .22) !important;
+  background: rgba(255,255,255,.66) !important;
+}
+
+.selectedInfo {
+  min-height: 40px;
+  border-radius: 10px !important;
+}
+
+.pieceChooser {
+  gap: 9px !important;
+}
+
+.pieceChooserLabel,
+.controlLabel {
+  color: #687a75 !important;
+  font-weight: 900 !important;
+  letter-spacing: .06em;
+}
+
+.pieceChooser .compactPalette button {
+  background: rgba(49,55,48,.93) !important;
+  border-color: rgba(255,255,255,.11) !important;
+}
+
+.pieceChooser .compactPalette button:hover {
+  background: rgba(61,75,58,.98) !important;
+  border-color: rgba(128,174,111,.70) !important;
+}
+
+.pieceChooser .compactPalette button.active {
+  background: #38533a !important;
+  border-color: #90bd76 !important;
+}
+
+.toolActionGrid .button,
+.externalActions .button,
+.engineBoardActions .button {
+  border-color: rgba(73,101,95,.22) !important;
+  background: rgba(255,253,249,.80) !important;
+  color: #4f615e;
+  font-weight: 750;
+}
+
+.toolActionGrid .button:hover,
+.externalActions .button:hover,
+.engineBoardActions .button:hover {
+  border-color: rgba(63,117,110,.45) !important;
+  background: #fff !important;
+}
+
+.compactWarning {
+  border-color: rgba(190,135,86,.32) !important;
+  background: rgba(255,246,229,.74) !important;
+}
+
+.toolFooter {
+  min-height: 38px;
+  max-height: 62px !important;
+  padding: 9px 11px !important;
+  border-top-color: rgba(var(--analysis-line), .14) !important;
+  color: #6a7774 !important;
+  background: rgba(251,250,245,.66);
+}
+
+/* ───────────────────────────── Stockfish tab ─────────────────────── */
+.engineTools {
+  position: relative;
+  gap: 9px !important;
+  align-content: start !important;
+  padding-top: 42px;
+}
+
+/* A small local-engine masthead without changing the existing JSX/state. */
+.engineTools::before {
+  content: "Stockfish 19 local  ·  Tâm pháp phân tích";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  padding: 0 11px;
+  border: 1px solid rgba(67,112,101,.24);
+  border-radius: 11px;
+  background: linear-gradient(135deg, rgba(221,242,231,.92), rgba(240,248,241,.82));
+  color: #356759;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .015em;
+}
+
+.engineBoardShell {
+  width: min(100%, 320px) !important;
+  grid-template-columns: 26px minmax(0, 1fr) !important;
+  gap: 7px !important;
+  padding: 7px;
+  border-radius: 13px;
+  background: rgba(247,247,239,.72);
+  border: 1px solid rgba(var(--analysis-line), .16);
+  box-shadow: 0 10px 28px rgba(52,66,58,.08);
+}
+
+.engineMiniBoard {
+  border: 1px solid rgba(75,100,71,.36) !important;
+  border-radius: 9px !important;
+  box-shadow: 0 8px 22px rgba(43,54,47,.16) !important;
+  background: #eeeed2 !important;
+}
+
+.evalBar {
+  width: 26px;
+  border-radius: 8px !important;
+  border: 1px solid rgba(56,61,55,.42) !important;
+  background: #262927 !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+}
+
+.evalWhite {
+  background: linear-gradient(180deg, #fffef8, #e9eee8) !important;
+}
+
+.evalBar span {
+  font-size: 9px !important;
+  font-weight: 950 !important;
+}
+
+.engineBoardActions {
+  min-height: 36px;
+  padding: 2px 0;
+}
+
+.engineAutoToggle {
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 9px;
+  background: rgba(233,241,237,.58);
+  color: #516763 !important;
+}
+
+.engineControlRow {
+  grid-template-columns: 104px minmax(0, 1fr) !important;
+  gap: 8px !important;
+  align-items: end;
+}
+
+.engineControlRow label {
+  color: #687773 !important;
+}
+
+.engineControlRow select {
+  min-height: 40px;
+  border-color: rgba(var(--analysis-line), .24) !important;
+  background: rgba(255,255,255,.78) !important;
+  color: #435653;
+}
+
+.engineControlRow .primary {
+  min-height: 40px;
+  border: 1px solid rgba(42,94,82,.36);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4f8176, #35655e) !important;
+  color: #fffef9 !important;
+  font-weight: 900;
+  box-shadow: 0 8px 20px rgba(51,105,92,.17);
+}
+
+.engineControlRow .primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5d9185, #3a7068) !important;
+}
+
+.externalActions {
+  gap: 8px !important;
+}
+
+.externalActions .button {
+  min-height: 39px;
+  border-radius: 10px !important;
+}
+
+.compactEngineLines {
+  gap: 7px !important;
+  padding-top: 1px;
+}
+
+.compactEngineLine {
+  position: relative;
+  min-height: 46px;
+  grid-template-columns: 58px minmax(0, 1fr) auto !important;
+  gap: 8px !important;
+  padding: 9px 9px !important;
+  border-radius: 11px !important;
+  border-color: rgba(var(--analysis-line), .18) !important;
+  background: rgba(255,255,255,.66) !important;
+  color: #455855;
+}
+
+.compactEngineLine:first-child {
+  min-height: 56px;
+  border-color: rgba(176,132,72,.34) !important;
+  background: linear-gradient(135deg, rgba(255,248,225,.90), rgba(246,240,228,.72)) !important;
+  box-shadow: 0 8px 18px rgba(124,96,56,.08);
+}
+
+.compactEngineLine:first-child::after {
+  content: "Tối ưu";
+  position: absolute;
+  top: 4px;
+  right: 7px;
+  color: #a4783f;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.compactEngineLine strong {
+  color: #3c6159;
+  font-variant-numeric: tabular-nums;
+}
+
+.compactEngineLine:first-child strong {
+  color: #8e6537;
+}
+
+.compactEngineLine span {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #4e5d5b;
+}
+
+.compactEngineLine small {
+  color: #84908d !important;
+}
+
+.engineTools > .subtle,
+.compactEngineLines > .subtle {
+  margin: 2px 0;
+  padding: 10px 11px;
+  border: 1px dashed rgba(var(--analysis-line), .24);
+  border-radius: 10px;
+  background: rgba(248,250,247,.50);
+  color: #697975 !important;
+  font-size: 12px;
+}
+
+/* ───────────────────────────── responsive ────────────────────────── */
+@media (max-width: 1380px) and (min-width: 1121px) {
+  .analysisTopbar,
+  .analysisWorkspace {
+    width: min(1320px, calc(100vw - 28px)) !important;
+  }
+
+  .analysisWorkspace {
+    grid-template-columns: 270px minmax(520px, 1fr) 340px !important;
+    gap: 10px !important;
+  }
+
+  .boardStage {
+    width: min(100%, 700px, calc(100dvh - 196px)) !important;
+  }
+}
+
+@media (max-width: 1120px) {
+  .analysisApp {
+    overflow: auto !important;
+  }
+
+  .analysisTopbar,
+  .analysisWorkspace {
+    width: min(100%, calc(100vw - 24px)) !important;
+  }
+
+  .analysisWorkspace {
+    height: auto !important;
+    grid-template-columns: minmax(250px, .72fr) minmax(480px, 1.28fr) !important;
+  }
+
+  .toolsPane {
+    grid-column: 1 / -1;
+    min-height: 520px;
+  }
+
+  .boardStage {
+    width: min(100%, 700px) !important;
+  }
+
+  .engineBoardShell {
+    width: min(100%, 380px) !important;
+  }
+}
+
+@media (max-width: 820px) {
+  .analysisApp {
+    padding: 8px !important;
+  }
+
+  .analysisTopbar,
+  .analysisWorkspace {
+    width: 100% !important;
+  }
+
+  .analysisTopbar {
+    padding: 10px !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+
+  .analysisWorkspace {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .sourcePane,
+  .boardPane,
+  .toolsPane {
+    min-height: auto !important;
+  }
+
+  .sourceStage {
+    height: min(52vh, 480px) !important;
+  }
+
+  .boardStage {
+    width: min(100%, 94vw) !important;
+  }
+
+  .compactBoardToolbar,
+  .boardQuickbar {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .boardToolbarActions,
+  .boardQuickActions {
+    justify-content: stretch !important;
+  }
+
+  .boardToolbarActions > *,
+  .boardQuickActions > * {
+    flex: 1 1 auto;
+  }
+
+  .toolsPane {
+    grid-column: auto !important;
+    min-height: 520px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .analysisBrand > strong {
+    white-space: normal !important;
+  }
+
+  .analysisNav {
+    width: 100%;
+    justify-content: stretch !important;
+  }
+
+  .analysisNav .button {
+    flex: 1 1 auto;
+  }
+
+  .toolTabs button {
+    font-size: 12px;
+  }
+
+  .engineControlRow {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-height: 760px) and (min-width: 1121px) {
+  .analysisTopbar {
+    min-height: 48px !important;
+    padding-block: 6px;
+    margin-bottom: 8px !important;
+  }
+
+  .analysisWorkspace {
+    height: calc(100dvh - 84px) !important;
+  }
+
+  .boardStage {
+    width: min(100%, 590px, calc(100dvh - 170px)) !important;
+  }
+
+  .engineBoardShell {
+    width: min(100%, 255px) !important;
+  }
+
+  .compactEngineLine {
+    min-height: 40px;
+    padding: 6px 8px !important;
+  }
+
+  .engineTools {
+    gap: 6px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .analysisApp::after {
+    animation: none !important;
+  }
+}
