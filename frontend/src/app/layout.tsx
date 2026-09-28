@@ -5,6 +5,7 @@ import "./home-motion.css";
 import "./analysis-theme.css";
 import "./analysis-polish.css";
 import "./analysis-layout-fix.css";
+import "./analysis-glass.css";
 import type { Metadata } from "next";
 import HanVietMode from "@/components/HanVietMode";
 import HanVietSupplement from "@/components/HanVietSupplement";
