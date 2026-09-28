@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import DaoAmbient from "@/components/DaoAmbient";
+import styles from "./home.module.css";
 import {
   API_BASE,
   type BookListResponse,
@@ -28,6 +28,9 @@ export default function HomePage() {
   const [error, setError] = useState("");
   const [filename, setFilename] = useState("");
   const [restoring, setRestoring] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState("");
+  const [dragging, setDragging] = useState(false);
   const [recentBooks, setRecentBooks] = useState<BookSummary[]>([]);
   const [scanJob, setScanJob] = useState<ScanJob | null>(null);
   const [pageQuery, setPageQuery] = useState("");
@@ -64,12 +67,17 @@ export default function HomePage() {
   }
 
   async function loadRecentBooks() {
+    setHistoryLoading(true);
+    setHistoryError("");
     try {
       const response = await fetch(`${API_BASE}/api/books`);
       const data = (await response.json()) as BookListResponse;
-      if (response.ok) setRecentBooks(data.books ?? []);
+      if (!response.ok) throw new Error("Không tải được thư viện");
+      setRecentBooks(data.books ?? []);
     } catch {
-      // History is optional; uploads still work if this request fails.
+      setHistoryError("Chưa kết nối được thư viện. Kiểm tra dịch vụ xử lý sách rồi thử lại.");
+    } finally {
+      setHistoryLoading(false);
     }
   }
 
@@ -92,9 +100,19 @@ export default function HomePage() {
       .finally(() => setRestoring(false));
   }, []);
 
+  function selectFile(next: File | null) {
+    setError("");
+    if (next && !/\.(pdf|docx)$/i.test(next.name)) {
+      setFile(null);
+      setError("Vui lòng chọn sách định dạng PDF hoặc DOCX.");
+      return;
+    }
+    setFile(next);
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!file) return;
+    if (!file || loading || restoring) return;
 
     setLoading(true);
     setError("");
@@ -143,6 +161,10 @@ export default function HomePage() {
         }
       }
 
+      if (current.status === "failed") {
+        throw new Error(current.error || "Quét sách thất bại");
+      }
+
       const result: UploadResponse = {
         jobId: current.jobId,
         filename: current.filename || file.name,
@@ -184,53 +206,76 @@ export default function HomePage() {
   }
 
   return (
-    <main className={`shell ${positions.length > 0 ? "hasResults" : ""}`}>
-      <DaoAmbient />
-      <section className="hero daoHero">
-        <div className="daoSeal" aria-hidden="true">☯</div>
-        <div className="daoTrigrams" aria-hidden="true">
-          <span>☰</span><span>☵</span><span>☶</span><span>☷</span>
+    <main className={styles.home}>
+      <a className={styles.skipLink} href="#upload">Đến phần nhập sách</a>
+      <header className={styles.topbar}>
+        <Link className={styles.brand} href="/" aria-label="Kỳ Phổ Đạo Các — trang chủ">
+          <span className={styles.brandMark} aria-hidden="true">♞</span>
+          <span><strong>Kỳ Phổ Đạo Các</strong><small>Không gian học cờ của bạn</small></span>
+        </Link>
+        <nav className={styles.navigation} aria-label="Điều hướng chính">
+          <a href="#upload">Nhập kỳ phổ</a>
+          <a href="#library">Thư viện</a>
+        </nav>
+      </header>
+      <div className={styles.content}>
+      <section className={styles.hero} aria-labelledby="welcome-title">
+        <div className={styles.heroCopy}>
+          <p className={styles.eyebrow}>TÀNG KINH CÁC · HỌC CỜ TỪ SÁCH</p>
+          <h1 id="welcome-title">Mỗi thế cờ,<br />một điều khai mở.</h1>
+          <p className={styles.intro}>Mang kỳ phổ lên bàn cờ. Tách hình từ sách, thử từng nước đi và khám phá thế trận cùng Stockfish.</p>
+          <a className={styles.heroLink} href="#upload">Bắt đầu với một cuốn sách <span aria-hidden="true">↗</span></a>
         </div>
-        <p className="eyebrow">KỲ PHỔ TÀNG KINH · HUYỀN MÔN KỲ ĐẠO</p>
-        <h1>Khai kỳ phổ giữa tiên sơn vân hải, tĩnh tâm diễn hóa kỳ cục.</h1>
-        <p className="subtle">
-          Nạp PDF hoặc DOCX vào Tàng Kinh Các. Hệ thống tự tìm kỳ đồ, AI đọc 64 ô và dựng FEN; sau đó bạn có thể bố trận, diễn hóa nước đi và vận dụng Tâm pháp Stockfish trong một tiên cảnh sáng, nhẹ và dễ quan sát.
-        </p>
-        <p className="daoQuote">“Tiên sơn vân hải · tĩnh tâm quan cục · nhất tử định càn khôn.”</p>
+        <div className={styles.heroCaption}><span>TIÊN SƠN VÂN HẢI</span><p>Tĩnh tâm quan cục.</p></div>
       </section>
-
-      <form className="uploadCard" onSubmit={submit}>
-        <label className="dropzone">
-          <span className="dropTitle">Nạp kỳ phổ vào Tàng Kinh Các</span>
-          <span className="subtle">PDF / DOCX được xử lý hoàn toàn trên backend local của bạn.</span>
+      <div className={styles.workspace}>
+      <section className={styles.importSection} id="upload" aria-labelledby="import-title">
+        <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>01 / KHAI PHỔ</p><h2 id="import-title">Nhập sách của bạn</h2></div><span className={styles.formatBadge}>PDF · DOCX</span></div>
+      <form className={styles.uploadCard} onSubmit={submit}>
+        <label
+          className={`${styles.dropzone} ${dragging ? styles.dragging : ""}`}
+          onDragOver={(event) => { event.preventDefault(); if (!loading) setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragging(false);
+            if (!loading) selectFile(event.dataTransfer.files[0] ?? null);
+          }}
+        >
+          <span className={styles.uploadIcon} aria-hidden="true">↑</span>
+          <span className={styles.dropTitle}>{file ? file.name : "Kéo sách vào đây"}</span>
+          <span className={styles.subtle}>{file ? `${(file.size / 1024 / 1024).toFixed(1)} MB · Sẵn sàng để quét` : "hoặc bấm để chọn tệp PDF / DOCX"}</span>
           <input
+            className={styles.fileInput}
+            aria-label="Chọn sách PDF hoặc DOCX"
             type="file"
+            disabled={loading}
             accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => selectFile(e.target.files?.[0] ?? null)}
           />
         </label>
-        <button className="primary" disabled={!file || loading}>
-          {loading ? "Đang khai mở kỳ phổ…" : "Khai phổ · nhập Tàng Kinh"}
+        <button className={styles.primary} disabled={!file || loading || restoring}>
+          {loading ? "Đang quét kỳ phổ…" : "Quét sách và tìm thế cờ →"}
         </button>
-        {file && <p className="subtle">Đã chọn: {file.name}</p>}
+        <p className={styles.privacyNote}>Sách được gửi đến dịch vụ xử lý bạn đã cấu hình.</p>
         {scanJob && loading && (
-          <div className="scanProgress cultivationProgress">
-            <div className="cultivationHeader">
-              <div className="realmSeal" aria-hidden="true">{scanCultivation.mark}</div>
+          <div className={styles.scanProgress}>
+            <div className={styles.cultivationHeader}>
+              <div className={styles.realmSeal} aria-hidden="true">{scanCultivation.mark}</div>
               <div>
-                <span className="realmKicker">CẢNH GIỚI QUÉT PHỔ</span>
+                <span className={styles.realmKicker}>CẢNH GIỚI QUÉT PHỔ</span>
                 <strong>{scanJob.status === "queued" ? "Tụ Khí" : scanCultivation.name}</strong>
                 <small>{scanJob.status === "queued" ? "Đang chuẩn bị pháp trận xử lý" : scanCultivation.note}</small>
               </div>
-              <span className="realmPercent">{scanJob.progress.toFixed(1)}%</span>
+              <span className={styles.realmPercent}>{scanJob.progress.toFixed(1)}%</span>
             </div>
-            <div className="progressTrack" aria-label="Tiến trình quét">
+            <div className={styles.progressTrack} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.max(0, scanJob.progress))} aria-label="Tiến trình quét">
               <div
-                className="progressFill"
+                className={styles.progressFill}
                 style={{ width: `${Math.max(1, scanJob.progress)}%` }}
               />
             </div>
-            <p className="subtle">
+            <p className={styles.subtle}>
               {scanJob.total > 0
                 ? `Đã xử lý ${scanJob.current} / ${scanJob.total}`
                 : "Đang đọc thông tin tài liệu"}{" "}
@@ -238,52 +283,66 @@ export default function HomePage() {
             </p>
           </div>
         )}
-        {restoring && <p className="subtle daoStatus">☁ Đang triệu hồi kỳ phổ gần nhất từ Tàng Kinh Các…</p>}
-        {error && <p className="error">{error}</p>}
+        {restoring && <p className={styles.subtle}>☁ Đang triệu hồi kỳ phổ gần nhất từ Tàng Kinh Các…</p>}
+        {error && <p className={styles.error} role="alert">{error}</p>}
+        {scanJob?.status === "completed" && positions.length === 0 && (
+          <p className={styles.notice} role="status">Đã quét xong nhưng chưa tìm thấy hình cờ. Thử sách có hình bàn cờ rõ hơn.</p>
+        )}
       </form>
+      </section>
+      <aside className={styles.guide} aria-labelledby="guide-title">
+        <p className={styles.eyebrow}>HÀNH TRÌNH HỌC CỜ</p>
+        <h2 id="guide-title">Từ trang sách<br />đến bàn cờ.</h2>
+        <ol className={styles.steps}>
+          <li><span>01</span><div><strong>Chọn kỳ phổ</strong><p>Tải sách PDF hoặc DOCX bạn muốn học.</p></div></li>
+          <li><span>02</span><div><strong>Khám phá thế cờ</strong><p>Xem các hình cờ tìm được, lọc theo trang sách.</p></div></li>
+          <li><span>03</span><div><strong>Thử nước, hiểu sâu</strong><p>Kiểm tra bàn cờ nhận diện và phân tích bằng Stockfish.</p></div></li>
+        </ol>
+        <p className={styles.guideNote}>Một thế cờ hay đáng để bạn dừng lại.</p>
+      </aside>
+      </div>
 
-      {recentBooks.length > 0 && (
-        <details className="recentBooks recentBooksCompact">
-          <summary>
-            Tàng Kinh Các · sách đã quét ({recentBooks.length})
-          </summary>
-          <div className="recentBookList">
+        <section className={styles.recentBooks} id="library" aria-labelledby="library-title" aria-busy={historyLoading}>
+          <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>02 / TIẾP TỤC KHÁM PHÁ</p><h2 id="library-title">Kỳ phổ của bạn</h2></div><span className={styles.formatBadge}>{recentBooks.length} cuốn sách</span></div>
+          {historyLoading && <p className={styles.subtle} role="status">Đang tải thư viện…</p>}
+          {historyError && <div className={styles.notice} role="status"><span>{historyError}</span><button className={styles.button} onClick={() => void loadRecentBooks()}>Thử lại</button></div>}
+          {!historyLoading && !historyError && recentBooks.length === 0 && <div className={styles.emptyLibrary}><span aria-hidden="true">▤</span><div><strong>Cuốn kỳ phổ đầu tiên đang chờ bạn</strong><p>Sách đã quét sẽ xuất hiện ở đây để bạn tiếp tục học bất cứ lúc nào.</p></div><a className={styles.button} href="#upload">Nhập sách đầu tiên ↑</a></div>}
+          <div className={styles.recentBookList}>
             {recentBooks.map((book) => (
-              <article className="recentBookItem" key={book.jobId}>
+              <article className={styles.recentBookItem} key={book.jobId}>
                 <div>
                   <strong>{book.filename}</strong>
-                  <p className="subtle">{book.count} hình cờ</p>
+                  <p className={styles.subtle}>{book.count} hình cờ</p>
                 </div>
-                <div className="actions">
-                  <button className="button" onClick={() => openBook(book)}>
-                    Nhập Các
+                <div className={styles.actions}>
+                  <button className={styles.button} disabled={loading || restoring} onClick={() => openBook(book)}>
+                    Mở sách
                   </button>
-                  <a className="button" href={`${API_BASE}/api/books/${book.jobId}/download`}>
-                    Thu kinh ZIP
+                  <a className={styles.button} href={`${API_BASE}/api/books/${book.jobId}/download`}>
+                    Tải ảnh ZIP
                   </a>
-                  <a className="button" href={`${API_BASE}/api/books/${book.jobId}/recognized.json`}>
-                    Kỳ văn FEN
+                  <a className={styles.button} href={`${API_BASE}/api/books/${book.jobId}/recognized.json`}>
+                    Xuất FEN
                   </a>
-                  <button className="button dangerButton" onClick={() => void deleteBook(book)}>
+                  <button className={styles.button + " " + styles.dangerButton} disabled={loading || restoring} onClick={() => void deleteBook(book)}>
                     Xóa
                   </button>
                 </div>
               </article>
             ))}
           </div>
-        </details>
-      )}
+        </section>
 
       {positions.length > 0 && (
-        <section className="results">
-          <div className="galleryToolbar">
+        <section className={styles.results}>
+          <div className={styles.galleryToolbar}>
             <div>
-              <p className="eyebrow">KỲ PHỔ · {filename}</p>
-              <h2>{positions.length} kỳ đồ đã khai mở</h2>
+              <p className={styles.eyebrow}>KỲ PHỔ · {filename}</p>
+              <h2>{positions.length} thế cờ trong sách</h2>
             </div>
 
-            <div className="pageSearch">
-              <label htmlFor="page-search">Truy tìm theo trang cổ phổ</label>
+            <div className={styles.pageSearch}>
+              <label htmlFor="page-search">Tìm theo trang sách</label>
               <div>
                 <input
                   id="page-search"
@@ -297,7 +356,7 @@ export default function HomePage() {
                 />
                 {pageQuery && (
                   <button
-                    className="button compactButton"
+                    className={styles.button}
                     onClick={() => {
                       setPageQuery("");
                       setGalleryPage(1);
@@ -309,14 +368,14 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="galleryActions">
+            <div className={styles.galleryActions}>
               {jobId && (
                 <>
-                  <a className="button compactButton" href={`${API_BASE}/api/books/${jobId}/download`}>
-                    Thu toàn bộ ảnh
+                  <a className={styles.button} href={`${API_BASE}/api/books/${jobId}/download`}>
+                    Tải toàn bộ ảnh
                   </a>
-                  <a className="button compactButton" href={`${API_BASE}/api/books/${jobId}/recognized.json`}>
-                    Xuất kỳ văn FEN
+                  <a className={styles.button} href={`${API_BASE}/api/books/${jobId}/recognized.json`}>
+                    Xuất FEN
                   </a>
                 </>
               )}
@@ -324,32 +383,32 @@ export default function HomePage() {
           </div>
 
           {pageQuery && filteredPositions.length === 0 && (
-            <div className="emptySearch">
+            <div className={styles.emptySearch}>
               Không tìm thấy hình cờ ở trang PDF {pageQuery}.
             </div>
           )}
 
-          <div className="grid compactGalleryGrid">
+          <div className={styles.grid}>
             {visiblePositions.map((position) => (
-              <article className="card" key={position.id}>
-                <div className="imageWrap">
+              <article className={styles.card} key={position.id}>
+                <div className={styles.imageWrap}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={position.imageUrl} alt={`Chess position ${position.id}`} />
                 </div>
-                <div className="cardBody">
+                <div className={styles.cardBody}>
                   <div>
                     <strong>Kỳ trận #{position.id}</strong>
-                    <p className="subtle">
+                    <p className={styles.subtle}>
                       Trang / ảnh nguồn: {position.page} · độ tin cậy detector {(position.confidence * 100).toFixed(0)}%
                     </p>
                   </div>
-                  <div className="actions">
-                    <a className="button" href={position.imageUrl} download target="_blank" rel="noreferrer">Tải ảnh</a>
+                  <div className={styles.actions}>
+                    <a className={styles.button} href={position.imageUrl} download target="_blank" rel="noreferrer">Tải ảnh</a>
                     <Link
-                      className="button primaryLink"
+                      className={styles.button + " " + styles.primaryLink}
                       href={`/analysis?job=${jobId}&position=${position.id}&image=${encodeURIComponent(position.imageUrl)}`}
                     >
-                      Quan trận · nhập đạo
+                      Phân tích thế cờ →
                     </Link>
                   </div>
                 </div>
@@ -358,9 +417,9 @@ export default function HomePage() {
           </div>
 
           {filteredPositions.length > PAGE_SIZE && (
-            <div className="galleryPager">
+            <div className={styles.galleryPager}>
               <button
-                className="button"
+                className={styles.button}
                 disabled={galleryPage <= 1}
                 onClick={() => setGalleryPage((page) => Math.max(1, page - 1))}
               >
@@ -370,7 +429,7 @@ export default function HomePage() {
                 {galleryPage} / {totalGalleryPages}
               </span>
               <button
-                className="button"
+                className={styles.button}
                 disabled={galleryPage >= totalGalleryPages}
                 onClick={() =>
                   setGalleryPage((page) => Math.min(totalGalleryPages, page + 1))
@@ -382,6 +441,8 @@ export default function HomePage() {
           )}
         </section>
       )}
+      <footer className={styles.footer}><span>♞ Kỳ Phổ Đạo Các</span><span>Tĩnh tâm học cờ · Từng nước tiến bộ</span></footer>
+      </div>
     </main>
   );
 }
