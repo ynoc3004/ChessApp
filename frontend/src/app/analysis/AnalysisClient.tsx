@@ -19,7 +19,10 @@ import {
   type PieceDropHandlerArgs,
   type SquareHandlerArgs,
 } from "react-chessboard";
-import { API_BASE, type Position, type UploadResponse } from "@/lib/api";
+import { API_BASE, resolveImageUrl, type Position, type UploadResponse } from "@/lib/api";
+import { validateFen } from "@/lib/validateFen";
+import { moveFen, promotionRequired } from "@/lib/trialMoves";
+import { castlingSuggestion } from "@/lib/castlingSuggestion";
 import {
   buildFen,
   chessComAnalysisUrl,
@@ -105,13 +108,8 @@ function exactBoardParityStyles(): Record<string, CSSProperties> {
   return styles;
 }
 
-function strictLegalFen(fen: string): boolean {
-  try {
-    const game = new Chess(fen);
-    return Boolean(game);
-  } catch {
-    return false;
-  }
+function strictLegalFen(fen: string) {
+  return validateFen(fen);
 }
 
 function whitePerspective(line: LocalEngineLine | undefined, fen: string) {
@@ -169,20 +167,24 @@ export default function AnalysisClient({
   const [message, setMessage] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [recognition, setRecognition] = useState<RecognitionResult | null>(null);
+  const [sideConfirmed, setSideConfirmed] = useState(false);
   const [recognizing, setRecognizing] = useState(false);
   const [squareConfidence, setSquareConfidence] = useState<Record<string, number>>({});
   const [uncertainSquares, setUncertainSquares] = useState<string[]>([]);
 
   const [editMode, setEditMode] = useState(true);
+  const [hasTrialMoves, setHasTrialMoves] = useState(false);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [paintPiece, setPaintPiece] = useState<string | null | undefined>(undefined);
-  const [history, setHistory] = useState<string[]>([]);
+  const [history, setHistory] = useState<{ fen: string; trial: boolean }[]>([]);
+  const [promotion, setPromotion] = useState<{ from: string; to: string; board: "main" | "engine" } | null>(null);
   const [activeTab, setActiveTab] = useState<PanelTab>("edit");
 
   const [lines, setLines] = useState<LocalEngineLine[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [engineDepth, setEngineDepth] = useState(16);
   const [engineFen, setEngineFen] = useState(START_FEN);
+  const [engineHistory, setEngineHistory] = useState<string[]>([]);
   const [engineAuto, setEngineAuto] = useState(true);
 
   const [bookPositions, setBookPositions] = useState<Position[]>([]);
@@ -190,14 +192,18 @@ export default function AnalysisClient({
   const [saving, setSaving] = useState(false);
 
   const boardCaptureRef = useRef<HTMLDivElement | null>(null);
+  const trialOriginRef = useRef<string | null>(null);
   const engineRequestRef = useRef(0);
+  const engineAbortRef = useRef<AbortController | null>(null);
 
   const fen = useMemo(
     () => buildFen(placement, sideToMove, castling, enPassant),
     [placement, sideToMove, castling, enPassant],
   );
-  const isLegal = useMemo(() => strictLegalFen(fen), [fen]);
-  const engineLegal = useMemo(() => strictLegalFen(engineFen), [engineFen]);
+  const fenValidation = useMemo(() => strictLegalFen(fen), [fen]);
+  const engineValidation = useMemo(() => strictLegalFen(engineFen), [engineFen]);
+  const isLegal = fenValidation.valid;
+  const engineLegal = engineValidation.valid;
 
   const topEngineLine = lines[0];
   const engineEval = useMemo(
@@ -209,6 +215,7 @@ export default function AnalysisClient({
     [engineEval],
   );
   const recognitionRealm = aiRealm(recognition?.averageConfidence ?? 0);
+  const suggestedCastling = useMemo(() => castlingSuggestion(placement), [placement]);
 
   const evalLabel =
     engineEval.mate !== null
@@ -239,13 +246,15 @@ export default function AnalysisClient({
   useEffect(() => {
     if (activeTab !== "engine") return;
     setEngineFen(fen);
+    setEngineHistory([]);
+    setPromotion(null);
     setLines([]);
   }, [activeTab, fen]);
 
   function commitPlacement(next: string, addHistory = true) {
     if (next === placement) return;
     if (addHistory) {
-      setHistory((items) => [...items.slice(-39), placement]);
+      setHistory((items) => [...items.slice(-39), { fen, trial: hasTrialMoves }]);
     }
     setPlacement(next);
     setLines([]);
@@ -256,7 +265,6 @@ export default function AnalysisClient({
     (
       result: RecognitionResult,
       orientation: "white" | "black",
-      side: "w" | "b",
     ) => {
       const nextPlacement =
         orientation === "white"
@@ -276,10 +284,11 @@ export default function AnalysisClient({
       setUncertainSquares(uncertain);
       setImageOrientation(orientation);
       setBoardOrientation(orientation);
-      setSideToMove(side);
-      setCastling("-");
       setEnPassant("-");
       setHistory([]);
+      setPromotion(null);
+      setHasTrialMoves(false);
+      trialOriginRef.current = null;
       setSelectedSquare(null);
       setPaintPiece(undefined);
       setLines([]);
@@ -294,6 +303,9 @@ export default function AnalysisClient({
     setCastling(parsed.castling);
     setEnPassant(parsed.enPassant);
     setHistory([]);
+    setPromotion(null);
+    setHasTrialMoves(false);
+    trialOriginRef.current = null;
     setSelectedSquare(null);
     setPaintPiece(undefined);
     setLines([]);
@@ -350,8 +362,10 @@ export default function AnalysisClient({
             : { variants: [] };
 
           const recognitionCandidates = [
-            { name: "original", url: imageUrl },
-            ...(variantData.variants ?? []),
+            { name: "original", url: resolveImageUrl(imageUrl) },
+            ...(variantData.variants ?? []).map((variant: { name: string; url: string }) => ({
+              ...variant, url: resolveImageUrl(variant.url),
+            })),
           ];
 
           const browser = await recognizeBookDiagramEnsemble(
@@ -441,11 +455,13 @@ export default function AnalysisClient({
 
         setRecognition(result);
         setWarnings(result.warnings ?? []);
-        applyCandidate(result, result.suggestedOrientation, "w");
+        applyCandidate(result, result.suggestedOrientation);
+        setSideConfirmed(false);
 
         const saved = await savedPromise;
         if (saved) {
           applyFullFen(saved);
+          setSideConfirmed(true);
           setSavedFen(saved);
           setMessage(`Đã đọc bằng ${result.source} và nạp bản bạn đã lưu trước đó.`);
         } else {
@@ -491,20 +507,12 @@ export default function AnalysisClient({
       setCastling(parsed.castling);
       setEnPassant(parsed.enPassant);
       setHistory([]);
+      setSideConfirmed(true);
+      setPromotion(null);
       setLines([]);
       setWarnings([]);
-      setMessage(
-        strictLegalFen(
-          buildFen(
-            parsed.placement,
-            parsed.sideToMove,
-            parsed.castling,
-            parsed.enPassant,
-          ),
-        )
-          ? "Đã nạp FEN."
-          : "FEN đã nạp nhưng vị trí chưa hợp lệ.",
-      );
+      const result = validateFen(buildFen(parsed.placement, parsed.sideToMove, parsed.castling, parsed.enPassant));
+      setMessage(result.valid ? "Đã nạp FEN." : result.reason);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "FEN không hợp lệ");
     }
@@ -512,10 +520,13 @@ export default function AnalysisClient({
 
   function chooseImageOrientation(next: "white" | "black") {
     if (!recognition) return;
-    applyCandidate(recognition, next, sideToMove);
+    applyCandidate(recognition, next);
   }
 
   function chooseSide(next: "w" | "b") {
+    setSideConfirmed(true);
+    if (next === sideToMove) return;
+    setHistory((items) => [...items.slice(-39), { fen, trial: hasTrialMoves }]);
     setSideToMove(next);
     setLines([]);
   }
@@ -526,6 +537,7 @@ export default function AnalysisClient({
     if (current.has(right)) current.delete(right);
     else current.add(right);
     const next = order.filter((item) => current.has(item)).join("");
+    setHistory((items) => [...items.slice(-39), { fen, trial: hasTrialMoves }]);
     setCastling(next || "-");
     setLines([]);
   }
@@ -546,15 +558,30 @@ export default function AnalysisClient({
     }
 
     try {
-      const game = new Chess(fen);
-      game.move({ from: sourceSquare, to: targetSquare, promotion: "q" });
-      const parsed = parseFen(game.fen());
+      if (promotionRequired(fen, sourceSquare, targetSquare)) {
+        setPromotion({ from: sourceSquare, to: targetSquare, board: "main" });
+        return false;
+      }
+      return applyTrialMove(sourceSquare, targetSquare);
+    } catch {
+      setMessage("Nước đi không hợp lệ.");
+      return false;
+    }
+  }
+
+  function applyTrialMove(from: string, to: string, promotionPiece?: string): boolean {
+    try {
+      const nextFen = moveFen(fen, from, to, promotionPiece);
+      if (!hasTrialMoves) trialOriginRef.current = fen;
+      setHistory((items) => [...items.slice(-39), { fen, trial: hasTrialMoves }]);
+      setHasTrialMoves(true);
+      const parsed = parseFen(nextFen);
       setPlacement(parsed.placement);
       setSideToMove(parsed.sideToMove);
       setCastling(parsed.castling);
       setEnPassant(parsed.enPassant);
       setLines([]);
-      setSelectedSquare(targetSquare);
+      setSelectedSquare(to);
       return true;
     } catch {
       setMessage("Nước đi không hợp lệ.");
@@ -565,14 +592,24 @@ export default function AnalysisClient({
   function onEnginePieceDrop({ sourceSquare, targetSquare }: PieceDropHandlerArgs) {
     if (!targetSquare || sourceSquare === targetSquare) return false;
     try {
-      const game = new Chess(engineFen);
-      game.move({ from: sourceSquare, to: targetSquare, promotion: "q" });
-      setEngineFen(game.fen());
-      setLines([]);
-      return true;
+      if (promotionRequired(engineFen, sourceSquare, targetSquare)) {
+        setPromotion({ from: sourceSquare, to: targetSquare, board: "engine" });
+        return false;
+      }
+      return applyEngineMove(sourceSquare, targetSquare);
     } catch {
       return false;
     }
+  }
+
+  function applyEngineMove(from: string, to: string, promotionPiece?: string): boolean {
+    try {
+      const nextFen = moveFen(engineFen, from, to, promotionPiece);
+      setEngineHistory((items) => [...items.slice(-39), engineFen]);
+      setEngineFen(nextFen);
+      setLines([]);
+      return true;
+    } catch { return false; }
   }
 
   function choosePaintPiece(piece: string | null) {
@@ -586,20 +623,37 @@ export default function AnalysisClient({
   function undoEdit() {
     const previous = history.at(-1);
     if (!previous) return;
-    setPlacement(previous);
+    const parsed = parseFen(previous.fen);
+    setPlacement(parsed.placement);
+    setSideToMove(parsed.sideToMove);
+    setCastling(parsed.castling);
+    setEnPassant(parsed.enPassant);
+    setHasTrialMoves(previous.trial);
+    if (!previous.trial) trialOriginRef.current = null;
     setHistory((items) => items.slice(0, -1));
+    setPromotion(null);
     setLines([]);
   }
 
   function resetToAi() {
     if (!recognition) return;
-    applyCandidate(recognition, imageOrientation, sideToMove);
+    applyCandidate(recognition, imageOrientation);
     setWarnings(recognition.warnings ?? []);
     setSavedFen(null);
     setMessage("Đã hồi nguyên trận thế theo kỳ đồ AI.");
   }
 
+  function restoreBeforeTrial() {
+    if (!trialOriginRef.current) return;
+    applyFullFen(trialOriginRef.current);
+    setMessage("Đã khôi phục thế gốc trước khi thử nước.");
+  }
+
   async function saveCurrentPosition() {
+    if (hasTrialMoves) {
+      setMessage("Hãy khôi phục thế gốc trước khi lưu bản sửa nhận dạng.");
+      return;
+    }
     if (!jobId || positionId < 1 || !isLegal) return;
     setSaving(true);
     try {
@@ -610,6 +664,7 @@ export default function AnalysisClient({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             fen,
+            trialMove: hasTrialMoves,
             aiFen: recognition?.fen ?? null,
             imageOrientation,
             recognizer: recognition?.source ?? null,
@@ -666,12 +721,14 @@ export default function AnalysisClient({
   }
 
   function openLichess(targetFen = fen) {
-    if (!strictLegalFen(targetFen)) return;
+    const result = validateFen(targetFen);
+    if (!result.valid) { setMessage(result.reason); return; }
     window.open(lichessAnalysisUrl(targetFen), "_blank", "noopener,noreferrer");
   }
 
   async function openChessCom(targetFen = fen) {
-    if (!strictLegalFen(targetFen)) return;
+    const result = validateFen(targetFen);
+    if (!result.valid) { setMessage(result.reason); return; }
     window.open(chessComAnalysisUrl(targetFen), "_blank", "noopener,noreferrer");
     try {
       await navigator.clipboard.writeText(targetFen);
@@ -680,17 +737,31 @@ export default function AnalysisClient({
 
   const runEngine = useCallback(
     async (targetFen: string, quiet = false) => {
-      if (!strictLegalFen(targetFen)) {
-        if (!quiet) setMessage("Thế cờ phân tích chưa hợp lệ.");
+      engineAbortRef.current?.abort();
+      engineAbortRef.current = null;
+      const requestId = ++engineRequestRef.current;
+      const validation = validateFen(targetFen);
+      if (!validation.valid) {
+        if (!quiet) setMessage(validation.reason);
+        setAnalyzing(false);
         return;
       }
 
-      const requestId = ++engineRequestRef.current;
+      const game = new Chess(targetFen);
+      if (game.isGameOver()) {
+        setLines([]);
+        setAnalyzing(false);
+        setMessage(game.isCheckmate() ? "Thế cờ đã chiếu hết." : "Ván cờ đã hòa hoặc kết thúc.");
+        return;
+      }
+
+      const controller = new AbortController();
+      engineAbortRef.current = controller;
       setAnalyzing(true);
       if (!quiet) setMessage("Tâm pháp Stockfish đang vận chuyển trên máy…");
 
       try {
-        const result = await analyzeWithBrowserStockfish(targetFen, engineDepth, 3);
+        const result = await analyzeWithBrowserStockfish(targetFen, engineDepth, 3, controller.signal);
         if (requestId !== engineRequestRef.current) return;
         setLines(result);
         if (!quiet) {
@@ -708,18 +779,40 @@ export default function AnalysisClient({
           );
         }
       } finally {
-        if (requestId === engineRequestRef.current) setAnalyzing(false);
+        if (requestId === engineRequestRef.current) {
+          engineAbortRef.current = null;
+          setAnalyzing(false);
+        }
       }
     },
     [engineDepth],
   );
 
   useEffect(() => {
-    if (activeTab !== "engine" || !engineAuto || !engineLegal) return;
+    return () => {
+      engineAbortRef.current?.abort();
+      ++engineRequestRef.current;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== "engine" || !engineAuto || !engineLegal) {
+      engineAbortRef.current?.abort();
+      engineAbortRef.current = null;
+      ++engineRequestRef.current;
+      setAnalyzing(false);
+      return;
+    }
+    setAnalyzing(false);
     const timer = window.setTimeout(() => {
       void runEngine(engineFen, true);
     }, 320);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      engineAbortRef.current?.abort();
+      engineAbortRef.current = null;
+      ++engineRequestRef.current;
+    };
   }, [activeTab, engineAuto, engineFen, engineLegal, engineDepth, runEngine]);
 
   const squareStyles = exactBoardParityStyles();
@@ -785,7 +878,7 @@ export default function AnalysisClient({
     boardOrientation,
     onPieceDrop,
     onSquareClick,
-    allowDragging: true,
+    allowDragging: !promotion,
     dragActivationDistance: 3,
     allowDrawingArrows: !editMode,
     showNotation: true,
@@ -806,7 +899,7 @@ export default function AnalysisClient({
     position: engineFen,
     boardOrientation,
     onPieceDrop: onEnginePieceDrop,
-    allowDragging: true,
+    allowDragging: !promotion,
     dragActivationDistance: 3,
     allowDrawingArrows: true,
     showNotation: true,
@@ -899,7 +992,7 @@ export default function AnalysisClient({
           <div className="sourceStage">
             {imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageUrl} alt="Chess diagram from book" />
+              <img src={resolveImageUrl(imageUrl)} alt="Chess diagram from book" />
             ) : (
               <span className="subtle">Không có ảnh nguồn.</span>
             )}
@@ -949,6 +1042,7 @@ export default function AnalysisClient({
               <button
                 className={!editMode ? "active" : ""}
                 onClick={() => {
+                  if (!hasTrialMoves) trialOriginRef.current = fen;
                   setEditMode(false);
                   setPaintPiece(undefined);
                 }}
@@ -960,6 +1054,7 @@ export default function AnalysisClient({
               <span className={isLegal ? "validBadge" : "invalidBadge"}>
                 {isLegal ? "✓ Trận pháp ổn định" : "⚠ Trận pháp hỗn loạn"}
               </span>
+              {!isLegal && <span role="alert">{fenValidation.reason}</span>}
               <button
                 className="button compactButton daoDownloadButton"
                 onClick={() => void downloadBoardImage()}
@@ -975,6 +1070,14 @@ export default function AnalysisClient({
               <Chessboard options={boardOptions} />
             </div>
           </div>
+          {promotion?.board === "main" && (
+            <div role="group" aria-label="Chọn quân phong cấp">
+              {([ ["q", "Hậu"], ["r", "Xe"], ["b", "Tượng"], ["n", "Mã"] ] as const).map(([piece, label]) => (
+                <button key={piece} onClick={() => { applyTrialMove(promotion.from, promotion.to, piece); setPromotion(null); }}>{label}</button>
+              ))}
+              <button onClick={() => setPromotion(null)}>Hủy</button>
+            </div>
+          )}
 
           <div className="boardQuickbar">
             <div className="segmented miniSegmented">
@@ -991,6 +1094,11 @@ export default function AnalysisClient({
                 Đen đi
               </button>
             </div>
+            {recognition && !sideConfirmed && (
+              <span role="status" title="Ảnh bàn cờ không cho biết chắc ai đến lượt đi.">
+                Gợi ý: {recognition.sideToMove === "b" ? "Đen" : "Trắng"} đi. Hãy chọn bên đi để xác nhận.
+              </span>
+            )}
             <div className="boardQuickActions">
               <button
                 className="button compactButton"
@@ -1048,6 +1156,12 @@ export default function AnalysisClient({
                   themes: "",
                 }}
               />
+            )}
+            {hasTrialMoves && (
+              <div className="warningBox compactWarning" role="alert">
+                <p>Đang thử nước: thế này không còn là diagram gốc. Bạn vẫn có thể lưu vào Tàng Kinh Các.</p>
+                <button className="button" onClick={restoreBeforeTrial}>Khôi phục thế gốc</button>
+              </div>
             )}
             {activeTab === "edit" && (
               <div className="compactToolSection">
@@ -1216,7 +1330,7 @@ export default function AnalysisClient({
                   <button
                     className="button saveButton"
                     onClick={() => void saveCurrentPosition()}
-                    disabled={!isLegal || saving}
+                    disabled={!isLegal || saving || hasTrialMoves}
                   >
                     {saving
                       ? "Đang lưu…"
@@ -1227,6 +1341,18 @@ export default function AnalysisClient({
                 </div>
 
                 <span className="controlLabel">Nhập thành</span>
+                {recognition && !hasTrialMoves && suggestedCastling !== "-" && (
+                  <div className="warningBox compactWarning">
+                    <p>Vua và xe ở ô gốc: có thể còn quyền {suggestedCastling}. Hãy kiểm tra lịch sử ván cờ trước khi bật.</p>
+                    <button className="button" onClick={() => {
+                      if (castling !== suggestedCastling) {
+                        setHistory((items) => [...items.slice(-39), { fen, trial: hasTrialMoves }]);
+                        setCastling(suggestedCastling);
+                        setLines([]);
+                      }
+                    }}>Bật quyền được gợi ý</button>
+                  </div>
+                )}
                 <div className="castlingGrid compactCastling">
                   {(["K", "Q", "k", "q"] as const).map((right) => (
                     <label key={right}>
@@ -1267,12 +1393,26 @@ export default function AnalysisClient({
                     <Chessboard options={engineBoardOptions} />
                   </div>
                 </div>
+                {promotion?.board === "engine" && (
+                  <div role="group" aria-label="Chọn quân phong cấp">
+                    {([ ["q", "Hậu"], ["r", "Xe"], ["b", "Tượng"], ["n", "Mã"] ] as const).map(([piece, label]) => (
+                      <button key={piece} onClick={() => { applyEngineMove(promotion.from, promotion.to, piece); setPromotion(null); }}>{label}</button>
+                    ))}
+                    <button onClick={() => setPromotion(null)}>Hủy</button>
+                  </div>
+                )}
 
                 <div className="engineBoardActions">
+                  <button className="button compactButton" disabled={!engineHistory.length} onClick={() => {
+                    setEngineFen(engineHistory.at(-1)!);
+                    setEngineHistory((items) => items.slice(0, -1));
+                    setLines([]);
+                  }}>Hồi chiêu</button>
                   <button
                     className="button compactButton"
                     onClick={() => {
                       setEngineFen(fen);
+                      setEngineHistory([]);
                       setLines([]);
                     }}
                   >
@@ -1310,6 +1450,8 @@ export default function AnalysisClient({
                     {analyzing ? "Đang tính…" : "Vận Tâm pháp Stockfish"}
                   </button>
                 </div>
+
+                {!engineLegal && <p role="alert" className="subtle">{engineValidation.reason}</p>}
 
                 <div className="externalActions">
                   <button

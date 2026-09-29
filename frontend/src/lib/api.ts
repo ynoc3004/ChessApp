@@ -1,5 +1,13 @@
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
+export function resolveImageUrl(value: string): string {
+  if (!value) return "";
+  // Old book.json files stored localhost:8000 as an absolute URL.
+  const legacy = /^https?:\/\/(?:localhost|127\.0\.0\.1):8000(\/files\/.*)$/i.exec(value);
+  const path = legacy?.[1] ?? value;
+  return path.startsWith("/files/") ? `${API_BASE.replace(/\/$/, "")}${path}` : path;
+}
+
 export type Position = {
   id: number;
   page: number;
@@ -12,11 +20,15 @@ export type UploadResponse = {
   filename: string;
   count: number;
   positions: Position[];
+  skippedVectorImages?: number;
 };
 
 
-export type BookSummary = UploadResponse & {
-  updatedAt?: number;
+export type BookSummary = {
+  jobId: string;
+  filename: string;
+  count: number;
+  updatedAt: number;
 };
 
 export type BookListResponse = {
@@ -34,4 +46,5 @@ export type ScanJob = {
   count: number;
   positions: Position[];
   error?: string | null;
+  skippedVectorImages?: number;
 };

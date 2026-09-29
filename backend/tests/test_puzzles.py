@@ -33,6 +33,19 @@ class PuzzleTests(unittest.TestCase):
         self.assertEqual(len(self.client.get('/api/puzzles/session?theme=mate&minimum=1700&maximum=1800').json()['puzzles']), 1)
         self.assertEqual(self.client.get('/api/puzzles/session?theme=fork').json()['puzzles'], [])
         self.assertEqual(self.client.get('/api/puzzles/session?minimum=2000&maximum=1000').status_code, 400)
+    def test_session_samples_across_rating_range(self):
+        with self.source.open('w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=list(SAMPLE)); writer.writeheader()
+            for index in range(100):
+                writer.writerow({**SAMPLE, 'PuzzleId': f'{index:05d}', 'Rating': str(800 + index * 20)})
+        self.assertEqual(import_database(self.source, puzzles.PUZZLES), 100)
+        response = self.client.get('/api/puzzles/session?minimum=800&maximum=2800&limit=10')
+        self.assertEqual(response.status_code, 200)
+        ratings = [item['rating'] for item in response.json()['puzzles']]
+        self.assertEqual(len(ratings), 10)
+        self.assertEqual(len(set(ratings)), 10)
+        self.assertLess(min(ratings), 1100)
+        self.assertGreater(max(ratings), 2500)
     def test_failed_import_preserves_existing(self):
         import_database(self.source, puzzles.PUZZLES)
         before = puzzles.PUZZLES.read_bytes(); self.source.write_text('wrong,header\n')
@@ -74,5 +87,12 @@ class PuzzleTests(unittest.TestCase):
         items = self.client.get('/api/collection').json()['items']; self.assertEqual(len(items),1); self.assertEqual(items[0]['note'],'Ôn lại')
         item['fen'] = '8/8/8/8/8/8/8/8 w - - 0 1'; self.assertEqual(self.client.put('/api/collection', json=item).status_code,400)
         item['fen'] = SAMPLE['FEN']; item['sourcePath'] = 'javascript:alert(1)'; self.assertEqual(self.client.put('/api/collection', json=item).status_code,400)
+    def test_delete_collection_removes_only_requested_item(self):
+        item = dict(id='lichess:00sHx', title='Bài hay', fen=SAMPLE['FEN'], source='lichess', sourcePath='https://lichess.org/training/00sHx', note='', themes='mate')
+        self.client.put('/api/collection', json=item)
+        self.client.put('/api/collection', json={**item, 'id': 'lichess:other'})
+        self.assertEqual(self.client.delete('/api/collection/lichess%3A00sHx').status_code, 200)
+        self.assertEqual([entry['id'] for entry in self.client.get('/api/collection').json()['items']], ['lichess:other'])
+        self.assertEqual(self.client.delete('/api/collection/lichess%3A00sHx').status_code, 404)
 
 if __name__ == '__main__': unittest.main()

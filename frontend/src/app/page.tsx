@@ -1,11 +1,12 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import styles from "./home.module.css";
 import BaguaSeal from "@/components/BaguaSeal";
 import {
   API_BASE,
+  resolveImageUrl,
   type BookListResponse,
   type BookSummary,
   type Position,
@@ -28,6 +29,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [filename, setFilename] = useState("");
+  const [skippedVectorImages, setSkippedVectorImages] = useState(0);
   const [restoring, setRestoring] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
@@ -36,6 +38,11 @@ export default function HomePage() {
   const [scanJob, setScanJob] = useState<ScanJob | null>(null);
   const [pageQuery, setPageQuery] = useState("");
   const [galleryPage, setGalleryPage] = useState(1);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualPage, setManualPage] = useState(1);
+  const [manualSelection, setManualSelection] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const [manualDragging, setManualDragging] = useState(false);
+  const [manualSaving, setManualSaving] = useState(false);
   const PAGE_SIZE = 12;
 
   const filteredPositions = useMemo(() => {
@@ -52,6 +59,8 @@ export default function HomePage() {
   );
 
   const scanCultivation = cultivationStage(scanJob?.progress ?? 0);
+  const isDocx = /\.docx$/i.test(filename);
+  const sourceLabel = isDocx ? "ảnh số" : "trang PDF";
 
   const visiblePositions = filteredPositions.slice(
     (galleryPage - 1) * PAGE_SIZE,
@@ -61,10 +70,56 @@ export default function HomePage() {
   function openBook(book: UploadResponse) {
     setJobId(book.jobId);
     setFilename(book.filename);
+    setSkippedVectorImages(book.skippedVectorImages ?? 0);
     setPositions(book.positions);
     setPageQuery("");
     setGalleryPage(1);
+    setManualSelection(null);
     window.localStorage.setItem("chessBookReader:lastJobId", book.jobId);
+  }
+
+  async function openRecentBook(book: BookSummary) {
+    setRestoring(true);
+    setError("");
+    try {
+      const response = await fetch(`${API_BASE}/api/books/${book.jobId}`);
+      if (!response.ok) throw new Error("Không mở được sách.");
+      openBook((await response.json()) as UploadResponse);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không mở được sách.");
+    } finally {
+      setRestoring(false);
+    }
+  }
+
+  function selectionPoint(event: ReactPointerEvent<HTMLDivElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
+      y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
+    };
+  }
+
+  async function addManualDiagram() {
+    if (!manualSelection || !jobId) return;
+    const { x0, y0, x1, y1 } = manualSelection;
+    setManualSaving(true);
+    setError("");
+    try {
+      const response = await fetch(`${API_BASE}/api/books/${jobId}/diagrams/manual`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ page: manualPage, x0: Math.min(x0, x1), y0: Math.min(y0, y1), x1: Math.max(x0, x1), y1: Math.max(y0, y1) }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail ?? "Không thêm được diagram.");
+      openBook(data as UploadResponse);
+      setManualOpen(false);
+      void loadRecentBooks();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thêm được diagram.");
+    } finally {
+      setManualSaving(false);
+    }
   }
 
   async function loadRecentBooks() {
@@ -87,19 +142,81 @@ export default function HomePage() {
     const savedJobId = window.localStorage.getItem("chessBookReader:lastJobId");
     if (!savedJobId) return;
 
+    const controller = new AbortController();
     setRestoring(true);
-    void fetch(`${API_BASE}/api/books/${savedJobId}`)
-      .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.detail ?? "Không khôi phục được lần quét trước");
-        const result = data as UploadResponse;
-        openBook(result);
-      })
-      .catch(() => {
-        window.localStorage.removeItem("chessBookReader:lastJobId");
-      })
-      .finally(() => setRestoring(false));
+    void (async () => {
+      try {
+        const statusResponse = await fetch(`${API_BASE}/api/jobs/${savedJobId}`, {
+          cache: "no-store", signal: controller.signal,
+        });
+        if (statusResponse.ok) {
+          const job = (await statusResponse.json()) as ScanJob;
+          if (controller.signal.aborted) return;
+          setJobId(savedJobId);
+          setFilename(job.filename || "");
+          setSkippedVectorImages(job.skippedVectorImages ?? 0);
+          setScanJob(job);
+          setPositions(job.positions ?? []);
+          if (job.status === "queued" || job.status === "processing") setLoading(true);
+          else if (job.status === "failed") setError(job.error || "Quét sách thất bại");
+          else openBook({ jobId: savedJobId, filename: job.filename, count: job.count, positions: job.positions ?? [], skippedVectorImages: job.skippedVectorImages });
+          return;
+        }
+        if (statusResponse.status !== 404) throw new Error("Không đọc được tiến trình quét.");
+        const response = await fetch(`${API_BASE}/api/books/${savedJobId}`, { signal: controller.signal });
+        if (!response.ok) throw new Error("Không khôi phục được sách.");
+        const book = (await response.json()) as UploadResponse;
+        if (!controller.signal.aborted) openBook(book);
+      } catch {
+        if (!controller.signal.aborted) setError("Không nối lại được lần quét trước. Kiểm tra backend rồi tải lại trang.");
+      } finally {
+        if (!controller.signal.aborted) setRestoring(false);
+      }
+    })();
+    return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (!jobId || !scanJob || !["queued", "processing"].includes(scanJob.status)) return;
+    const controller = new AbortController();
+    let timer: number;
+    const poll = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/jobs/${jobId}`, {
+          cache: "no-store", signal: controller.signal,
+        });
+        if (response.status === 503) {
+          timer = window.setTimeout(poll, 750);
+          return;
+        }
+        const current = (await response.json()) as ScanJob;
+        if (!response.ok) throw new Error("Không đọc được tiến trình quét.");
+        if (controller.signal.aborted) return;
+        setScanJob(current);
+        setSkippedVectorImages(current.skippedVectorImages ?? 0);
+        setPositions(current.positions ?? []);
+        if (current.status === "failed") {
+          setError(current.error || "Quét sách thất bại");
+          setLoading(false);
+        } else if (current.status === "completed") {
+          openBook({ jobId, filename: current.filename, count: current.count, positions: current.positions ?? [], skippedVectorImages: current.skippedVectorImages });
+          setLoading(false);
+          void loadRecentBooks();
+        } else {
+          timer = window.setTimeout(poll, 750);
+        }
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        setError(err instanceof Error ? err.message : "Không đọc được tiến trình quét.");
+        setLoading(false);
+      }
+    };
+    timer = window.setTimeout(poll, 750);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [jobId, scanJob?.status]);
 
   function selectFile(next: File | null) {
     setError("");
@@ -132,51 +249,14 @@ export default function HomePage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail ?? "Không bắt đầu quét được");
 
-      let current = data as ScanJob;
+      const current = data as ScanJob;
+      window.localStorage.setItem("chessBookReader:lastJobId", current.jobId);
       setScanJob(current);
+      setSkippedVectorImages(0);
       setJobId(current.jobId);
       setFilename(current.filename || file.name);
-
-      while (current.status === "queued" || current.status === "processing") {
-        await new Promise((resolve) => window.setTimeout(resolve, 750));
-
-        const statusResponse = await fetch(
-          `${API_BASE}/api/jobs/${current.jobId}`,
-          { cache: "no-store" },
-        );
-        const statusData = await statusResponse.json();
-        if (!statusResponse.ok) {
-          if (statusResponse.status === 503) {
-            // Backend is replacing status.json on Windows; retry on next poll.
-            continue;
-          }
-          throw new Error(statusData.detail ?? "Không đọc được tiến trình quét");
-        }
-
-        current = statusData as ScanJob;
-        setScanJob(current);
-        setPositions(current.positions ?? []);
-
-        if (current.status === "failed") {
-          throw new Error(current.error || "Quét sách thất bại");
-        }
-      }
-
-      if (current.status === "failed") {
-        throw new Error(current.error || "Quét sách thất bại");
-      }
-
-      const result: UploadResponse = {
-        jobId: current.jobId,
-        filename: current.filename || file.name,
-        count: current.count,
-        positions: current.positions ?? [],
-      };
-      openBook(result);
-      await loadRecentBooks();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
-    } finally {
       setLoading(false);
     }
   }
@@ -197,6 +277,7 @@ export default function HomePage() {
       if (jobId === book.jobId) {
         setJobId("");
         setFilename("");
+        setSkippedVectorImages(0);
         setPositions([]);
         window.localStorage.removeItem("chessBookReader:lastJobId");
       }
@@ -309,6 +390,7 @@ export default function HomePage() {
         )}
         {restoring && <p className={styles.subtle}>☁ Đang triệu hồi kỳ phổ gần nhất từ Tàng Kinh Các…</p>}
         {error && <p className={styles.error} role="alert">{error}</p>}
+        {skippedVectorImages > 0 && <p className={styles.notice} role="status">Đã bỏ qua {skippedVectorImages} ảnh EMF/WMF trong DOCX vì định dạng này chưa đọc được.</p>}
         {scanJob?.status === "completed" && positions.length === 0 && (
           <p className={styles.notice} role="status">Đã quét xong nhưng chưa tìm thấy hình cờ. Thử sách có hình bàn cờ rõ hơn.</p>
         )}
@@ -339,7 +421,7 @@ export default function HomePage() {
                   <p className={styles.subtle}>{book.count} hình cờ</p>
                 </div>
                 <div className={styles.actions}>
-                  <button className={styles.button} disabled={loading || restoring} onClick={() => openBook(book)}>
+                  <button className={styles.button} disabled={loading || restoring} onClick={() => void openRecentBook(book)}>
                     Mở sách
                   </button>
                   <a className={styles.button} href={`${API_BASE}/api/books/${book.jobId}/download`}>
@@ -357,6 +439,54 @@ export default function HomePage() {
           </div>
         </section>
 
+      {jobId && !isDocx && !loading && scanJob?.status !== "failed" && (
+        <section className={styles.manualSection} aria-label="Thêm diagram thủ công">
+          <button className={styles.button} onClick={() => setManualOpen((value) => !value)}>
+            {manualOpen ? "Đóng chọn vùng" : "+ Thêm diagram thủ công"}
+          </button>
+          {manualOpen && (
+            <div>
+              <p>Nhập trang PDF rồi kéo chọn vùng hình cờ. Sau đó bấm Thêm vào sách.</p>
+              <label>Trang PDF <input type="number" min="1" value={manualPage} onChange={(event) => {
+                setManualPage(Number(event.target.value) || 1);
+                setManualSelection(null);
+              }} /></label>
+              <div className={styles.manualCanvas}
+                onPointerDown={(event) => {
+                  const point = selectionPoint(event);
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  setManualSelection({ x0: point.x, y0: point.y, x1: point.x, y1: point.y });
+                  setManualDragging(true);
+                }}
+                onPointerMove={(event) => {
+                  if (!manualDragging) return;
+                  const point = selectionPoint(event);
+                  setManualSelection((selection) => selection && { ...selection, x1: point.x, y1: point.y });
+                }}
+                onPointerUp={(event) => {
+                  const point = selectionPoint(event);
+                  setManualSelection((selection) => selection && { ...selection, x1: point.x, y1: point.y });
+                  setManualDragging(false);
+                }}
+                onPointerCancel={() => setManualDragging(false)}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`${API_BASE}/api/books/${jobId}/pages/${manualPage}`} alt={`Trang PDF ${manualPage}`} draggable={false} />
+                {manualSelection && <div className={styles.manualBox} style={{
+                  left: `${Math.min(manualSelection.x0, manualSelection.x1) * 100}%`,
+                  top: `${Math.min(manualSelection.y0, manualSelection.y1) * 100}%`,
+                  width: `${Math.abs(manualSelection.x1 - manualSelection.x0) * 100}%`,
+                  height: `${Math.abs(manualSelection.y1 - manualSelection.y0) * 100}%`,
+                }} />}
+              </div>
+              <button className={styles.button} disabled={!manualSelection || manualDragging || manualSaving} onClick={() => void addManualDiagram()}>
+                {manualSaving ? "Đang thêm…" : "Thêm vào sách"}
+              </button>
+            </div>
+          )}
+        </section>
+      )}
+
       {positions.length > 0 && (
         <section className={styles.results}>
           <div className={styles.galleryToolbar}>
@@ -366,7 +496,7 @@ export default function HomePage() {
             </div>
 
             <div className={styles.pageSearch}>
-              <label htmlFor="page-search">Tìm theo trang sách</label>
+              <label htmlFor="page-search">Tìm theo {sourceLabel}</label>
               <div>
                 <input
                   id="page-search"
@@ -408,7 +538,7 @@ export default function HomePage() {
 
           {pageQuery && filteredPositions.length === 0 && (
             <div className={styles.emptySearch}>
-              Không tìm thấy hình cờ ở trang PDF {pageQuery}.
+              Không tìm thấy hình cờ ở {sourceLabel} {pageQuery}.
             </div>
           )}
 
@@ -417,17 +547,17 @@ export default function HomePage() {
               <article className={styles.card} key={position.id}>
                 <div className={styles.imageWrap}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={position.imageUrl} alt={`Chess position ${position.id}`} />
+                  <img src={resolveImageUrl(position.imageUrl)} alt={`Chess position ${position.id}`} />
                 </div>
                 <div className={styles.cardBody}>
                   <div>
                     <strong>Kỳ trận #{position.id}</strong>
                     <p className={styles.subtle}>
-                      Trang / ảnh nguồn: {position.page} · độ tin cậy detector {(position.confidence * 100).toFixed(0)}%
+                      {isDocx ? "Ảnh số" : "Trang PDF"}: {position.page} · độ tin cậy detector {(position.confidence * 100).toFixed(0)}%
                     </p>
                   </div>
                   <div className={styles.actions}>
-                    <a className={styles.button} href={position.imageUrl} download target="_blank" rel="noreferrer">Tải ảnh</a>
+                    <a className={styles.button} href={`${API_BASE}/api/books/${jobId}/positions/${position.id}/download`} download>Tải ảnh</a>
                     <Link
                       className={styles.button + " " + styles.primaryLink}
                       href={`/analysis?job=${jobId}&position=${position.id}&image=${encodeURIComponent(position.imageUrl)}`}

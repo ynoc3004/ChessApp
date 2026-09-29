@@ -40,6 +40,21 @@ export default function CollectionPage() {
     try { const r = await fetch(`${API_BASE}/api/collection`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(selected) }); if (!r.ok) throw Error((await r.json()).detail); setItems(prev => prev.map(item => item.id === selected.id ? selected : item)); setMessage("Đã lưu nhãn chủ đề và ghi chú."); }
     catch (e) { setMessage(e instanceof Error ? e.message : "Không lưu được."); } finally { setSaving(false); }
   }
+  async function remove() {
+    if (!selected || !window.confirm(`Xóa "${selected.title}" khỏi Tàng Kinh Các?`)) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/collection/${encodeURIComponent(selected.id)}`, { method: "DELETE" });
+      if (!response.ok) throw Error((await response.json()).detail || "Không xóa được.");
+      generation.current++;
+      setItems(previous => previous.filter(item => item.id !== selected.id));
+      setSelected(null);
+      setLines([]);
+      setMessage("Đã xóa thế cờ khỏi Tàng Kinh Các.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Không xóa được.");
+    } finally { setSaving(false); }
+  }
   async function analyze() {
     if (!selected) return; const token = generation.current; setAnalyzing(true);
     try { const result = await analyzeWithBrowserStockfish(selected.fen, 14, 3); if (generation.current === token) setLines(result); }
@@ -57,7 +72,7 @@ export default function CollectionPage() {
       <span className={archive.eyebrow}>CHÚ GIẢI KỲ THẾ</span>
       <label>Tên thế cờ<input maxLength={200} value={selected.title} onChange={e => setSelected({ ...selected, title: e.target.value })} /></label><label>Chủ đề (phân cách bằng dấu phẩy)<input maxLength={500} value={selected.themes} onChange={e => setSelected({ ...selected, themes: e.target.value })} /></label><label>Ghi chú<textarea maxLength={3000} rows={5} value={selected.note} onChange={e => setSelected({ ...selected, note: e.target.value })} /></label>
       {dirty && <p role="status">Có thay đổi chưa lưu.</p>}
-      <button disabled={saving || !selected.title.trim() || !dirty} onClick={() => void save()}>{saving ? "Đang lưu…" : "Lưu ghi chú"}</button><button disabled={analyzing} onClick={() => void analyze()}>{analyzing ? "Đang phân tích…" : "Phân tích Stockfish"}</button>
+      <button disabled={saving || !selected.title.trim() || !dirty} onClick={() => void save()}>{saving ? "Đang lưu…" : "Lưu ghi chú"}</button><button disabled={saving} onClick={() => void remove()}>Xóa thế cờ</button><button disabled={analyzing} onClick={() => void analyze()}>{analyzing ? "Đang phân tích…" : "Phân tích Stockfish"}</button>
       <p><a href={lichessAnalysisUrl(selected.fen)} target="_blank" rel="noreferrer">Lichess</a> · <a href={chessComAnalysisUrl(selected.fen)} target="_blank" rel="noreferrer">chess.com</a></p>{selected.sourcePath && <a href={selected.sourcePath}>Mở nguồn gốc thế cờ →</a>}<EngineAdvantage lines={lines} fen={selected.fen} />
     </div></section>}
   </main>;

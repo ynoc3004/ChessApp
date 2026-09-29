@@ -93,6 +93,12 @@
 .progressTrack { margin: 14px 0 10px; height: 6px; border-radius: 10px; background: #e0c9ad; overflow: hidden; }
 .progressFill { height: 100%; background: var(--accent); transition: width .3s; }
 .results { margin-top: 32px; }
+.manualSection { margin-top: 28px; padding: 18px; border: 1px solid #c5ad83; border-radius: 12px; background: #f7f0e3; }
+.manualSection p { font-size: 13px; }
+.manualSection input { width: 80px; margin: 12px; padding: 8px; }
+.manualCanvas { position: relative; width: min(100%, 900px); margin: 12px 0; touch-action: none; cursor: crosshair; user-select: none; }
+.manualCanvas img { display: block; width: 100%; height: auto; pointer-events: none; }
+.manualBox { position: absolute; box-sizing: border-box; border: 2px solid #8b371e; background: #8b371e33; pointer-events: none; }
 .galleryToolbar { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
 .galleryToolbar > div:first-child { min-width: 0; flex: 1 1 240px; }
 .galleryToolbar .eyebrow { overflow-wrap: anywhere; }

@@ -5,7 +5,6 @@ import os
 import re
 import shutil
 import uuid
-import zipfile
 import threading
 import time
 from pathlib import Path
@@ -13,13 +12,16 @@ from pathlib import Path
 import chess
 import chess.engine
 import cv2
+import fitz
+import numpy as np
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
-from .detector import extract_from_docx, extract_from_pdf
+from .detector import docx_image_metadata, extract_from_docx, extract_from_pdf
+from .book_files import ensure_diagrams_zip, original_diagram_pngs
 from .recognizer import recognize_board
 from .preprocess import ensure_book_variants
 from .puzzles import router as puzzle_router
@@ -39,7 +41,9 @@ JOB_STATUS = "status.json"
 app = FastAPI(title="Chess Book Reader API", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[origin.strip() for origin in os.getenv(
+        "CHESSAPP_CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    ).split(",") if origin.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -69,11 +73,20 @@ class BoardCornersPayload(BaseModel):
 
 class SavePositionRequest(BaseModel):
     fen: str
+    trialMove: bool = False
     aiFen: str | None = None
     imageOrientation: str | None = None
     recognizer: str | None = None
     preprocessVariant: str | None = None
     corners: BoardCornersPayload | None = None
+
+
+class ManualDiagramRequest(BaseModel):
+    page: int
+    x0: float
+    y0: float
+    x1: float
+    y1: float
 
 
 def resolve_engine_path() -> str | None:
@@ -144,6 +157,23 @@ def _write_json_atomic(path: Path, payload: dict) -> None:
         raise
 
 
+def recover_interrupted_jobs() -> None:
+    """A job has no surviving worker after the backend process restarts."""
+    for status_path in OUTPUT_DIR.glob(f"*/{JOB_STATUS}"):
+        try:
+            status = json.loads(status_path.read_text(encoding="utf-8"))
+            if status.get("status") in {"queued", "processing"}:
+                status.update(status="failed", error="Backend đã khởi động lại. Hãy quét sách lần nữa.")
+                _write_json_atomic(status_path, status)
+        except (OSError, json.JSONDecodeError):
+            continue
+
+
+@app.on_event("startup")
+def recover_jobs_on_startup() -> None:
+    recover_interrupted_jobs()
+
+
 def _scan_book_job(
     job_id: str,
     upload_path: Path,
@@ -175,6 +205,7 @@ def _scan_book_job(
         _write_json_atomic(status_path, status)
 
     try:
+        image_metadata = docx_image_metadata(upload_path) if suffix == ".docx" else {}
         extracted = (
             extract_from_pdf(upload_path, progress_callback=on_progress)
             if suffix == ".pdf"
@@ -190,7 +221,7 @@ def _scan_book_job(
                     "id": idx,
                     "page": detected.page,
                     "confidence": round(float(detected.score), 3),
-                    "imageUrl": f"http://localhost:8000/files/{job_id}/{filename}",
+                    "imageUrl": f"/files/{job_id}/{filename}",
                 }
             )
 
@@ -199,6 +230,7 @@ def _scan_book_job(
             "filename": original_filename,
             "count": len(positions),
             "positions": positions,
+            **image_metadata,
         }
         _write_json_atomic(job_output / BOOK_METADATA, payload)
 
@@ -208,6 +240,7 @@ def _scan_book_job(
                 "progress": 100.0,
                 "count": len(positions),
                 "positions": positions,
+                **image_metadata,
             }
         )
         if status["total"]:
@@ -347,6 +380,7 @@ def upload_book(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, f_out)
 
     try:
+        image_metadata = docx_image_metadata(upload_path) if suffix == ".docx" else {}
         extracted = extract_from_pdf(upload_path) if suffix == ".pdf" else extract_from_docx(upload_path)
         positions = []
         for idx, detected in enumerate(extracted, start=1):
@@ -358,7 +392,7 @@ def upload_book(file: UploadFile = File(...)):
                     "id": idx,
                     "page": detected.page,
                     "confidence": round(float(detected.score), 3),
-                    "imageUrl": f"http://localhost:8000/files/{job_id}/{filename}",
+                    "imageUrl": f"/files/{job_id}/{filename}",
                 }
             )
     except Exception as exc:
@@ -369,6 +403,7 @@ def upload_book(file: UploadFile = File(...)):
         "filename": file.filename,
         "count": len(positions),
         "positions": positions,
+        **image_metadata,
     }
     (job_output / BOOK_METADATA).write_text(
         json.dumps(payload, ensure_ascii=False, indent=2),
@@ -388,8 +423,12 @@ def list_books():
             continue
         try:
             payload = json.loads(metadata_path.read_text(encoding="utf-8"))
-            payload["updatedAt"] = metadata_path.stat().st_mtime
-            books.append(payload)
+            books.append({
+                "jobId": payload["jobId"],
+                "filename": payload.get("filename"),
+                "count": payload.get("count", 0),
+                "updatedAt": metadata_path.stat().st_mtime,
+            })
         except (json.JSONDecodeError, OSError):
             continue
 
@@ -407,6 +446,72 @@ def get_book(job_id: str):
         return json.loads(metadata_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
         raise HTTPException(status_code=500, detail="Could not read book metadata") from exc
+
+
+def _pdf_page(job_id: str, page_number: int):
+    _job_dir(job_id)
+    upload_path = UPLOAD_DIR / f"{job_id}.pdf"
+    if not upload_path.exists():
+        raise HTTPException(status_code=404, detail="PDF nguồn không còn trên máy.")
+    document = fitz.open(upload_path)
+    if page_number < 1 or page_number > len(document):
+        document.close()
+        raise HTTPException(status_code=400, detail="Số trang PDF không hợp lệ.")
+    return document
+
+
+@app.get("/api/books/{job_id}/pages/{page_number}")
+def preview_pdf_page(job_id: str, page_number: int):
+    document = _pdf_page(job_id, page_number)
+    try:
+        pix = document[page_number - 1].get_pixmap(matrix=fitz.Matrix(1.5, 1.5), alpha=False)
+        return Response(pix.tobytes("png"), media_type="image/png")
+    finally:
+        document.close()
+
+
+@app.post("/api/books/{job_id}/diagrams/manual")
+def add_manual_diagram(job_id: str, selection: ManualDiagramRequest):
+    job_dir = _job_dir(job_id)
+    if not (0 <= selection.x0 < selection.x1 <= 1 and 0 <= selection.y0 < selection.y1 <= 1
+            and selection.x1 - selection.x0 >= 0.02 and selection.y1 - selection.y0 >= 0.02):
+        raise HTTPException(status_code=400, detail="Vùng chọn phải nằm trong trang và đủ lớn.")
+    status_path = job_dir / JOB_STATUS
+    if status_path.exists():
+        status = json.loads(status_path.read_text(encoding="utf-8"))
+        if status.get("status") != "completed":
+            raise HTTPException(status_code=409, detail="Hãy đợi quét sách hoàn tất.")
+
+    metadata_path = job_dir / BOOK_METADATA
+    if not metadata_path.exists():
+        raise HTTPException(status_code=404, detail="Chưa có dữ liệu sách.")
+    document = _pdf_page(job_id, selection.page)
+    try:
+        page = document[selection.page - 1]
+        bounds = page.rect
+        clip = fitz.Rect(
+            bounds.x0 + selection.x0 * bounds.width, bounds.y0 + selection.y0 * bounds.height,
+            bounds.x0 + selection.x1 * bounds.width, bounds.y0 + selection.y1 * bounds.height,
+        )
+        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), clip=clip, alpha=False)
+        image = cv2.imdecode(np.frombuffer(pix.tobytes("png"), dtype=np.uint8), cv2.IMREAD_COLOR)
+    finally:
+        document.close()
+
+    book = json.loads(metadata_path.read_text(encoding="utf-8"))
+    positions = book.setdefault("positions", [])
+    index = max((int(item["id"]) for item in positions), default=0) + 1
+    filename = f"position-{index:04d}.png"
+    if not cv2.imwrite(str(job_dir / filename), image):
+        raise HTTPException(status_code=500, detail="Không ghi được ảnh diagram.")
+    positions.append({"id": index, "page": selection.page, "confidence": 1.0,
+                      "imageUrl": f"/files/{job_id}/{filename}"})
+    book["count"] = len(positions)
+    _write_json_atomic(metadata_path, book)
+    if status_path.exists():
+        status.update(count=book["count"], positions=positions)
+        _write_json_atomic(status_path, status)
+    return book
 
 
 @app.get("/api/books/{job_id}/recognized.json")
@@ -490,17 +595,10 @@ def delete_book(job_id: str):
 @app.get("/api/books/{job_id}/download")
 def download_book_diagrams(job_id: str):
     job_dir = _job_dir(job_id)
-    zip_path = job_dir / "chess-diagrams.zip"
-
-    png_files = sorted(job_dir.glob("position-*.png"))
+    png_files = original_diagram_pngs(job_dir)
     if not png_files:
         raise HTTPException(status_code=404, detail="No diagrams found")
-
-    newest_png = max(path.stat().st_mtime for path in png_files)
-    if not zip_path.exists() or zip_path.stat().st_mtime < newest_png:
-        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            for image_path in png_files:
-                archive.write(image_path, arcname=image_path.name)
+    zip_path = ensure_diagrams_zip(job_dir, png_files)
 
     return FileResponse(
         path=zip_path,
@@ -524,11 +622,17 @@ def get_position_variants(job_id: str, position_id: int):
         "variants": [
             {
                 "name": name,
-                "url": f"http://localhost:8000/files/{job_id}/{path.name}",
+                "url": f"/files/{job_id}/{path.name}",
             }
             for name, path in variants.items()
         ]
     }
+
+
+@app.get("/api/books/{job_id}/positions/{position_id}/download")
+def download_position_image(job_id: str, position_id: int):
+    image_path, _ = _position_paths(job_id, position_id)
+    return FileResponse(image_path, media_type="image/png", filename=image_path.name)
 
 
 @app.get("/api/learning/stats")
@@ -595,6 +699,11 @@ def get_corrected_position(job_id: str, position_id: int):
 
 @app.put("/api/books/{job_id}/positions/{position_id}")
 def save_corrected_position(job_id: str, position_id: int, req: SavePositionRequest):
+    if req.trialMove:
+        raise HTTPException(
+            status_code=400,
+            detail="Hãy khôi phục thế gốc trước khi lưu bản sửa nhận dạng.",
+        )
     try:
         board = chess.Board(req.fen)
     except ValueError as exc:

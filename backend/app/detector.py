@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable
+import posixpath
 import zipfile
+from xml.etree import ElementTree
 
 import cv2
 import fitz
@@ -174,10 +176,44 @@ def extract_from_pdf(
         doc.close()
 
 
-def extract_docx_images(path: Path) -> Iterable[tuple[str, np.ndarray]]:
+def docx_image_order(path: Path) -> list[str]:
+    """Resolve embedded images in document order, not ZIP member order."""
     with zipfile.ZipFile(path) as zf:
-        names = [n for n in zf.namelist() if n.startswith("word/media/")]
-        for name in names:
+        rels = ElementTree.fromstring(zf.read("word/_rels/document.xml.rels"))
+        targets = {
+            rel.attrib["Id"]: rel.attrib["Target"]
+            for rel in rels
+            if rel.attrib.get("Type", "").endswith("/image")
+            and rel.attrib.get("TargetMode") != "External"
+        }
+        document = ElementTree.fromstring(zf.read("word/document.xml"))
+        relationship_ns = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+        names = set(zf.namelist())
+        ordered = []
+        for element in document.iter():
+            if element.tag.rsplit("}", 1)[-1] not in {"blip", "imagedata"}:
+                continue
+            reference = element.get(f"{relationship_ns}embed") or element.get(f"{relationship_ns}id")
+            if reference not in targets:
+                continue
+            target = targets[reference]
+            name = (target.lstrip("/") if target.startswith("/") else posixpath.normpath(posixpath.join("word", target)))
+            if name in names:
+                ordered.append(name)
+        return ordered
+
+
+def docx_image_metadata(path: Path) -> dict[str, int]:
+    ordered = docx_image_order(path)
+    return {"skippedVectorImages": sum(name.lower().endswith((".emf", ".wmf")) for name in ordered)}
+
+
+def extract_docx_images(path: Path) -> Iterable[tuple[str, np.ndarray]]:
+    ordered = docx_image_order(path)
+    with zipfile.ZipFile(path) as zf:
+        for name in ordered:
+            if name.lower().endswith((".emf", ".wmf")):
+                continue
             data = np.frombuffer(zf.read(name), dtype=np.uint8)
             image = cv2.imdecode(data, cv2.IMREAD_COLOR)
             if image is not None:

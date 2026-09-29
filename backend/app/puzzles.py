@@ -44,8 +44,20 @@ def puzzle_session(theme: str = "", minimum: int = Query(800, ge=0, le=4000), ma
         where = "theme=? AND rating BETWEEN ? AND ?" if theme else "rating BETWEEN ? AND ?"
         params = (theme, minimum, maximum) if theme else (minimum, maximum)
         total = db.execute(f"SELECT COUNT(*) FROM {table} WHERE {where}", params).fetchone()[0]
-        offset = random.randint(0, max(0, total - limit))
-        ids = db.execute(f"SELECT id FROM {table} WHERE {where} ORDER BY rating,id LIMIT ? OFFSET ?", (*params, limit, offset)).fetchall()
+        # One random offset per slice of the indexed rating range prevents a
+        # session from returning ten almost identical ratings in one block.
+        count = min(limit, total)
+        offsets = [
+            random.randrange(index * total // count, (index + 1) * total // count)
+            for index in range(count)
+        ]
+        ids = [
+            db.execute(
+                f"SELECT id FROM {table} WHERE {where} ORDER BY rating,id LIMIT 1 OFFSET ?",
+                (*params, offset),
+            ).fetchone()
+            for offset in offsets
+        ]
         result = []
         for item in ids:
             row = db.execute("SELECT * FROM puzzles WHERE id=?", (item["id"],)).fetchone()
@@ -93,3 +105,13 @@ def save_collection(item: SavedPosition):
         db.execute("INSERT OR REPLACE INTO collection VALUES (?,?,?)", (item.id, item.model_dump_json(), time.time()))
         db.commit()
     return {"saved": True}
+
+
+@router.delete("/collection/{item_id}")
+def delete_collection(item_id: str):
+    with closing(collection_db()) as db:
+        deleted = db.execute("DELETE FROM collection WHERE id=?", (item_id,)).rowcount
+        db.commit()
+    if not deleted:
+        raise HTTPException(404, "Không tìm thấy thế cờ đã lưu.")
+    return {"deleted": True}
