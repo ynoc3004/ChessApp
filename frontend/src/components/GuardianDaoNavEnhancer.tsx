@@ -1,25 +1,26 @@
 "use client";
 
 import { useEffect } from "react";
-
-const PATHS = [
-  { slug: "thanh-long", label: "Thanh Long", note: "Dưỡng Thế · Ngự Cục" },
-  { slug: "bach-ho", label: "Bạch Hổ", note: "Sát Phạt · Đoạt Tử" },
-  { slug: "chu-tuoc", label: "Chu Tước", note: "Liệt Hỏa · Công Vương" },
-  { slug: "huyen-vu", label: "Huyền Vũ", note: "Cố Thủ · Quy Nguyên" },
-] as const;
+import { fallbackDaoPaths, loadDaoPaths, type ManagedDaoPath } from "@/lib/daoStore";
 
 function normalize(value: string | null | undefined) {
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
 
-function resolvePath(element: Element | null) {
-  if (!element) return null;
-  const label = normalize(element.textContent);
-  return PATHS.find((path) => label === path.label || label === `${path.label} Đạo`) ?? null;
+function shortLabel(path: ManagedDaoPath) {
+  return path.name.replace(/\s+Đạo$/i, "").trim();
 }
 
-function findRibbon() {
+function resolvePath(element: Element | null, paths: ManagedDaoPath[]) {
+  if (!element) return null;
+  const label = normalize(element.textContent);
+  return paths.find((path) => {
+    const short = shortLabel(path);
+    return label === short || label === path.name;
+  }) ?? null;
+}
+
+function findRibbon(paths: ManagedDaoPath[]) {
   const byLabel = document.querySelector<HTMLElement>(
     '[aria-label="Tứ Tượng"], [aria-label="Tứ Tượng Đạo Lộ"]',
   );
@@ -27,16 +28,38 @@ function findRibbon() {
 
   return Array.from(document.querySelectorAll<HTMLElement>("div")).find((element) => {
     const text = normalize(element.textContent);
-    return PATHS.every((path) => text.includes(path.label));
+    return paths.slice(0, 4).every((path) => text.includes(shortLabel(path)));
   }) ?? null;
+}
+
+function appendMissingPaths(ribbon: HTMLElement, paths: ManagedDaoPath[]) {
+  if (ribbon.tagName !== "DIV") return;
+  const present = new Set(
+    Array.from(ribbon.querySelectorAll<HTMLElement>("[data-dao]"))
+      .map((item) => item.dataset.dao)
+      .filter(Boolean),
+  );
+
+  paths.forEach((path) => {
+    if (present.has(path.slug)) return;
+    const separator = document.createElement("i");
+    separator.setAttribute("aria-hidden", "true");
+    separator.textContent = "✦";
+    const item = document.createElement("span");
+    item.textContent = shortLabel(path);
+    item.dataset.dao = path.slug;
+    ribbon.append(separator, item);
+  });
 }
 
 export default function GuardianDaoNavEnhancer() {
   useEffect(() => {
     let ribbon: HTMLElement | null = null;
+    let paths = fallbackDaoPaths();
+    let cancelled = false;
 
     const decorateRibbon = () => {
-      ribbon = findRibbon();
+      ribbon = findRibbon(paths);
       if (!ribbon) return;
 
       ribbon.dataset.daoEnhanced = "true";
@@ -44,15 +67,29 @@ export default function GuardianDaoNavEnhancer() {
 
       Array.from(ribbon.children).forEach((child) => {
         if (!(child instanceof HTMLElement)) return;
-        const path = resolvePath(child);
+        const path = child.dataset.dao
+          ? paths.find((item) => item.slug === child.dataset.dao)
+          : resolvePath(child, paths);
         if (!path) return;
 
         child.classList.add("guardian-dao-link");
         child.dataset.dao = path.slug;
         child.setAttribute("role", "link");
         child.setAttribute("tabindex", "0");
-        child.setAttribute("title", `${path.label} Đạo · ${path.note}`);
-        child.setAttribute("aria-label", `${path.label} Đạo · ${path.note}`);
+        child.setAttribute("title", `${path.name} · ${path.epithet}`);
+        child.setAttribute("aria-label", `${path.name} · ${path.epithet}`);
+      });
+
+      appendMissingPaths(ribbon, paths);
+      Array.from(ribbon.children).forEach((child) => {
+        if (!(child instanceof HTMLElement) || !child.dataset.dao) return;
+        const path = paths.find((item) => item.slug === child.dataset.dao);
+        if (!path) return;
+        child.classList.add("guardian-dao-link");
+        child.setAttribute("role", "link");
+        child.setAttribute("tabindex", "0");
+        child.setAttribute("title", `${path.name} · ${path.epithet}`);
+        child.setAttribute("aria-label", `${path.name} · ${path.epithet}`);
       });
     };
 
@@ -60,7 +97,7 @@ export default function GuardianDaoNavEnhancer() {
       if (!(target instanceof Element) || !ribbon) return false;
       const candidate = target.closest<HTMLElement>(".guardian-dao-link");
       if (!candidate || !ribbon.contains(candidate)) return false;
-      const path = PATHS.find((item) => item.slug === candidate.dataset.dao) ?? resolvePath(candidate);
+      const path = paths.find((item) => item.slug === candidate.dataset.dao) ?? resolvePath(candidate, paths);
       if (!path) return false;
       window.location.assign(`/dao/${path.slug}`);
       return true;
@@ -81,7 +118,21 @@ export default function GuardianDaoNavEnhancer() {
       ribbon?.addEventListener("keydown", onKeyDown);
     });
 
+    void loadDaoPaths().then((loaded) => {
+      if (cancelled) return;
+      paths = loaded;
+      const oldRibbon = ribbon;
+      oldRibbon?.removeEventListener("click", onClick);
+      oldRibbon?.removeEventListener("keydown", onKeyDown);
+      decorateRibbon();
+      ribbon?.addEventListener("click", onClick);
+      ribbon?.addEventListener("keydown", onKeyDown);
+    }).catch(() => {
+      // Fallback paths above keep navigation usable without Firebase.
+    });
+
     return () => {
+      cancelled = true;
       window.cancelAnimationFrame(frame);
       ribbon?.removeEventListener("click", onClick);
       ribbon?.removeEventListener("keydown", onKeyDown);
