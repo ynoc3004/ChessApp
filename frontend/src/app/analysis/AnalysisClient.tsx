@@ -22,6 +22,7 @@ import {
 import { API_BASE, type Position, type UploadResponse } from "@/lib/api";
 import { validateFen } from "@/lib/validateFen";
 import { moveFen, promotionRequired } from "@/lib/trialMoves";
+import { castlingSuggestion } from "@/lib/castlingSuggestion";
 import {
   buildFen,
   chessComAnalysisUrl,
@@ -166,6 +167,7 @@ export default function AnalysisClient({
   const [message, setMessage] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [recognition, setRecognition] = useState<RecognitionResult | null>(null);
+  const [sideConfirmed, setSideConfirmed] = useState(false);
   const [recognizing, setRecognizing] = useState(false);
   const [squareConfidence, setSquareConfidence] = useState<Record<string, number>>({});
   const [uncertainSquares, setUncertainSquares] = useState<string[]>([]);
@@ -213,6 +215,7 @@ export default function AnalysisClient({
     [engineEval],
   );
   const recognitionRealm = aiRealm(recognition?.averageConfidence ?? 0);
+  const suggestedCastling = useMemo(() => castlingSuggestion(placement), [placement]);
 
   const evalLabel =
     engineEval.mate !== null
@@ -262,7 +265,6 @@ export default function AnalysisClient({
     (
       result: RecognitionResult,
       orientation: "white" | "black",
-      side: "w" | "b",
     ) => {
       const nextPlacement =
         orientation === "white"
@@ -282,8 +284,6 @@ export default function AnalysisClient({
       setUncertainSquares(uncertain);
       setImageOrientation(orientation);
       setBoardOrientation(orientation);
-      setSideToMove(side);
-      setCastling("-");
       setEnPassant("-");
       setHistory([]);
       setPromotion(null);
@@ -453,11 +453,13 @@ export default function AnalysisClient({
 
         setRecognition(result);
         setWarnings(result.warnings ?? []);
-        applyCandidate(result, result.suggestedOrientation, "w");
+        applyCandidate(result, result.suggestedOrientation);
+        setSideConfirmed(false);
 
         const saved = await savedPromise;
         if (saved) {
           applyFullFen(saved);
+          setSideConfirmed(true);
           setSavedFen(saved);
           setMessage(`Đã đọc bằng ${result.source} và nạp bản bạn đã lưu trước đó.`);
         } else {
@@ -503,6 +505,7 @@ export default function AnalysisClient({
       setCastling(parsed.castling);
       setEnPassant(parsed.enPassant);
       setHistory([]);
+      setSideConfirmed(true);
       setPromotion(null);
       setLines([]);
       setWarnings([]);
@@ -515,10 +518,11 @@ export default function AnalysisClient({
 
   function chooseImageOrientation(next: "white" | "black") {
     if (!recognition) return;
-    applyCandidate(recognition, next, sideToMove);
+    applyCandidate(recognition, next);
   }
 
   function chooseSide(next: "w" | "b") {
+    setSideConfirmed(true);
     if (next === sideToMove) return;
     setHistory((items) => [...items.slice(-39), { fen, trial: hasTrialMoves }]);
     setSideToMove(next);
@@ -631,7 +635,7 @@ export default function AnalysisClient({
 
   function resetToAi() {
     if (!recognition) return;
-    applyCandidate(recognition, imageOrientation, sideToMove);
+    applyCandidate(recognition, imageOrientation);
     setWarnings(recognition.warnings ?? []);
     setSavedFen(null);
     setMessage("Đã hồi nguyên trận thế theo kỳ đồ AI.");
@@ -1088,6 +1092,11 @@ export default function AnalysisClient({
                 Đen đi
               </button>
             </div>
+            {recognition && !sideConfirmed && (
+              <span role="status" title="Ảnh bàn cờ không cho biết chắc ai đến lượt đi.">
+                Gợi ý: {recognition.sideToMove === "b" ? "Đen" : "Trắng"} đi. Hãy chọn bên đi để xác nhận.
+              </span>
+            )}
             <div className="boardQuickActions">
               <button
                 className="button compactButton"
@@ -1330,6 +1339,18 @@ export default function AnalysisClient({
                 </div>
 
                 <span className="controlLabel">Nhập thành</span>
+                {recognition && !hasTrialMoves && suggestedCastling !== "-" && (
+                  <div className="warningBox compactWarning">
+                    <p>Vua và xe ở ô gốc: có thể còn quyền {suggestedCastling}. Hãy kiểm tra lịch sử ván cờ trước khi bật.</p>
+                    <button className="button" onClick={() => {
+                      if (castling !== suggestedCastling) {
+                        setHistory((items) => [...items.slice(-39), { fen, trial: hasTrialMoves }]);
+                        setCastling(suggestedCastling);
+                        setLines([]);
+                      }
+                    }}>Bật quyền được gợi ý</button>
+                  </div>
+                )}
                 <div className="castlingGrid compactCastling">
                   {(["K", "Q", "k", "q"] as const).map((right) => (
                     <label key={right}>
