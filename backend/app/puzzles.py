@@ -9,6 +9,8 @@ import chess
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from .admin import router as admin_router
+
 DATA = Path(__file__).resolve().parent.parent / "data"
 PUZZLES = DATA / "lichess-puzzles.sqlite3"
 COLLECTION = DATA / "collection.sqlite3"
@@ -115,3 +117,9 @@ def delete_collection(item_id: str):
     if not deleted:
         raise HTTPException(404, "Không tìm thấy thế cờ đã lưu.")
     return {"deleted": True}
+
+
+# main.py already mounts this router. Admin routes have their own /api/admin
+# paths and authentication dependency, so attach those concrete routes here
+# without composing the /api prefix a second time.
+router.routes.extend(admin_router.routes)
