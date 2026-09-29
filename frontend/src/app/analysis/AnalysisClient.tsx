@@ -20,6 +20,7 @@ import {
   type SquareHandlerArgs,
 } from "react-chessboard";
 import { API_BASE, type Position, type UploadResponse } from "@/lib/api";
+import { validateFen } from "@/lib/validateFen";
 import {
   buildFen,
   chessComAnalysisUrl,
@@ -105,13 +106,8 @@ function exactBoardParityStyles(): Record<string, CSSProperties> {
   return styles;
 }
 
-function strictLegalFen(fen: string): boolean {
-  try {
-    const game = new Chess(fen);
-    return Boolean(game);
-  } catch {
-    return false;
-  }
+function strictLegalFen(fen: string) {
+  return validateFen(fen);
 }
 
 function whitePerspective(line: LocalEngineLine | undefined, fen: string) {
@@ -196,8 +192,10 @@ export default function AnalysisClient({
     () => buildFen(placement, sideToMove, castling, enPassant),
     [placement, sideToMove, castling, enPassant],
   );
-  const isLegal = useMemo(() => strictLegalFen(fen), [fen]);
-  const engineLegal = useMemo(() => strictLegalFen(engineFen), [engineFen]);
+  const fenValidation = useMemo(() => strictLegalFen(fen), [fen]);
+  const engineValidation = useMemo(() => strictLegalFen(engineFen), [engineFen]);
+  const isLegal = fenValidation.valid;
+  const engineLegal = engineValidation.valid;
 
   const topEngineLine = lines[0];
   const engineEval = useMemo(
@@ -493,18 +491,8 @@ export default function AnalysisClient({
       setHistory([]);
       setLines([]);
       setWarnings([]);
-      setMessage(
-        strictLegalFen(
-          buildFen(
-            parsed.placement,
-            parsed.sideToMove,
-            parsed.castling,
-            parsed.enPassant,
-          ),
-        )
-          ? "Đã nạp FEN."
-          : "FEN đã nạp nhưng vị trí chưa hợp lệ.",
-      );
+      const result = validateFen(buildFen(parsed.placement, parsed.sideToMove, parsed.castling, parsed.enPassant));
+      setMessage(result.valid ? "Đã nạp FEN." : result.reason);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "FEN không hợp lệ");
     }
@@ -666,12 +654,14 @@ export default function AnalysisClient({
   }
 
   function openLichess(targetFen = fen) {
-    if (!strictLegalFen(targetFen)) return;
+    const result = validateFen(targetFen);
+    if (!result.valid) { setMessage(result.reason); return; }
     window.open(lichessAnalysisUrl(targetFen), "_blank", "noopener,noreferrer");
   }
 
   async function openChessCom(targetFen = fen) {
-    if (!strictLegalFen(targetFen)) return;
+    const result = validateFen(targetFen);
+    if (!result.valid) { setMessage(result.reason); return; }
     window.open(chessComAnalysisUrl(targetFen), "_blank", "noopener,noreferrer");
     try {
       await navigator.clipboard.writeText(targetFen);
@@ -680,8 +670,9 @@ export default function AnalysisClient({
 
   const runEngine = useCallback(
     async (targetFen: string, quiet = false) => {
-      if (!strictLegalFen(targetFen)) {
-        if (!quiet) setMessage("Thế cờ phân tích chưa hợp lệ.");
+      const validation = validateFen(targetFen);
+      if (!validation.valid) {
+        if (!quiet) setMessage(validation.reason);
         return;
       }
 
@@ -960,6 +951,7 @@ export default function AnalysisClient({
               <span className={isLegal ? "validBadge" : "invalidBadge"}>
                 {isLegal ? "✓ Trận pháp ổn định" : "⚠ Trận pháp hỗn loạn"}
               </span>
+              {!isLegal && <span role="alert">{fenValidation.reason}</span>}
               <button
                 className="button compactButton daoDownloadButton"
                 onClick={() => void downloadBoardImage()}
@@ -1310,6 +1302,8 @@ export default function AnalysisClient({
                     {analyzing ? "Đang tính…" : "Vận Tâm pháp Stockfish"}
                   </button>
                 </div>
+
+                {!engineLegal && <p role="alert" className="subtle">{engineValidation.reason}</p>}
 
                 <div className="externalActions">
                   <button
