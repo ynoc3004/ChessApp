@@ -105,3 +105,13 @@ def save_collection(item: SavedPosition):
         db.execute("INSERT OR REPLACE INTO collection VALUES (?,?,?)", (item.id, item.model_dump_json(), time.time()))
         db.commit()
     return {"saved": True}
+
+
+@router.delete("/collection/{item_id}")
+def delete_collection(item_id: str):
+    with closing(collection_db()) as db:
+        deleted = db.execute("DELETE FROM collection WHERE id=?", (item_id,)).rowcount
+        db.commit()
+    if not deleted:
+        raise HTTPException(404, "Không tìm thấy thế cờ đã lưu.")
+    return {"deleted": True}
