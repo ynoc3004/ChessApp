@@ -10,7 +10,7 @@ import { API_BASE } from "@/lib/api";
 import { attemptPuzzle, startPuzzle, type Puzzle } from "@/lib/puzzle";
 import { chessComAnalysisUrl, lichessAnalysisUrl } from "@/lib/fen";
 import { analyzeWithBrowserStockfish, type LocalEngineLine } from "@/lib/browserStockfish";
-import { getDaoPath } from "@/lib/daoPaths";
+import { loadDaoPaths } from "@/lib/daoStore";
 import styles from "./realms.module.css";
 const gates = [
   ["Càn · Thiên Cơ", "", "Tổng hợp"], ["Đoài · Song Kích", "fork", "Đòn đôi"],
@@ -36,12 +36,22 @@ export default function RealmsPage() {
   const puzzle = puzzles[index];
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const path = getDaoPath(params.get("path") ?? "");
-    const index = Number(params.get("module"));
-    if (path && Number.isInteger(index) && index >= 1 && index <= path.modules.length) {
-      const module = path.modules[index - 1];
-      setPathSelection({ slug: path.slug, name: path.name, module: module.title, theme: module.puzzleTheme });
-    }
+    void loadDaoPaths().then((paths) => {
+      const path = paths.find((item) => item.slug === (params.get("path") ?? ""));
+      if (!path) return;
+      const moduleId = params.get("moduleId");
+      const legacyIndex = Number(params.get("module"));
+      const module = moduleId
+        ? path.modules.find((item) => item.id === moduleId)
+        : Number.isInteger(legacyIndex) && legacyIndex >= 1 && legacyIndex <= path.modules.length
+          ? path.modules[legacyIndex - 1]
+          : undefined;
+      if (module) {
+        setPathSelection({ slug: path.slug, name: path.name, module: module.title, theme: module.puzzleTheme });
+      }
+    }).catch(() => {
+      // Bí Cảnh vẫn hoạt động theo Bát Quái nếu dữ liệu Đạo chưa tải được.
+    });
     void refresh();
     return () => { generation.current++; if (openingTimer.current) clearTimeout(openingTimer.current); };
   }, []);

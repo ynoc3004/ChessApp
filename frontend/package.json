@@ -12,15 +12,16 @@
     "prestart": "node scripts/rebuild-immortal-bg.mjs && node scripts/patch-react-chessboard.mjs"
   },
   "dependencies": {
+    "@scoriiu/fenshot": "0.1.4",
     "chess.js": "1.4.0",
+    "firebase": "12.19.0",
+    "html-to-image": "1.11.13",
     "next": "16.3.3",
+    "onnxruntime-web": "1.26.0",
     "react": "19.2.0",
     "react-chessboard": "5.12.1",
     "react-dom": "19.2.0",
-    "@scoriiu/fenshot": "0.1.4",
-    "onnxruntime-web": "1.26.0",
-    "stockfish": "19.0.0",
-    "html-to-image": "1.11.13"
+    "stockfish": "19.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
