@@ -270,6 +270,13 @@ export default function HomePage() {
         <p className={styles.privacyNote}>Sách được gửi đến dịch vụ xử lý bạn đã cấu hình.</p>
         {scanJob && loading && (
           <div className={styles.scanProgress}>
+            <div className={styles.scanScene} aria-hidden="true">
+              <span className={styles.scanMoon} />
+              <span className={styles.scanScroll}><span>棋</span></span>
+              <span className={styles.scanPage} />
+              <span className={styles.scanPage} />
+              <span className={styles.scanSpark}>✦</span>
+            </div>
             <div className={styles.cultivationHeader}>
               <div className={styles.realmSeal} aria-hidden="true">{scanCultivation.mark}</div>
               <div>
@@ -291,6 +298,13 @@ export default function HomePage() {
                 : "Đang đọc thông tin tài liệu"}{" "}
               · đã lĩnh hội {scanJob.count} kỳ đồ.
             </p>
+            <div className={styles.scanMilestones} aria-label="Các chặng quét sách">
+              {["Khai Phổ", "Quan Trận", "Ngộ Cục", "Khắc Ấn"].map((stage, index) => (
+                <span key={stage} aria-current={scanJob.progress >= [0, 20, 50, 80][index] && scanJob.progress < [20, 50, 80, 100][index] ? "step" : undefined}>
+                  {stage}
+                </span>
+              ))}
+            </div>
           </div>
         )}
         {restoring && <p className={styles.subtle}>☁ Đang triệu hồi kỳ phổ gần nhất từ Tàng Kinh Các…</p>}

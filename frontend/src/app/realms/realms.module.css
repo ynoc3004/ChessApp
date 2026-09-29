@@ -9,12 +9,24 @@
 .page button:disabled { opacity: .5; cursor: not-allowed; }
 .page button[aria-pressed=true] { background: #774b3d; color: #fff1d8; }
 .page :focus-visible { outline: 3px solid #986d26; outline-offset: 3px; }
-.gateway { display: grid; grid-template-columns: 1fr 300px; align-items: center; gap: 36px; margin-bottom: 24px; }
+.gateway { display: grid; grid-template-columns: 1fr 300px; align-items: center; gap: 36px; margin-bottom: 24px; padding: 30px; border-radius: 28px; border: 1px solid #fff8e8ae; background: linear-gradient(125deg,#fff9edbd,#f8e3c895 65%,#d9b78c45); box-shadow: 0 20px 50px #654b3233,inset 0 1px #fff9e7; backdrop-filter: blur(8px); }
 .kicker { font-size: 11px!important; letter-spacing: .12em; color: #7f5442; }
 .gates { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+.gates button { min-height: 70px; background: #fff8ebad; border-color: #d3b998; transition: transform .2s, background .2s, box-shadow .2s; }
+.gates button:hover:not(:disabled) { transform: translateY(-3px); background: #fff9ed; box-shadow: 0 8px 20px #644c3926; }
 .gates small { display: block; margin-top: 7px; }
-.seal { color: #725136; transition: transform .8s ease-in-out; }
-.seal svg { display: block; width: 100%; }
+.pathContext { display: inline-flex; flex-wrap: wrap; gap: 5px; padding: 8px 12px; border-radius: 999px; border: 1px solid #b9925e80; background: #fff8e9b3; color: #654939; }
+.portal { position: relative; display: grid; justify-items: center; gap: 14px; }
+.page .seal { position: relative; display: grid; place-items: center; width: min(100%, 290px); aspect-ratio: 1; margin: 0; padding: 0; color: #725136; background: radial-gradient(circle,#fff7e0 0 24%,#e9c88a80 45%,transparent 72%); border: 0; border-radius: 50%; cursor: pointer; isolation: isolate; }
+.page .seal:disabled { opacity: .76; }
+.portalAura { position: absolute; inset: 7%; z-index: -1; border: 1px solid #b89660b0; border-radius: 50%; box-shadow: 0 0 0 9px #e6c88d25,0 0 36px #db9b4b80,inset 0 0 26px #e7bf76; transition: transform .7s, opacity .7s; }
+.sealRing { width: 100%; display: block; transition: transform .85s cubic-bezier(.18,.78,.19,1); }
+.sealRing svg { display: block; width: 100%; filter: drop-shadow(0 5px 6px #6b4f3b40); }
+.portalCore { position: absolute; font-size: 34px; color: #b68843; opacity: 0; transform: scale(.4); transition: transform .55s, opacity .55s; text-shadow: 0 0 20px #fff5cd; }
+.seal:hover:not(:disabled) .portalAura, .seal:focus-visible .portalAura { transform: scale(1.09); }
+.opening .portalAura { transform: scale(1.22); opacity: .3; }
+.opening .portalCore { opacity: 1; transform: scale(1.5); }
+.portalCaption { color: #755945; font-size: 10px; letter-spacing: .2em; font-weight: 800; text-align: center; }
 .panel { background: #fff8ebed; border: 1px solid #cbb396; border-radius: 16px; padding: 24px; margin-bottom: 24px; min-width: 0; }
 .controls { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
 .controls label { display: grid; gap: 7px; }
@@ -24,6 +36,6 @@
 .training { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; align-items: start; }
 .list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
 .list button { text-align: left; overflow-wrap: anywhere; }
-@media(max-width:850px) { .gateway { grid-template-columns: 1fr 170px; gap: 16px; } .gates { grid-template-columns: repeat(2,1fr); } .training { grid-template-columns: 1fr; } .list { grid-template-columns: repeat(2,minmax(0,1fr)); } }
-@media(max-width:520px) { .gateway { grid-template-columns: 1fr; } .seal { width: 140px; margin: auto; } .page h1 { font-size: 32px; } .panel { padding: 16px; } .list { grid-template-columns: 1fr; } }
-@media(prefers-reduced-motion:reduce) { .seal { transition: none; } }
+@media(max-width:850px) { .gateway { grid-template-columns: 1fr 170px; gap: 16px; padding: 22px; } .gates { grid-template-columns: repeat(2,1fr); } .training { grid-template-columns: 1fr; } .list { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:520px) { .gateway { grid-template-columns: 1fr; } .page .seal { width: 190px; margin: auto; } .page h1 { font-size: 32px; } .panel { padding: 16px; } .list { grid-template-columns: 1fr; } }
+@media(prefers-reduced-motion:reduce) { .sealRing,.portalAura,.portalCore,.gates button { transition: none; } }
