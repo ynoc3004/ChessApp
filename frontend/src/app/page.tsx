@@ -72,6 +72,20 @@ export default function HomePage() {
     window.localStorage.setItem("chessBookReader:lastJobId", book.jobId);
   }
 
+  async function openRecentBook(book: BookSummary) {
+    setRestoring(true);
+    setError("");
+    try {
+      const response = await fetch(`${API_BASE}/api/books/${book.jobId}`);
+      if (!response.ok) throw new Error("Không mở được sách.");
+      openBook((await response.json()) as UploadResponse);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không mở được sách.");
+    } finally {
+      setRestoring(false);
+    }
+  }
+
   async function loadRecentBooks() {
     setHistoryLoading(true);
     setHistoryError("");
@@ -371,7 +385,7 @@ export default function HomePage() {
                   <p className={styles.subtle}>{book.count} hình cờ</p>
                 </div>
                 <div className={styles.actions}>
-                  <button className={styles.button} disabled={loading || restoring} onClick={() => openBook(book)}>
+                  <button className={styles.button} disabled={loading || restoring} onClick={() => void openRecentBook(book)}>
                     Mở sách
                   </button>
                   <a className={styles.button} href={`${API_BASE}/api/books/${book.jobId}/download`}>

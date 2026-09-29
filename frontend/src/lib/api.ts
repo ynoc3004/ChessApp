@@ -24,8 +24,11 @@ export type UploadResponse = {
 };
 
 
-export type BookSummary = UploadResponse & {
-  updatedAt?: number;
+export type BookSummary = {
+  jobId: string;
+  filename: string;
+  count: number;
+  updatedAt: number;
 };
 
 export type BookListResponse = {

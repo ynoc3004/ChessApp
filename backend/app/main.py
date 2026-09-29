@@ -413,8 +413,12 @@ def list_books():
             continue
         try:
             payload = json.loads(metadata_path.read_text(encoding="utf-8"))
-            payload["updatedAt"] = metadata_path.stat().st_mtime
-            books.append(payload)
+            books.append({
+                "jobId": payload["jobId"],
+                "filename": payload.get("filename"),
+                "count": payload.get("count", 0),
+                "updatedAt": metadata_path.stat().st_mtime,
+            })
         except (json.JSONDecodeError, OSError):
             continue
 
