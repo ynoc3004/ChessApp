@@ -7,6 +7,7 @@ import { type SavedPosition } from "@/components/SavePosition";
 import { chessComAnalysisUrl, lichessAnalysisUrl } from "@/lib/fen";
 import { analyzeWithBrowserStockfish, type LocalEngineLine } from "@/lib/browserStockfish";
 import styles from "../realms/realms.module.css";
+import archive from "./collection.module.css";
 export default function CollectionPage() {
   const [items, setItems] = useState<SavedPosition[]>([]), [selected, setSelected] = useState<SavedPosition | null>(null);
   const [query, setQuery] = useState(""), [message, setMessage] = useState(""), [loading, setLoading] = useState(true), [saving, setSaving] = useState(false);
@@ -44,13 +45,15 @@ export default function CollectionPage() {
     catch (e) { if (generation.current === token) setMessage(e instanceof Error ? e.message : "Stockfish chưa sẵn sàng."); }
     finally { if (generation.current === token) setAnalyzing(false); }
   }
-  return <main className={styles.page}><header><Link href="/">← Quét sách & phân tích</Link><Link href="/realms">Bát Quái Bí Cảnh →</Link></header><h1>Tàng Kinh Các</h1><p>Thế cờ bạn chọn từ sách và Lichess. Gắn nhãn để tìm lại theo chủ đề.</p>
-    <section className={styles.panel}><label>Tìm tên, chủ đề hoặc ghi chú<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Ví dụ: ghim quân, tàn cuộc…" /></label><p role="status">{loading ? "Đang tải…" : message}</p>{message.includes("Không tải") && <button onClick={() => void load()}>Thử lại</button>}
+  return <main className={`${styles.page} ${archive.archive}`}><header><Link href="/">← Quét sách & phân tích</Link><Link href="/realms">Bát Quái Bí Cảnh →</Link></header>
+    <div className={archive.hero}><div><span className={archive.eyebrow}>KỲ PHỔ ĐẠO CÁC · LƯU GIỮ KỲ THẾ</span><h1>Tàng Kinh Các</h1><p>Thế cờ bạn chọn từ sách và Lichess. Gắn nhãn để tìm lại theo chủ đề.</p></div><div className={archive.heroMark} aria-hidden="true">藏</div></div>
+    <section className={`${styles.panel} ${archive.shelf}`}><div className={archive.shelfHead}><div><span className={archive.eyebrow}>KỆ CỔ THƯ</span><h2>{items.length} kỳ thế đã lưu</h2></div><span className={archive.shelfOrnament} aria-hidden="true">✦ ── ✦</span></div><label>Tìm tên, chủ đề hoặc ghi chú<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Ví dụ: ghim quân, tàn cuộc…" /></label><p role="status">{loading ? "Đang tải…" : message}</p>{message.includes("Không tải") && <button onClick={() => void load()}>Thử lại</button>}
       {!loading && !items.length && !message && <p>Chưa có thế cờ. Bấm “Lưu Tàng Kinh Các” trong màn phân tích sách hoặc Bí Cảnh.</p>}
       {!loading && items.length > 0 && !filteredItems.length && <p>Không tìm thấy thế cờ phù hợp với từ khóa.</p>}
-      <div className={styles.list}>{filteredItems.map(item => <button key={item.id} disabled={saving} aria-pressed={selected?.id === item.id} onClick={() => select(item)}><strong>{item.title}</strong><p>{item.source === "book" ? "Từ sách" : "Lichess"} · {item.themes || "Chưa gắn nhãn"}</p></button>)}</div>
+      <div className={styles.list}>{filteredItems.map((item, index) => <button className={archive.volume} key={item.id} disabled={saving} aria-pressed={selected?.id === item.id} onClick={() => select(item)}><span className={archive.volumeNumber}>{String(index + 1).padStart(2, "0")} / {item.source === "book" ? "KỲ PHỔ" : "LICHESS"}</span><span className={archive.volumeSeal} aria-hidden="true">棋</span><strong>{item.title}</strong><p>{item.themes || "Chưa gắn nhãn"}</p><span className={archive.volumeAction}>Mở kỳ thế ↗</span></button>)}</div>
     </section>
-    {selected && <section className={styles.training}><div className={styles.panel}><Chessboard options={{ id: "collection-board", position: selected.fen, allowDragging: false }} /></div><div className={styles.panel}>
+    {selected && <section className={styles.training}><div className={`${styles.panel} ${archive.boardFrame}`}><Chessboard options={{ id: "collection-board", position: selected.fen, allowDragging: false }} /></div><div className={`${styles.panel} ${archive.notePanel}`}>
+      <span className={archive.eyebrow}>CHÚ GIẢI KỲ THẾ</span>
       <label>Tên thế cờ<input maxLength={200} value={selected.title} onChange={e => setSelected({ ...selected, title: e.target.value })} /></label><label>Chủ đề (phân cách bằng dấu phẩy)<input maxLength={500} value={selected.themes} onChange={e => setSelected({ ...selected, themes: e.target.value })} /></label><label>Ghi chú<textarea maxLength={3000} rows={5} value={selected.note} onChange={e => setSelected({ ...selected, note: e.target.value })} /></label>
       {dirty && <p role="status">Có thay đổi chưa lưu.</p>}
       <button disabled={saving || !selected.title.trim() || !dirty} onClick={() => void save()}>{saving ? "Đang lưu…" : "Lưu ghi chú"}</button><button disabled={analyzing} onClick={() => void analyze()}>{analyzing ? "Đang phân tích…" : "Phân tích Stockfish"}</button>
