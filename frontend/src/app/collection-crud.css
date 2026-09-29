@@ -1,0 +1,163 @@
+/* CRUD controls for Tàng Kinh Các. Kept global so page.tsx can combine them with CSS-module styles. */
+
+.collectionFolderRow,
+.collectionGameRow,
+.collectionPositionRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.collectionRowActions {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+}
+
+.collectionRowActions button,
+.collectionDeleteMini {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  border: 1px solid rgba(83, 107, 98, .16);
+  background: rgba(255,255,255,.56);
+  color: #53635f;
+  cursor: pointer;
+  font-weight: 800;
+  transition: background .16s ease, transform .16s ease, border-color .16s ease;
+}
+
+.collectionRowActions button:hover,
+.collectionDeleteMini:hover {
+  transform: translateY(-1px);
+  background: rgba(255,255,255,.88);
+  border-color: rgba(77,111,100,.30);
+}
+
+.collectionRowActions button.danger,
+.collectionDeleteMini {
+  color: #a45450;
+}
+
+.collectionGameRow,
+.collectionPositionRow {
+  border-bottom: 1px solid rgba(89,106,98,.09);
+}
+
+.collectionGameRow > button:first-child,
+.collectionPositionRow > button:first-child {
+  border-bottom: 0 !important;
+}
+
+.collectionDeleteMini {
+  align-self: center;
+  margin-right: 6px;
+}
+
+.collectionEditSheet {
+  display: grid;
+  gap: 10px;
+  margin-top: 13px;
+  padding: 13px;
+  border: 1px solid rgba(87,112,101,.18);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(255,255,255,.56), rgba(241,247,238,.46));
+  box-shadow: inset 0 1px rgba(255,255,255,.56);
+}
+
+.collectionEditSheet.wide {
+  margin: 0 0 16px;
+}
+
+.collectionEditSheet > strong,
+.collectionEditTitle strong {
+  color: #3d5b56;
+  font: 700 14px/1.2 Cambria, Georgia, serif;
+}
+
+.collectionEditSheet label,
+.collectionEditGrid label {
+  display: grid;
+  gap: 5px;
+  color: #6b766f;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .035em;
+}
+
+.collectionEditSheet input,
+.collectionEditSheet textarea,
+.collectionEditSheet select,
+.collectionEditGrid input,
+.collectionEditGrid select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid rgba(97,113,105,.18);
+  border-radius: 10px;
+  background: rgba(255,255,255,.75);
+  color: #364b47;
+  padding: 9px 10px;
+  outline: none;
+  font: inherit;
+  font-size: 11px;
+}
+
+.collectionEditSheet textarea {
+  resize: vertical;
+}
+
+.collectionEditSheet input:focus,
+.collectionEditSheet textarea:focus,
+.collectionEditSheet select:focus,
+.collectionEditGrid input:focus,
+.collectionEditGrid select:focus {
+  border-color: rgba(78,116,110,.52);
+  box-shadow: 0 0 0 3px rgba(78,116,110,.08);
+}
+
+.collectionEditTitle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.collectionEditTitle span {
+  color: #89918b;
+  font-size: 9px;
+}
+
+.collectionEditGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.collectionEditGrid .span2 {
+  grid-column: 1 / -1;
+}
+
+.collectionInlineActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .collectionEditGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .collectionEditGrid .span2 {
+    grid-column: auto;
+  }
+
+  .collectionEditTitle {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
