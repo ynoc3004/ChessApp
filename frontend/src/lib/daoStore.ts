@@ -52,6 +52,44 @@ export function fallbackDaoPaths(): ManagedDaoPath[] {
   }));
 }
 
+function pathPayload(path: ManagedDaoPath) {
+  return {
+    name: path.name,
+    han: path.han,
+    epithet: path.epithet,
+    intro: path.intro,
+    doctrine: path.doctrine,
+    order: path.order,
+  };
+}
+
+function modulePayload(module: ManagedDaoModule) {
+  return {
+    title: module.title,
+    subtitle: module.subtitle,
+    description: module.description,
+    themes: module.themes,
+    puzzleTheme: module.puzzleTheme,
+    order: module.order,
+  };
+}
+
+async function writeDefaultTreeIfEmpty() {
+  if (!firestore) return;
+  const existing = await getDocs(collection(firestore, "daoPaths"));
+  if (!existing.empty) return;
+
+  for (const path of fallbackDaoPaths()) {
+    await setDoc(doc(firestore, "daoPaths", path.slug), pathPayload(path));
+    for (const module of path.modules) {
+      await setDoc(
+        doc(firestore, "daoPaths", path.slug, "modules", module.id),
+        modulePayload(module),
+      );
+    }
+  }
+}
+
 export async function loadDaoPaths(): Promise<ManagedDaoPath[]> {
   if (!firestore) return fallbackDaoPaths();
 
@@ -125,40 +163,34 @@ export async function seedDaoPaths() {
   if (!firestore) throw new Error("Firebase chưa được cấu hình.");
   const defaults = fallbackDaoPaths();
   for (const path of defaults) {
-    await saveDaoPath(path);
-    for (const module of path.modules) await saveDaoModule(path.slug, module);
+    await setDoc(doc(firestore, "daoPaths", path.slug), pathPayload(path), { merge: true });
+    for (const module of path.modules) {
+      await setDoc(
+        doc(firestore, "daoPaths", path.slug, "modules", module.id),
+        modulePayload(module),
+        { merge: true },
+      );
+    }
   }
   return defaults.length;
 }
 
 export async function saveDaoPath(path: ManagedDaoPath) {
   if (!firestore) throw new Error("Firebase chưa được cấu hình.");
+  await writeDefaultTreeIfEmpty();
   await setDoc(
     doc(firestore, "daoPaths", path.slug),
-    {
-      name: path.name,
-      han: path.han,
-      epithet: path.epithet,
-      intro: path.intro,
-      doctrine: path.doctrine,
-      order: path.order,
-    },
+    pathPayload(path),
     { merge: true },
   );
 }
 
 export async function saveDaoModule(pathSlug: string, module: ManagedDaoModule) {
   if (!firestore) throw new Error("Firebase chưa được cấu hình.");
+  await writeDefaultTreeIfEmpty();
   await setDoc(
     doc(firestore, "daoPaths", pathSlug, "modules", module.id),
-    {
-      title: module.title,
-      subtitle: module.subtitle,
-      description: module.description,
-      themes: module.themes,
-      puzzleTheme: module.puzzleTheme,
-      order: module.order,
-    },
+    modulePayload(module),
     { merge: true },
   );
 }
@@ -169,6 +201,7 @@ export async function saveDaoLesson(
   lesson: ManagedDaoLesson,
 ) {
   if (!firestore) throw new Error("Firebase chưa được cấu hình.");
+  await writeDefaultTreeIfEmpty();
   await setDoc(
     doc(
       firestore,
