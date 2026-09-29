@@ -473,7 +473,7 @@ export default function HomePage() {
                     </p>
                   </div>
                   <div className={styles.actions}>
-                    <a className={styles.button} href={resolveImageUrl(position.imageUrl)} download target="_blank" rel="noreferrer">Tải ảnh</a>
+                    <a className={styles.button} href={`${API_BASE}/api/books/${jobId}/positions/${position.id}/download`} download>Tải ảnh</a>
                     <Link
                       className={styles.button + " " + styles.primaryLink}
                       href={`/analysis?job=${jobId}&position=${position.id}&image=${encodeURIComponent(position.imageUrl)}`}

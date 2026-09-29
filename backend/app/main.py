@@ -553,6 +553,12 @@ def get_position_variants(job_id: str, position_id: int):
     }
 
 
+@app.get("/api/books/{job_id}/positions/{position_id}/download")
+def download_position_image(job_id: str, position_id: int):
+    image_path, _ = _position_paths(job_id, position_id)
+    return FileResponse(image_path, media_type="image/png", filename=image_path.name)
+
+
 @app.get("/api/learning/stats")
 def learning_stats():
     metadata_files = list(LEARNING_DIR.glob("*.json"))
