@@ -35,7 +35,9 @@ export async function analyzeWithBrowserStockfish(
   fen: string,
   depth = 16,
   multipv = 3,
+  signal?: AbortSignal,
 ): Promise<LocalEngineLine[]> {
+  if (signal?.aborted) throw new DOMException("Đã hủy phân tích.", "AbortError");
   if (typeof Worker === "undefined") {
     throw new Error("Trình duyệt này không hỗ trợ Web Worker.");
   }
@@ -47,8 +49,12 @@ export async function analyzeWithBrowserStockfish(
     let settled = false;
 
     const cleanup = () => {
+      signal?.removeEventListener("abort", abort);
       worker.terminate();
     };
+
+    const abort = () => fail(new DOMException("Đã hủy phân tích.", "AbortError"));
+    signal?.addEventListener("abort", abort, { once: true });
 
     const timeout = window.setTimeout(() => {
       if (settled) return;
@@ -123,5 +129,6 @@ export async function analyzeWithBrowserStockfish(
     };
 
     worker.postMessage("uci");
+    if (signal?.aborted) abort();
   });
 }

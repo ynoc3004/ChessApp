@@ -189,6 +189,7 @@ export default function AnalysisClient({
   const boardCaptureRef = useRef<HTMLDivElement | null>(null);
   const trialOriginRef = useRef<string | null>(null);
   const engineRequestRef = useRef(0);
+  const engineAbortRef = useRef<AbortController | null>(null);
 
   const fen = useMemo(
     () => buildFen(placement, sideToMove, castling, enPassant),
@@ -689,18 +690,31 @@ export default function AnalysisClient({
 
   const runEngine = useCallback(
     async (targetFen: string, quiet = false) => {
+      engineAbortRef.current?.abort();
+      engineAbortRef.current = null;
+      const requestId = ++engineRequestRef.current;
       const validation = validateFen(targetFen);
       if (!validation.valid) {
         if (!quiet) setMessage(validation.reason);
+        setAnalyzing(false);
         return;
       }
 
-      const requestId = ++engineRequestRef.current;
+      const game = new Chess(targetFen);
+      if (game.isGameOver()) {
+        setLines([]);
+        setAnalyzing(false);
+        setMessage(game.isCheckmate() ? "Thế cờ đã chiếu hết." : "Ván cờ đã hòa hoặc kết thúc.");
+        return;
+      }
+
+      const controller = new AbortController();
+      engineAbortRef.current = controller;
       setAnalyzing(true);
       if (!quiet) setMessage("Tâm pháp Stockfish đang vận chuyển trên máy…");
 
       try {
-        const result = await analyzeWithBrowserStockfish(targetFen, engineDepth, 3);
+        const result = await analyzeWithBrowserStockfish(targetFen, engineDepth, 3, controller.signal);
         if (requestId !== engineRequestRef.current) return;
         setLines(result);
         if (!quiet) {
@@ -718,18 +732,40 @@ export default function AnalysisClient({
           );
         }
       } finally {
-        if (requestId === engineRequestRef.current) setAnalyzing(false);
+        if (requestId === engineRequestRef.current) {
+          engineAbortRef.current = null;
+          setAnalyzing(false);
+        }
       }
     },
     [engineDepth],
   );
 
   useEffect(() => {
-    if (activeTab !== "engine" || !engineAuto || !engineLegal) return;
+    return () => {
+      engineAbortRef.current?.abort();
+      ++engineRequestRef.current;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== "engine" || !engineAuto || !engineLegal) {
+      engineAbortRef.current?.abort();
+      engineAbortRef.current = null;
+      ++engineRequestRef.current;
+      setAnalyzing(false);
+      return;
+    }
+    setAnalyzing(false);
     const timer = window.setTimeout(() => {
       void runEngine(engineFen, true);
     }, 320);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      engineAbortRef.current?.abort();
+      engineAbortRef.current = null;
+      ++engineRequestRef.current;
+    };
   }, [activeTab, engineAuto, engineFen, engineLegal, engineDepth, runEngine]);
 
   const squareStyles = exactBoardParityStyles();
