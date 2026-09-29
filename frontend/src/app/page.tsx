@@ -74,7 +74,10 @@ export default function HomePage() {
     setPositions(book.positions);
     setPageQuery("");
     setGalleryPage(1);
+    setManualOpen(false);
+    setManualPage(1);
     setManualSelection(null);
+    setManualDragging(false);
     window.localStorage.setItem("chessBookReader:lastJobId", book.jobId);
   }
 
@@ -84,7 +87,9 @@ export default function HomePage() {
     try {
       const response = await fetch(`${API_BASE}/api/books/${book.jobId}`);
       if (!response.ok) throw new Error("Không mở được sách.");
-      openBook((await response.json()) as UploadResponse);
+      const openedBook = (await response.json()) as UploadResponse;
+      setScanJob(null);
+      openBook(openedBook);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không mở được sách.");
     } finally {
@@ -279,6 +284,13 @@ export default function HomePage() {
         setFilename("");
         setSkippedVectorImages(0);
         setPositions([]);
+        setScanJob(null);
+        setPageQuery("");
+        setGalleryPage(1);
+        setManualOpen(false);
+        setManualPage(1);
+        setManualSelection(null);
+        setManualDragging(false);
         window.localStorage.removeItem("chessBookReader:lastJobId");
       }
       await loadRecentBooks();
