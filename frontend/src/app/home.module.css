@@ -70,7 +70,20 @@
 .error { background: #fff1ed; color: #a13e2c; border-radius: 8px; padding: 12px; font-size: 13px; line-height: 1.6; }
 .notice { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #f8e4c8; color: #736342; border-radius: 9px; padding: 14px; font-size: 12px; line-height: 1.7; }
 .notice .button { flex-shrink: 0; }
-.scanProgress { background: #f8ead5; padding: 16px; border-radius: 12px; }
+.scanProgress { position: relative; overflow: hidden; background: linear-gradient(145deg,#fff4dfa8,#f3dabae8); padding: 20px; border: 1px solid #d6b88a; border-radius: 18px; box-shadow: inset 0 1px #fff7e5, 0 12px 30px #6c493a1c; }
+.scanProgress > :not(.scanScene) { position: relative; z-index: 1; }
+.scanScene { position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: .8; }
+.scanMoon { position: absolute; right: 8%; top: -55px; width: 165px; height: 165px; border-radius: 50%; background: radial-gradient(circle,#fffdf2 18%,#ffe6a477 48%,transparent 72%); }
+.scanScroll { position: absolute; right: 8%; top: 52px; width: 76px; height: 106px; transform: rotate(11deg); border: 2px solid #bc966d; border-radius: 7px; background: repeating-linear-gradient(0deg,#f8e6c9 0 18px,#ebd4ae 19px 20px); box-shadow: 5px 10px 13px #654a3230; display: grid; place-items: center; color: #87694c; font: 38px Cambria,Georgia,serif; animation: scanFloat 5s ease-in-out infinite alternate; }
+.scanPage { position: absolute; right: 3%; top: 80px; width: 18px; height: 24px; border: 1px solid #d7b88b; border-radius: 3px; background: #fff3d8; transform: rotate(25deg); animation: scanPage 4s ease-in-out infinite; }
+.scanPage:nth-of-type(4) { right: 18%; top: 15px; animation-delay: -2s; }
+.scanSpark { position: absolute; right: 29%; top: 44px; color: #be975d; animation: scanGlimmer 3s ease-in-out infinite; }
+@keyframes scanFloat { to { transform: translateY(-9px) rotate(7deg); } }
+@keyframes scanPage { 50% { transform: translate(-18px, -12px) rotate(-10deg); opacity: .45; } }
+@keyframes scanGlimmer { 50% { opacity: .25; transform: scale(.6); } }
+.scanMilestones { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.scanMilestones span { padding: 6px 9px; border: 1px solid #c7ab8580; border-radius: 999px; background: #fff7e477; color: #776251; font-size: 10px; }
+.scanMilestones [aria-current=step] { background: #855642; border-color: #855642; color: #fff4dc; box-shadow: 0 0 0 3px #c9955360; }
 .cultivationHeader { display: flex; align-items: center; gap: 12px; }
 .realmSeal { font-size: 26px; }
 .cultivationHeader > div:nth-child(2) { display: grid; gap: 5px; flex: 1; }
@@ -87,7 +100,8 @@
 .pageSearch > div, .galleryActions { display: flex; flex-wrap: wrap; gap: 8px; }
 .pageSearch input { width: 110px; border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 10px; }
 .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
-.card { border: 1px solid var(--line); border-radius: 13px; background: #fff3e3d9; overflow: hidden; }
+.card { border: 1px solid var(--line); border-radius: 13px; background: #fff3e3d9; overflow: hidden; animation: revealKifu .45s ease-out both; }
+@keyframes revealKifu { from { opacity: 0; transform: translateY(12px); } }
 .imageWrap { aspect-ratio: 1; background: #ead8bd; padding: 14px; display: grid; place-items: center; }
 .imageWrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .cardBody { padding: 15px; display: grid; gap: 14px; }

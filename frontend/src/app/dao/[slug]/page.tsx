@@ -62,7 +62,7 @@ export default async function DaoPathPage({
               <h2 id="dao-modules-title">Lục cảnh tu tập</h2>
             </div>
             <div className={styles.sectionNote}>
-              Mỗi cảnh đối ứng nhất tổ kỳ thế chuyên tu. Hậu tục khả trực tiếp tuyển đề từ Lichess kỳ trận khố cùng Tàng Kinh Kỳ Thế.
+              Mỗi cảnh có kỳ thế Lichess liên quan để luyện ngay. Chủ đề câu đố giúp thực hành chiến thuật, còn đạo quyết là phần định hướng học.
             </div>
           </div>
 
@@ -79,6 +79,13 @@ export default async function DaoPathPage({
                 <div className={styles.tags} aria-label={`${module.title} chủ đề`}>
                   {module.themes.map((theme) => <span key={theme}>{theme}</span>)}
                 </div>
+                <Link
+                  className={styles.practiceLink}
+                  href={`/realms?path=${path.slug}&module=${index + 1}`}
+                  aria-label={`Luyện thế Lichess liên quan đến ${module.title}`}
+                >
+                  Luyện kỳ thế liên quan <span aria-hidden="true">↗</span>
+                </Link>
               </article>
             ))}
           </div>
@@ -88,13 +95,13 @@ export default async function DaoPathPage({
           <article className={styles.sourceCard}>
             <strong>Lichess Kỳ Trận Khố</strong>
             <p>
-              Dùng vi đại lượng luyện tập nguyên lưu. Mỗi đạo lộ dĩ chủ đề tuyển kỳ thế; hậu tục khả thêm độ khó, ký lục sai đề cùng phục tập pháp.
+              Mỗi cảnh mở kho câu đố theo chủ đề gần với nội dung học; bạn có thể chỉnh rating và lưu thế hay vào Tàng Kinh Các.
             </p>
           </article>
           <article className={styles.sourceCard}>
             <strong>Tàng Kinh Kỳ Thế</strong>
             <p>
-              Kỳ thế do ngươi tự kỳ phổ khai xuất sẽ khả nhập đạo lộ tương ứng, bảo tồn cổ phổ trang, FEN, Stockfish diễn toán cùng cá nhân chú giải.
+              Kỳ thế bạn lưu từ sách vẫn ở Tàng Kinh Các cùng nguồn, FEN và ghi chú để xem lại hoặc phân tích.
             </p>
           </article>
         </section>
