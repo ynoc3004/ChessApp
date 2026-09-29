@@ -2,6 +2,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   setDoc,
 } from "firebase/firestore";
@@ -74,27 +75,11 @@ function modulePayload(module: ManagedDaoModule) {
   };
 }
 
-async function writeDefaultTreeIfEmpty() {
-  if (!firestore) return;
-  const existing = await getDocs(collection(firestore, "daoPaths"));
-  if (!existing.empty) return;
-
-  for (const path of fallbackDaoPaths()) {
-    await setDoc(doc(firestore, "daoPaths", path.slug), pathPayload(path));
-    for (const module of path.modules) {
-      await setDoc(
-        doc(firestore, "daoPaths", path.slug, "modules", module.id),
-        modulePayload(module),
-      );
-    }
-  }
-}
-
 export async function loadDaoPaths(): Promise<ManagedDaoPath[]> {
   if (!firestore) return fallbackDaoPaths();
 
   const pathSnapshot = await getDocs(collection(firestore, "daoPaths"));
-  if (pathSnapshot.empty) return fallbackDaoPaths();
+  if (pathSnapshot.empty) return [];
 
   const paths = await Promise.all(
     pathSnapshot.docs.map(async (pathDoc) => {
@@ -163,13 +148,11 @@ export async function seedDaoPaths() {
   if (!firestore) throw new Error("Firebase chưa được cấu hình.");
   const defaults = fallbackDaoPaths();
   for (const path of defaults) {
-    await setDoc(doc(firestore, "daoPaths", path.slug), pathPayload(path), { merge: true });
+    const pathRef = doc(firestore, "daoPaths", path.slug);
+    if (!(await getDoc(pathRef)).exists()) await setDoc(pathRef, pathPayload(path));
     for (const module of path.modules) {
-      await setDoc(
-        doc(firestore, "daoPaths", path.slug, "modules", module.id),
-        modulePayload(module),
-        { merge: true },
-      );
+      const moduleRef = doc(firestore, "daoPaths", path.slug, "modules", module.id);
+      if (!(await getDoc(moduleRef)).exists()) await setDoc(moduleRef, modulePayload(module));
     }
   }
   return defaults.length;
@@ -177,7 +160,6 @@ export async function seedDaoPaths() {
 
 export async function saveDaoPath(path: ManagedDaoPath) {
   if (!firestore) throw new Error("Firebase chưa được cấu hình.");
-  await writeDefaultTreeIfEmpty();
   await setDoc(
     doc(firestore, "daoPaths", path.slug),
     pathPayload(path),
@@ -187,7 +169,6 @@ export async function saveDaoPath(path: ManagedDaoPath) {
 
 export async function saveDaoModule(pathSlug: string, module: ManagedDaoModule) {
   if (!firestore) throw new Error("Firebase chưa được cấu hình.");
-  await writeDefaultTreeIfEmpty();
   await setDoc(
     doc(firestore, "daoPaths", pathSlug, "modules", module.id),
     modulePayload(module),
@@ -201,7 +182,6 @@ export async function saveDaoLesson(
   lesson: ManagedDaoLesson,
 ) {
   if (!firestore) throw new Error("Firebase chưa được cấu hình.");
-  await writeDefaultTreeIfEmpty();
   await setDoc(
     doc(
       firestore,
