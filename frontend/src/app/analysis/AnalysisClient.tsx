@@ -21,6 +21,7 @@ import {
 } from "react-chessboard";
 import { API_BASE, type Position, type UploadResponse } from "@/lib/api";
 import { validateFen } from "@/lib/validateFen";
+import { moveFen, promotionRequired } from "@/lib/trialMoves";
 import {
   buildFen,
   chessComAnalysisUrl,
@@ -173,13 +174,15 @@ export default function AnalysisClient({
   const [hasTrialMoves, setHasTrialMoves] = useState(false);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [paintPiece, setPaintPiece] = useState<string | null | undefined>(undefined);
-  const [history, setHistory] = useState<string[]>([]);
+  const [history, setHistory] = useState<{ fen: string; trial: boolean }[]>([]);
+  const [promotion, setPromotion] = useState<{ from: string; to: string; board: "main" | "engine" } | null>(null);
   const [activeTab, setActiveTab] = useState<PanelTab>("edit");
 
   const [lines, setLines] = useState<LocalEngineLine[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [engineDepth, setEngineDepth] = useState(16);
   const [engineFen, setEngineFen] = useState(START_FEN);
+  const [engineHistory, setEngineHistory] = useState<string[]>([]);
   const [engineAuto, setEngineAuto] = useState(true);
 
   const [bookPositions, setBookPositions] = useState<Position[]>([]);
@@ -240,13 +243,15 @@ export default function AnalysisClient({
   useEffect(() => {
     if (activeTab !== "engine") return;
     setEngineFen(fen);
+    setEngineHistory([]);
+    setPromotion(null);
     setLines([]);
   }, [activeTab, fen]);
 
   function commitPlacement(next: string, addHistory = true) {
     if (next === placement) return;
     if (addHistory) {
-      setHistory((items) => [...items.slice(-39), placement]);
+      setHistory((items) => [...items.slice(-39), { fen, trial: hasTrialMoves }]);
     }
     setPlacement(next);
     setLines([]);
@@ -281,6 +286,7 @@ export default function AnalysisClient({
       setCastling("-");
       setEnPassant("-");
       setHistory([]);
+      setPromotion(null);
       setHasTrialMoves(false);
       trialOriginRef.current = null;
       setSelectedSquare(null);
@@ -297,6 +303,7 @@ export default function AnalysisClient({
     setCastling(parsed.castling);
     setEnPassant(parsed.enPassant);
     setHistory([]);
+    setPromotion(null);
     setHasTrialMoves(false);
     trialOriginRef.current = null;
     setSelectedSquare(null);
@@ -496,6 +503,7 @@ export default function AnalysisClient({
       setCastling(parsed.castling);
       setEnPassant(parsed.enPassant);
       setHistory([]);
+      setPromotion(null);
       setLines([]);
       setWarnings([]);
       const result = validateFen(buildFen(parsed.placement, parsed.sideToMove, parsed.castling, parsed.enPassant));
@@ -511,6 +519,8 @@ export default function AnalysisClient({
   }
 
   function chooseSide(next: "w" | "b") {
+    if (next === sideToMove) return;
+    setHistory((items) => [...items.slice(-39), { fen, trial: hasTrialMoves }]);
     setSideToMove(next);
     setLines([]);
   }
@@ -521,6 +531,7 @@ export default function AnalysisClient({
     if (current.has(right)) current.delete(right);
     else current.add(right);
     const next = order.filter((item) => current.has(item)).join("");
+    setHistory((items) => [...items.slice(-39), { fen, trial: hasTrialMoves }]);
     setCastling(next || "-");
     setLines([]);
   }
@@ -541,17 +552,30 @@ export default function AnalysisClient({
     }
 
     try {
-      const game = new Chess(fen);
-      game.move({ from: sourceSquare, to: targetSquare, promotion: "q" });
+      if (promotionRequired(fen, sourceSquare, targetSquare)) {
+        setPromotion({ from: sourceSquare, to: targetSquare, board: "main" });
+        return false;
+      }
+      return applyTrialMove(sourceSquare, targetSquare);
+    } catch {
+      setMessage("Nước đi không hợp lệ.");
+      return false;
+    }
+  }
+
+  function applyTrialMove(from: string, to: string, promotionPiece?: string): boolean {
+    try {
+      const nextFen = moveFen(fen, from, to, promotionPiece);
       if (!hasTrialMoves) trialOriginRef.current = fen;
+      setHistory((items) => [...items.slice(-39), { fen, trial: hasTrialMoves }]);
       setHasTrialMoves(true);
-      const parsed = parseFen(game.fen());
+      const parsed = parseFen(nextFen);
       setPlacement(parsed.placement);
       setSideToMove(parsed.sideToMove);
       setCastling(parsed.castling);
       setEnPassant(parsed.enPassant);
       setLines([]);
-      setSelectedSquare(targetSquare);
+      setSelectedSquare(to);
       return true;
     } catch {
       setMessage("Nước đi không hợp lệ.");
@@ -562,14 +586,24 @@ export default function AnalysisClient({
   function onEnginePieceDrop({ sourceSquare, targetSquare }: PieceDropHandlerArgs) {
     if (!targetSquare || sourceSquare === targetSquare) return false;
     try {
-      const game = new Chess(engineFen);
-      game.move({ from: sourceSquare, to: targetSquare, promotion: "q" });
-      setEngineFen(game.fen());
-      setLines([]);
-      return true;
+      if (promotionRequired(engineFen, sourceSquare, targetSquare)) {
+        setPromotion({ from: sourceSquare, to: targetSquare, board: "engine" });
+        return false;
+      }
+      return applyEngineMove(sourceSquare, targetSquare);
     } catch {
       return false;
     }
+  }
+
+  function applyEngineMove(from: string, to: string, promotionPiece?: string): boolean {
+    try {
+      const nextFen = moveFen(engineFen, from, to, promotionPiece);
+      setEngineHistory((items) => [...items.slice(-39), engineFen]);
+      setEngineFen(nextFen);
+      setLines([]);
+      return true;
+    } catch { return false; }
   }
 
   function choosePaintPiece(piece: string | null) {
@@ -583,8 +617,15 @@ export default function AnalysisClient({
   function undoEdit() {
     const previous = history.at(-1);
     if (!previous) return;
-    setPlacement(previous);
+    const parsed = parseFen(previous.fen);
+    setPlacement(parsed.placement);
+    setSideToMove(parsed.sideToMove);
+    setCastling(parsed.castling);
+    setEnPassant(parsed.enPassant);
+    setHasTrialMoves(previous.trial);
+    if (!previous.trial) trialOriginRef.current = null;
     setHistory((items) => items.slice(0, -1));
+    setPromotion(null);
     setLines([]);
   }
 
@@ -831,7 +872,7 @@ export default function AnalysisClient({
     boardOrientation,
     onPieceDrop,
     onSquareClick,
-    allowDragging: true,
+    allowDragging: !promotion,
     dragActivationDistance: 3,
     allowDrawingArrows: !editMode,
     showNotation: true,
@@ -852,7 +893,7 @@ export default function AnalysisClient({
     position: engineFen,
     boardOrientation,
     onPieceDrop: onEnginePieceDrop,
-    allowDragging: true,
+    allowDragging: !promotion,
     dragActivationDistance: 3,
     allowDrawingArrows: true,
     showNotation: true,
@@ -1023,6 +1064,14 @@ export default function AnalysisClient({
               <Chessboard options={boardOptions} />
             </div>
           </div>
+          {promotion?.board === "main" && (
+            <div role="group" aria-label="Chọn quân phong cấp">
+              {([ ["q", "Hậu"], ["r", "Xe"], ["b", "Tượng"], ["n", "Mã"] ] as const).map(([piece, label]) => (
+                <button key={piece} onClick={() => { applyTrialMove(promotion.from, promotion.to, piece); setPromotion(null); }}>{label}</button>
+              ))}
+              <button onClick={() => setPromotion(null)}>Hủy</button>
+            </div>
+          )}
 
           <div className="boardQuickbar">
             <div className="segmented miniSegmented">
@@ -1321,12 +1370,26 @@ export default function AnalysisClient({
                     <Chessboard options={engineBoardOptions} />
                   </div>
                 </div>
+                {promotion?.board === "engine" && (
+                  <div role="group" aria-label="Chọn quân phong cấp">
+                    {([ ["q", "Hậu"], ["r", "Xe"], ["b", "Tượng"], ["n", "Mã"] ] as const).map(([piece, label]) => (
+                      <button key={piece} onClick={() => { applyEngineMove(promotion.from, promotion.to, piece); setPromotion(null); }}>{label}</button>
+                    ))}
+                    <button onClick={() => setPromotion(null)}>Hủy</button>
+                  </div>
+                )}
 
                 <div className="engineBoardActions">
+                  <button className="button compactButton" disabled={!engineHistory.length} onClick={() => {
+                    setEngineFen(engineHistory.at(-1)!);
+                    setEngineHistory((items) => items.slice(0, -1));
+                    setLines([]);
+                  }}>Hồi chiêu</button>
                   <button
                     className="button compactButton"
                     onClick={() => {
                       setEngineFen(fen);
+                      setEngineHistory([]);
                       setLines([]);
                     }}
                   >
