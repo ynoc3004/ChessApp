@@ -69,6 +69,7 @@ class BoardCornersPayload(BaseModel):
 
 class SavePositionRequest(BaseModel):
     fen: str
+    trialMove: bool = False
     aiFen: str | None = None
     imageOrientation: str | None = None
     recognizer: str | None = None
@@ -588,6 +589,11 @@ def get_corrected_position(job_id: str, position_id: int):
 
 @app.put("/api/books/{job_id}/positions/{position_id}")
 def save_corrected_position(job_id: str, position_id: int, req: SavePositionRequest):
+    if req.trialMove:
+        raise HTTPException(
+            status_code=400,
+            detail="Hãy khôi phục thế gốc trước khi lưu bản sửa nhận dạng.",
+        )
     try:
         board = chess.Board(req.fen)
     except ValueError as exc:

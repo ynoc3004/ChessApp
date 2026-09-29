@@ -170,6 +170,7 @@ export default function AnalysisClient({
   const [uncertainSquares, setUncertainSquares] = useState<string[]>([]);
 
   const [editMode, setEditMode] = useState(true);
+  const [hasTrialMoves, setHasTrialMoves] = useState(false);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [paintPiece, setPaintPiece] = useState<string | null | undefined>(undefined);
   const [history, setHistory] = useState<string[]>([]);
@@ -186,6 +187,7 @@ export default function AnalysisClient({
   const [saving, setSaving] = useState(false);
 
   const boardCaptureRef = useRef<HTMLDivElement | null>(null);
+  const trialOriginRef = useRef<string | null>(null);
   const engineRequestRef = useRef(0);
 
   const fen = useMemo(
@@ -278,6 +280,8 @@ export default function AnalysisClient({
       setCastling("-");
       setEnPassant("-");
       setHistory([]);
+      setHasTrialMoves(false);
+      trialOriginRef.current = null;
       setSelectedSquare(null);
       setPaintPiece(undefined);
       setLines([]);
@@ -292,6 +296,8 @@ export default function AnalysisClient({
     setCastling(parsed.castling);
     setEnPassant(parsed.enPassant);
     setHistory([]);
+    setHasTrialMoves(false);
+    trialOriginRef.current = null;
     setSelectedSquare(null);
     setPaintPiece(undefined);
     setLines([]);
@@ -536,6 +542,8 @@ export default function AnalysisClient({
     try {
       const game = new Chess(fen);
       game.move({ from: sourceSquare, to: targetSquare, promotion: "q" });
+      if (!hasTrialMoves) trialOriginRef.current = fen;
+      setHasTrialMoves(true);
       const parsed = parseFen(game.fen());
       setPlacement(parsed.placement);
       setSideToMove(parsed.sideToMove);
@@ -587,7 +595,17 @@ export default function AnalysisClient({
     setMessage("Đã hồi nguyên trận thế theo kỳ đồ AI.");
   }
 
+  function restoreBeforeTrial() {
+    if (!trialOriginRef.current) return;
+    applyFullFen(trialOriginRef.current);
+    setMessage("Đã khôi phục thế gốc trước khi thử nước.");
+  }
+
   async function saveCurrentPosition() {
+    if (hasTrialMoves) {
+      setMessage("Hãy khôi phục thế gốc trước khi lưu bản sửa nhận dạng.");
+      return;
+    }
     if (!jobId || positionId < 1 || !isLegal) return;
     setSaving(true);
     try {
@@ -598,6 +616,7 @@ export default function AnalysisClient({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             fen,
+            trialMove: hasTrialMoves,
             aiFen: recognition?.fen ?? null,
             imageOrientation,
             recognizer: recognition?.source ?? null,
@@ -940,6 +959,7 @@ export default function AnalysisClient({
               <button
                 className={!editMode ? "active" : ""}
                 onClick={() => {
+                  if (!hasTrialMoves) trialOriginRef.current = fen;
                   setEditMode(false);
                   setPaintPiece(undefined);
                 }}
@@ -1040,6 +1060,12 @@ export default function AnalysisClient({
                   themes: "",
                 }}
               />
+            )}
+            {hasTrialMoves && (
+              <div className="warningBox compactWarning" role="alert">
+                <p>Đang thử nước: thế này không còn là diagram gốc. Bạn vẫn có thể lưu vào Tàng Kinh Các.</p>
+                <button className="button" onClick={restoreBeforeTrial}>Khôi phục thế gốc</button>
+              </div>
             )}
             {activeTab === "edit" && (
               <div className="compactToolSection">
@@ -1208,7 +1234,7 @@ export default function AnalysisClient({
                   <button
                     className="button saveButton"
                     onClick={() => void saveCurrentPosition()}
-                    disabled={!isLegal || saving}
+                    disabled={!isLegal || saving || hasTrialMoves}
                   >
                     {saving
                       ? "Đang lưu…"
