@@ -846,9 +846,9 @@ export default function AnalysisClient({
   }
 
   return (
-    <main className="analysisApp">
+    <main className="analysisApp" id="main-content" tabIndex={-1}>
       <DaoAmbient />
-      <header className="analysisTopbar">
+      <div className="analysisTopbar">
         <div className="analysisBrand">
           <strong>☯ Kỳ Phổ Đạo Các</strong>
           <span>Kỳ trận #{positionId || "—"}</span>
@@ -861,22 +861,18 @@ export default function AnalysisClient({
         </div>
 
         <nav className="analysisNav">
-          <Link className="button compactButton" href="/collection">Tàng Kinh Các</Link>
           {previousPosition && (
             <Link className="button compactButton" href={analysisHref(previousPosition)}>
               ← Tiền trận
             </Link>
           )}
-          <Link className="button compactButton" href="/">
-            Tàng Các
-          </Link>
           {nextPosition && (
             <Link className="button compactButton" href={analysisHref(nextPosition)}>
               Hậu trận →
             </Link>
           )}
         </nav>
-      </header>
+      </div>
 
       <div className="analysisWorkspace">
         <section className="workspacePane sourcePane">

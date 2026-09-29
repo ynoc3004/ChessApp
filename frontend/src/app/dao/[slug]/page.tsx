@@ -17,17 +17,8 @@ export default async function DaoPathPage({
   if (!path) notFound();
 
   return (
-    <main className={styles.page} data-dao={path.slug}>
+    <main className={styles.page} data-dao={path.slug} id="main-content" tabIndex={-1}>
       <div className={styles.clouds} aria-hidden="true" />
-
-      <header className={styles.topbar}>
-        <Link className={styles.brand} href="/">Kỳ Phổ Đạo Các</Link>
-        <nav className={styles.topnav} aria-label="Đạo lộ điều hướng">
-          <Link href="/#upload">Nạp Kỳ Phổ</Link>
-          <Link href="/#library">Tàng Kinh Các</Link>
-          <Link href="/">Hồi Các</Link>
-        </nav>
-      </header>
 
       <div className={styles.shell}>
         <section className={styles.hero} data-han={path.han}>
@@ -106,10 +97,10 @@ export default async function DaoPathPage({
           </article>
         </section>
 
-        <footer className={styles.footer}>
+        <div className={styles.footer}>
           <span>{path.han} · {path.epithet}</span>
           <Link href="/">← Hồi Kỳ Phổ Đạo Các</Link>
-        </footer>
+        </div>
       </div>
     </main>
   );

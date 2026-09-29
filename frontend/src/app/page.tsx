@@ -207,20 +207,7 @@ export default function HomePage() {
   }
 
   return (
-    <main className={styles.home}>
-      <a className={styles.skipLink} href="#upload">Đến phần nhập sách</a>
-      <header className={styles.topbar}>
-        <Link className={styles.brand} href="/" aria-label="Kỳ Phổ Đạo Các — trang chủ">
-          <span className={styles.brandMark} aria-hidden="true">♞</span>
-          <span><strong>Kỳ Phổ Đạo Các</strong><small>Không gian học cờ của bạn</small></span>
-        </Link>
-        <nav className={styles.navigation} aria-label="Điều hướng chính">
-          <a href="#upload">Nhập kỳ phổ</a>
-          <a href="#library">Thư viện sách</a>
-          <Link href="/collection">Tàng Kinh Các</Link>
-          <Link href="/realms">Bí Cảnh</Link>
-        </nav>
-      </header>
+    <main className={styles.home} id="main-content" tabIndex={-1}>
       <div className={styles.content}>
       <section className={styles.hero} aria-labelledby="welcome-title">
         <div className={styles.heroCopy}>
@@ -465,7 +452,6 @@ export default function HomePage() {
           )}
         </section>
       )}
-      <footer className={styles.footer}><span>♞ Kỳ Phổ Đạo Các</span><span>Tĩnh tâm học cờ · Từng nước tiến bộ</span></footer>
       </div>
     </main>
   );

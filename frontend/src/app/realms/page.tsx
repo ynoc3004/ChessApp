@@ -97,8 +97,7 @@ export default function RealmsPage() {
     catch (e) { if (token === generation.current) setMessage(e instanceof Error ? e.message : "Stockfish chưa sẵn sàng."); }
     finally { if (token === generation.current) setAnalyzing(false); }
   }
-  return <main className={styles.page}>
-    <header><Link href="/">← Quét sách & phân tích</Link><Link href="/collection">Tàng Kinh Các →</Link></header>
+  return <main className={styles.page} id="main-content" tabIndex={-1}>
     <section className={styles.gateway}>
       <div><p className={styles.kicker}>LUYỆN TẬP BỔ SUNG · LICHESS</p><h1>Bát Quái Bí Cảnh</h1><p>Chọn một cửa, luyện từng thế. Sách và bàn phân tích của bạn vẫn ở trang chính.</p>
         {pathSelection && <p className={styles.pathContext}><Link href={`/dao/${pathSelection.slug}`}>{pathSelection.name}</Link> · {pathSelection.module} · thế luyện liên quan</p>}
