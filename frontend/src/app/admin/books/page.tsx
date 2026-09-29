@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAdmin } from "@/components/admin/AdminShell";
 import { API_BASE } from "@/lib/api";
@@ -62,7 +63,7 @@ export default function AdminBooksPage() {
   return (
     <div className={styles.page}>
       <section className={styles.hero}>
-        <div><p className={styles.eyebrow}>NỘI CÁC · KỲ PHỔ</p><h1>Quản lý sách đã quét</h1><p>Kiểm tra job quét, dung lượng, lỗi và dọn dữ liệu sách không còn cần thiết.</p></div>
+        <div><p className={styles.eyebrow}>NỘI CÁC · KỲ PHỔ</p><h1>Quản lý sách đã quét</h1><p>Kiểm tra từng diagram, trạng thái AI, bản sửa FEN, quét lại, export và dọn dữ liệu trực tiếp.</p></div>
         <button className={styles.refresh} disabled={loading} onClick={() => void load()}>↻ Làm mới</button>
       </section>
 
@@ -87,7 +88,7 @@ export default function AdminBooksPage() {
                 <td>{book.count.toLocaleString("vi-VN")}</td>
                 <td>{formatBytes(book.sourceBytes + book.dataBytes)}<div className={styles.muted}>nguồn {formatBytes(book.sourceBytes)}</div></td>
                 <td>{formatTime(book.updatedAt)}</td>
-                <td><div className={styles.actions}><a className={styles.button} href={`${API_BASE}/api/books/${book.jobId}/download`}>ZIP</a><a className={styles.button} href={`${API_BASE}/api/books/${book.jobId}/recognized.json`}>FEN</a><button className={styles.danger} disabled={deleting === book.jobId} onClick={() => void remove(book)}>{deleting === book.jobId ? "Đang xóa…" : "Xóa"}</button></div></td>
+                <td><div className={styles.actions}><Link className={styles.button} href={`/admin/books/${book.jobId}`}>Mở quản trị</Link><a className={styles.button} href={`${API_BASE}/api/books/${book.jobId}/download`}>ZIP</a><a className={styles.button} href={`${API_BASE}/api/books/${book.jobId}/recognized.json`}>FEN</a><button className={styles.danger} disabled={deleting === book.jobId} onClick={() => void remove(book)}>{deleting === book.jobId ? "Đang xóa…" : "Xóa"}</button></div></td>
               </tr>
             ))}
             {!loading && filtered.length === 0 && <tr><td colSpan={6}><div className={styles.empty}>Không có kỳ phổ phù hợp.</div></td></tr>}

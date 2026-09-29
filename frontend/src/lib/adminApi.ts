@@ -23,6 +23,49 @@ export type AdminBook = {
   dataBytes: number;
 };
 
+export type AdminBookPosition = {
+  id: number;
+  page?: number | null;
+  confidence?: number | null;
+  imageUrl: string;
+  hasImage: boolean;
+  imageBytes: number;
+  state: "pending" | "recognized" | "corrected";
+  recognized: boolean;
+  corrected: boolean;
+  aiFen?: string | null;
+  savedFen?: string | null;
+  averageConfidence?: number | null;
+  suggestedOrientation?: string | null;
+  uncertainSquares: string[];
+  savedAt?: number | null;
+  recognitionUpdatedAt?: number | null;
+  variantCount: number;
+};
+
+export type AdminBookDetail = {
+  jobId: string;
+  filename: string;
+  status: string;
+  progress: number;
+  error?: string | null;
+  count: number;
+  updatedAt: number;
+  source: {
+    available: boolean;
+    extension?: string | null;
+    bytes: number;
+  };
+  dataBytes: number;
+  stats: {
+    recognized: number;
+    corrected: number;
+    pending: number;
+    missingImages: number;
+  };
+  positions: AdminBookPosition[];
+};
+
 export type PuzzleStats = {
   ready: boolean;
   count: number;
