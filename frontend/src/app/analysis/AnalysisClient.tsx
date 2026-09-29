@@ -19,7 +19,7 @@ import {
   type PieceDropHandlerArgs,
   type SquareHandlerArgs,
 } from "react-chessboard";
-import { API_BASE, type Position, type UploadResponse } from "@/lib/api";
+import { API_BASE, resolveImageUrl, type Position, type UploadResponse } from "@/lib/api";
 import { validateFen } from "@/lib/validateFen";
 import { moveFen, promotionRequired } from "@/lib/trialMoves";
 import { castlingSuggestion } from "@/lib/castlingSuggestion";
@@ -362,8 +362,10 @@ export default function AnalysisClient({
             : { variants: [] };
 
           const recognitionCandidates = [
-            { name: "original", url: imageUrl },
-            ...(variantData.variants ?? []),
+            { name: "original", url: resolveImageUrl(imageUrl) },
+            ...(variantData.variants ?? []).map((variant: { name: string; url: string }) => ({
+              ...variant, url: resolveImageUrl(variant.url),
+            })),
           ];
 
           const browser = await recognizeBookDiagramEnsemble(
@@ -990,7 +992,7 @@ export default function AnalysisClient({
           <div className="sourceStage">
             {imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageUrl} alt="Chess diagram from book" />
+              <img src={resolveImageUrl(imageUrl)} alt="Chess diagram from book" />
             ) : (
               <span className="subtle">Không có ảnh nguồn.</span>
             )}

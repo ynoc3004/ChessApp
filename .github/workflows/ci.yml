@@ -18,7 +18,7 @@ jobs:
           node-version: 24
       - run: npm install
       - run: node tests/puzzle.test.mjs
-      - run: node --test tests/engine-evaluation.test.mjs tests/validate-fen.test.mjs tests/browser-stockfish.test.mjs tests/trial-moves.test.mjs tests/castling-suggestion.test.mjs
+      - run: node --test tests/engine-evaluation.test.mjs tests/validate-fen.test.mjs tests/browser-stockfish.test.mjs tests/trial-moves.test.mjs tests/castling-suggestion.test.mjs tests/image-url.test.mjs
       - run: npm run build
 
   backend-syntax:

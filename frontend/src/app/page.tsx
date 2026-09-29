@@ -6,6 +6,7 @@ import styles from "./home.module.css";
 import BaguaSeal from "@/components/BaguaSeal";
 import {
   API_BASE,
+  resolveImageUrl,
   type BookListResponse,
   type BookSummary,
   type Position,
@@ -448,7 +449,7 @@ export default function HomePage() {
               <article className={styles.card} key={position.id}>
                 <div className={styles.imageWrap}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={position.imageUrl} alt={`Chess position ${position.id}`} />
+                  <img src={resolveImageUrl(position.imageUrl)} alt={`Chess position ${position.id}`} />
                 </div>
                 <div className={styles.cardBody}>
                   <div>
@@ -458,7 +459,7 @@ export default function HomePage() {
                     </p>
                   </div>
                   <div className={styles.actions}>
-                    <a className={styles.button} href={position.imageUrl} download target="_blank" rel="noreferrer">Tải ảnh</a>
+                    <a className={styles.button} href={resolveImageUrl(position.imageUrl)} download target="_blank" rel="noreferrer">Tải ảnh</a>
                     <Link
                       className={styles.button + " " + styles.primaryLink}
                       href={`/analysis?job=${jobId}&position=${position.id}&image=${encodeURIComponent(position.imageUrl)}`}

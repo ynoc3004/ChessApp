@@ -39,7 +39,9 @@ JOB_STATUS = "status.json"
 app = FastAPI(title="Chess Book Reader API", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[origin.strip() for origin in os.getenv(
+        "CHESSAPP_CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    ).split(",") if origin.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -209,7 +211,7 @@ def _scan_book_job(
                     "id": idx,
                     "page": detected.page,
                     "confidence": round(float(detected.score), 3),
-                    "imageUrl": f"http://localhost:8000/files/{job_id}/{filename}",
+                    "imageUrl": f"/files/{job_id}/{filename}",
                 }
             )
 
@@ -380,7 +382,7 @@ def upload_book(file: UploadFile = File(...)):
                     "id": idx,
                     "page": detected.page,
                     "confidence": round(float(detected.score), 3),
-                    "imageUrl": f"http://localhost:8000/files/{job_id}/{filename}",
+                    "imageUrl": f"/files/{job_id}/{filename}",
                 }
             )
     except Exception as exc:
@@ -540,7 +542,7 @@ def get_position_variants(job_id: str, position_id: int):
         "variants": [
             {
                 "name": name,
-                "url": f"http://localhost:8000/files/{job_id}/{path.name}",
+                "url": f"/files/{job_id}/{path.name}",
             }
             for name, path in variants.items()
         ]
