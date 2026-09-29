@@ -13,7 +13,7 @@ from app import admin, main
 
 class AdminTests(unittest.TestCase):
     def test_admin_routes_are_registered(self):
-        paths = {route.path for route in main.app.routes}
+        paths = set(main.app.openapi()["paths"])
         self.assertIn("/api/admin/session", paths)
         self.assertIn("/api/admin/stats", paths)
         self.assertIn("/api/admin/books", paths)
