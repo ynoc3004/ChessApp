@@ -126,7 +126,12 @@ export default function AdminPage() {
       await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
       setPassword("");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Đăng nhập thất bại.");
+      const firebaseCode = (error as { code?: string })?.code ?? "";
+      setMessage(
+        firebaseCode.includes("api-key")
+          ? "Firebase từ chối API key. Mở Firebase Console → Project settings → General → Your apps → Web app → Config; chép lại apiKey vào frontend/.env.local rồi khởi động lại npm run dev."
+          : error instanceof Error ? error.message : "Đăng nhập thất bại.",
+      );
     } finally {
       setBusy(false);
     }
