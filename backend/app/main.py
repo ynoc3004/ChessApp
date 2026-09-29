@@ -5,7 +5,6 @@ import os
 import re
 import shutil
 import uuid
-import zipfile
 import threading
 import time
 from pathlib import Path
@@ -20,6 +19,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from .detector import extract_from_docx, extract_from_pdf
+from .book_files import ensure_diagrams_zip, original_diagram_pngs
 from .recognizer import recognize_board
 from .preprocess import ensure_book_variants
 from .puzzles import router as puzzle_router
@@ -490,17 +490,10 @@ def delete_book(job_id: str):
 @app.get("/api/books/{job_id}/download")
 def download_book_diagrams(job_id: str):
     job_dir = _job_dir(job_id)
-    zip_path = job_dir / "chess-diagrams.zip"
-
-    png_files = sorted(job_dir.glob("position-*.png"))
+    png_files = original_diagram_pngs(job_dir)
     if not png_files:
         raise HTTPException(status_code=404, detail="No diagrams found")
-
-    newest_png = max(path.stat().st_mtime for path in png_files)
-    if not zip_path.exists() or zip_path.stat().st_mtime < newest_png:
-        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            for image_path in png_files:
-                archive.write(image_path, arcname=image_path.name)
+    zip_path = ensure_diagrams_zip(job_dir, png_files)
 
     return FileResponse(
         path=zip_path,
