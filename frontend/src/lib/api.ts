@@ -12,6 +12,7 @@ export type UploadResponse = {
   filename: string;
   count: number;
   positions: Position[];
+  skippedVectorImages?: number;
 };
 
 
@@ -34,4 +35,5 @@ export type ScanJob = {
   count: number;
   positions: Position[];
   error?: string | null;
+  skippedVectorImages?: number;
 };

@@ -28,6 +28,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [filename, setFilename] = useState("");
+  const [skippedVectorImages, setSkippedVectorImages] = useState(0);
   const [restoring, setRestoring] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
@@ -52,6 +53,8 @@ export default function HomePage() {
   );
 
   const scanCultivation = cultivationStage(scanJob?.progress ?? 0);
+  const isDocx = /\.docx$/i.test(filename);
+  const sourceLabel = isDocx ? "ảnh số" : "trang PDF";
 
   const visiblePositions = filteredPositions.slice(
     (galleryPage - 1) * PAGE_SIZE,
@@ -61,6 +64,7 @@ export default function HomePage() {
   function openBook(book: UploadResponse) {
     setJobId(book.jobId);
     setFilename(book.filename);
+    setSkippedVectorImages(book.skippedVectorImages ?? 0);
     setPositions(book.positions);
     setPageQuery("");
     setGalleryPage(1);
@@ -99,11 +103,12 @@ export default function HomePage() {
           if (controller.signal.aborted) return;
           setJobId(savedJobId);
           setFilename(job.filename || "");
+          setSkippedVectorImages(job.skippedVectorImages ?? 0);
           setScanJob(job);
           setPositions(job.positions ?? []);
           if (job.status === "queued" || job.status === "processing") setLoading(true);
           else if (job.status === "failed") setError(job.error || "Quét sách thất bại");
-          else openBook({ jobId: savedJobId, filename: job.filename, count: job.count, positions: job.positions ?? [] });
+          else openBook({ jobId: savedJobId, filename: job.filename, count: job.count, positions: job.positions ?? [], skippedVectorImages: job.skippedVectorImages });
           return;
         }
         if (statusResponse.status !== 404) throw new Error("Không đọc được tiến trình quét.");
@@ -137,12 +142,13 @@ export default function HomePage() {
         if (!response.ok) throw new Error("Không đọc được tiến trình quét.");
         if (controller.signal.aborted) return;
         setScanJob(current);
+        setSkippedVectorImages(current.skippedVectorImages ?? 0);
         setPositions(current.positions ?? []);
         if (current.status === "failed") {
           setError(current.error || "Quét sách thất bại");
           setLoading(false);
         } else if (current.status === "completed") {
-          openBook({ jobId, filename: current.filename, count: current.count, positions: current.positions ?? [] });
+          openBook({ jobId, filename: current.filename, count: current.count, positions: current.positions ?? [], skippedVectorImages: current.skippedVectorImages });
           setLoading(false);
           void loadRecentBooks();
         } else {
@@ -195,6 +201,7 @@ export default function HomePage() {
       const current = data as ScanJob;
       window.localStorage.setItem("chessBookReader:lastJobId", current.jobId);
       setScanJob(current);
+      setSkippedVectorImages(0);
       setJobId(current.jobId);
       setFilename(current.filename || file.name);
     } catch (err) {
@@ -219,6 +226,7 @@ export default function HomePage() {
       if (jobId === book.jobId) {
         setJobId("");
         setFilename("");
+        setSkippedVectorImages(0);
         setPositions([]);
         window.localStorage.removeItem("chessBookReader:lastJobId");
       }
@@ -331,6 +339,7 @@ export default function HomePage() {
         )}
         {restoring && <p className={styles.subtle}>☁ Đang triệu hồi kỳ phổ gần nhất từ Tàng Kinh Các…</p>}
         {error && <p className={styles.error} role="alert">{error}</p>}
+        {skippedVectorImages > 0 && <p className={styles.notice} role="status">Đã bỏ qua {skippedVectorImages} ảnh EMF/WMF trong DOCX vì định dạng này chưa đọc được.</p>}
         {scanJob?.status === "completed" && positions.length === 0 && (
           <p className={styles.notice} role="status">Đã quét xong nhưng chưa tìm thấy hình cờ. Thử sách có hình bàn cờ rõ hơn.</p>
         )}
@@ -388,7 +397,7 @@ export default function HomePage() {
             </div>
 
             <div className={styles.pageSearch}>
-              <label htmlFor="page-search">Tìm theo trang sách</label>
+              <label htmlFor="page-search">Tìm theo {sourceLabel}</label>
               <div>
                 <input
                   id="page-search"
@@ -430,7 +439,7 @@ export default function HomePage() {
 
           {pageQuery && filteredPositions.length === 0 && (
             <div className={styles.emptySearch}>
-              Không tìm thấy hình cờ ở trang PDF {pageQuery}.
+              Không tìm thấy hình cờ ở {sourceLabel} {pageQuery}.
             </div>
           )}
 
@@ -445,7 +454,7 @@ export default function HomePage() {
                   <div>
                     <strong>Kỳ trận #{position.id}</strong>
                     <p className={styles.subtle}>
-                      Trang / ảnh nguồn: {position.page} · độ tin cậy detector {(position.confidence * 100).toFixed(0)}%
+                      {isDocx ? "Ảnh số" : "Trang PDF"}: {position.page} · độ tin cậy detector {(position.confidence * 100).toFixed(0)}%
                     </p>
                   </div>
                   <div className={styles.actions}>

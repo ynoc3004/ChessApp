@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from .detector import extract_from_docx, extract_from_pdf
+from .detector import docx_image_metadata, extract_from_docx, extract_from_pdf
 from .book_files import ensure_diagrams_zip, original_diagram_pngs
 from .recognizer import recognize_board
 from .preprocess import ensure_book_variants
@@ -193,6 +193,7 @@ def _scan_book_job(
         _write_json_atomic(status_path, status)
 
     try:
+        image_metadata = docx_image_metadata(upload_path) if suffix == ".docx" else {}
         extracted = (
             extract_from_pdf(upload_path, progress_callback=on_progress)
             if suffix == ".pdf"
@@ -217,6 +218,7 @@ def _scan_book_job(
             "filename": original_filename,
             "count": len(positions),
             "positions": positions,
+            **image_metadata,
         }
         _write_json_atomic(job_output / BOOK_METADATA, payload)
 
@@ -226,6 +228,7 @@ def _scan_book_job(
                 "progress": 100.0,
                 "count": len(positions),
                 "positions": positions,
+                **image_metadata,
             }
         )
         if status["total"]:
@@ -365,6 +368,7 @@ def upload_book(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, f_out)
 
     try:
+        image_metadata = docx_image_metadata(upload_path) if suffix == ".docx" else {}
         extracted = extract_from_pdf(upload_path) if suffix == ".pdf" else extract_from_docx(upload_path)
         positions = []
         for idx, detected in enumerate(extracted, start=1):
@@ -387,6 +391,7 @@ def upload_book(file: UploadFile = File(...)):
         "filename": file.filename,
         "count": len(positions),
         "positions": positions,
+        **image_metadata,
     }
     (job_output / BOOK_METADATA).write_text(
         json.dumps(payload, ensure_ascii=False, indent=2),
