@@ -6,6 +6,7 @@ import { API_BASE } from "@/lib/api";
 import { type SavedPosition } from "@/components/SavePosition";
 import { chessComAnalysisUrl, lichessAnalysisUrl } from "@/lib/fen";
 import { analyzeWithBrowserStockfish, type LocalEngineLine } from "@/lib/browserStockfish";
+import EngineAdvantage from "@/components/EngineAdvantage";
 import styles from "../realms/realms.module.css";
 import archive from "./collection.module.css";
 export default function CollectionPage() {
@@ -57,7 +58,7 @@ export default function CollectionPage() {
       <label>Tên thế cờ<input maxLength={200} value={selected.title} onChange={e => setSelected({ ...selected, title: e.target.value })} /></label><label>Chủ đề (phân cách bằng dấu phẩy)<input maxLength={500} value={selected.themes} onChange={e => setSelected({ ...selected, themes: e.target.value })} /></label><label>Ghi chú<textarea maxLength={3000} rows={5} value={selected.note} onChange={e => setSelected({ ...selected, note: e.target.value })} /></label>
       {dirty && <p role="status">Có thay đổi chưa lưu.</p>}
       <button disabled={saving || !selected.title.trim() || !dirty} onClick={() => void save()}>{saving ? "Đang lưu…" : "Lưu ghi chú"}</button><button disabled={analyzing} onClick={() => void analyze()}>{analyzing ? "Đang phân tích…" : "Phân tích Stockfish"}</button>
-      <p><a href={lichessAnalysisUrl(selected.fen)} target="_blank" rel="noreferrer">Lichess</a> · <a href={chessComAnalysisUrl(selected.fen)} target="_blank" rel="noreferrer">chess.com</a></p>{selected.sourcePath && <a href={selected.sourcePath}>Mở nguồn gốc thế cờ →</a>}{lines.map(line => <p key={line.multipv}>{line.san}</p>)}
+      <p><a href={lichessAnalysisUrl(selected.fen)} target="_blank" rel="noreferrer">Lichess</a> · <a href={chessComAnalysisUrl(selected.fen)} target="_blank" rel="noreferrer">chess.com</a></p>{selected.sourcePath && <a href={selected.sourcePath}>Mở nguồn gốc thế cờ →</a>}<EngineAdvantage lines={lines} fen={selected.fen} />
     </div></section>}
   </main>;
 }
