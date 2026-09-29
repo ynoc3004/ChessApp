@@ -8,7 +8,8 @@ import {
   signOut,
   type User,
 } from "firebase/auth";
-import { firebaseAuth, firebaseConfigured } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { firebaseAuth, firebaseConfigured, firestore } from "@/lib/firebase";
 import {
   deleteDaoLesson,
   deleteDaoModule,
@@ -48,6 +49,7 @@ const emptyLesson = (title: string, order: number): ManagedDaoLesson => ({
 export default function AdminPage() {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [paths, setPaths] = useState<ManagedDaoPath[]>([]);
@@ -86,10 +88,22 @@ export default function AdminPage() {
       setAuthReady(true);
       return;
     }
-    return onAuthStateChanged(firebaseAuth, (nextUser) => {
+    return onAuthStateChanged(firebaseAuth, async (nextUser) => {
+      setAuthReady(false);
       setUser(nextUser);
+      setIsAdmin(false);
+      if (nextUser && firestore) {
+        try {
+          const adminRecord = await getDoc(doc(firestore, "admins", nextUser.uid));
+          if (adminRecord.exists() && adminRecord.data().enabled === true) {
+            setIsAdmin(true);
+            void refresh();
+          }
+        } catch {
+          // Rules deny access to the admin record for accounts without this role.
+        }
+      }
       setAuthReady(true);
-      if (nextUser) void refresh();
     });
   }, []);
 
@@ -346,6 +360,20 @@ export default function AdminPage() {
           <button disabled={busy}>{busy ? "Đang đăng nhập…" : "Đăng nhập"}</button>
           {message && <p role="alert">{message}</p>}
         </form>
+      </main>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <main className={styles.page}>
+        <header className={styles.header}><Link href="/">← Kỳ Phổ Đạo Các</Link><button onClick={() => firebaseAuth && void signOut(firebaseAuth)}>Đăng xuất</button></header>
+        <section className={styles.setupCard}>
+          <p className={styles.kicker}>CHƯA CÓ QUYỀN QUẢN TRỊ</p>
+          <h1>Cấp quyền cho tài khoản này</h1>
+          <p>Trong Firestore Console, tạo document <code>admins/{user.uid}</code> với trường <code>enabled</code> (boolean) là <code>true</code>, sau đó tải lại trang. Nhớ xuất bản <code>firestore.rules</code> trong Firebase Console trước.</p>
+          <p>UID của bạn: <code>{user.uid}</code></p>
+        </section>
       </main>
     );
   }
