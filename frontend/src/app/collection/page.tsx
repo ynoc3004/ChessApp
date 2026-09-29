@@ -58,6 +58,8 @@ type GameSummary = {
 
 type GameRecord = GameSummary & { pgn: string };
 
+type GameDraft = Pick<GameSummary, "folderId" | "title" | "event" | "date" | "round" | "white" | "black" | "result" | "site" | "eco">;
+
 const WORLD_FOLDER = "world-championships";
 const FAVORITES_ROOT = "favorite-players";
 
@@ -80,6 +82,21 @@ function buildReplay(pgn: string) {
   }
 }
 
+function toGameDraft(game: GameRecord): GameDraft {
+  return {
+    folderId: game.folderId,
+    title: game.title,
+    event: game.event,
+    date: game.date,
+    round: game.round,
+    white: game.white,
+    black: game.black,
+    result: game.result,
+    site: game.site,
+    eco: game.eco,
+  };
+}
+
 export default function CollectionPage() {
   const [tab, setTab] = useState<Tab>("world");
   const [overview, setOverview] = useState<LibraryOverview | null>(null);
@@ -92,11 +109,18 @@ export default function CollectionPage() {
   const [libraryMessage, setLibraryMessage] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
+  const [folderEditing, setFolderEditing] = useState<Folder | null>(null);
+  const [folderNameDraft, setFolderNameDraft] = useState("");
+  const [folderDescriptionDraft, setFolderDescriptionDraft] = useState("");
+  const [folderBusy, setFolderBusy] = useState(false);
   const [importing, setImporting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [ply, setPly] = useState(0);
   const [gameLines, setGameLines] = useState<LocalEngineLine[]>([]);
   const [gameAnalyzing, setGameAnalyzing] = useState(false);
+  const [editingGame, setEditingGame] = useState(false);
+  const [gameDraft, setGameDraft] = useState<GameDraft | null>(null);
+  const [gameSaving, setGameSaving] = useState(false);
 
   const [items, setItems] = useState<SavedPosition[]>([]);
   const [selected, setSelected] = useState<SavedPosition | null>(null);
@@ -147,7 +171,11 @@ export default function CollectionPage() {
       if (!response.ok) throw new Error(data.detail || "Không tải được kỳ cục.");
       setGames(data.games ?? []);
       setGameTotal(data.total ?? 0);
-      if (selectedGame && !(data.games ?? []).some((game: GameSummary) => game.id === selectedGame.id)) setSelectedGame(null);
+      if (selectedGame && !(data.games ?? []).some((game: GameSummary) => game.id === selectedGame.id)) {
+        setSelectedGame(null);
+        setEditingGame(false);
+        setGameDraft(null);
+      }
     } catch (error) {
       setLibraryMessage(error instanceof Error ? error.message : "Không tải được kỳ cục.");
     } finally {
@@ -164,6 +192,8 @@ export default function CollectionPage() {
       setSelectedGame(data);
       setPly(0);
       setGameLines([]);
+      setEditingGame(false);
+      setGameDraft(null);
     } catch (error) {
       setLibraryMessage(error instanceof Error ? error.message : "Không mở được kỳ cục.");
     }
@@ -186,10 +216,70 @@ export default function CollectionPage() {
       setSelectedFolder(data.id);
       setGames([]);
       setSelectedGame(null);
+      setLibraryMessage(`Đã lập quyển mục “${data.name}”.`);
     } catch (error) {
       setLibraryMessage(error instanceof Error ? error.message : "Không lập được quyển mục.");
     } finally {
       setCreatingFolder(false);
+    }
+  }
+
+  function beginFolderEdit(folder: Folder) {
+    setFolderEditing(folder);
+    setFolderNameDraft(folder.name);
+    setFolderDescriptionDraft(folder.description ?? "");
+  }
+
+  async function saveFolderEdit() {
+    if (!folderEditing || !folderNameDraft.trim() || folderBusy) return;
+    setFolderBusy(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/library/folders/${folderEditing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: folderNameDraft.trim(), description: folderDescriptionDraft.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Không cải danh được quyển mục.");
+      setFolderEditing(null);
+      await loadOverview();
+      setLibraryMessage(`Đã tu chỉnh quyển mục “${data.name}”.`);
+    } catch (error) {
+      setLibraryMessage(error instanceof Error ? error.message : "Không cải danh được quyển mục.");
+    } finally {
+      setFolderBusy(false);
+    }
+  }
+
+  async function deleteFolder(folder: Folder) {
+    if (folder.locked || folderBusy) return;
+    const count = folder.gameCount ?? 0;
+    const confirmed = window.confirm(
+      count
+        ? `Tiêu trừ “${folder.name}” và toàn bộ ${count} kỳ cục bên trong? Thao tác này bất khả hoàn nguyên.`
+        : `Tiêu trừ quyển mục “${folder.name}”?`,
+    );
+    if (!confirmed) return;
+    setFolderBusy(true);
+    try {
+      const endpoint = count
+        ? `${API_BASE}/api/library/folders/${folder.id}/with-games`
+        : `${API_BASE}/api/library/folders/${folder.id}`;
+      const response = await fetch(endpoint, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Không tiêu trừ được quyển mục.");
+      setFolderEditing(null);
+      setSelectedGame(null);
+      setGames([]);
+      await loadOverview();
+      const next = playerFolders.find((item) => item.id !== folder.id)?.id ?? FAVORITES_ROOT;
+      setSelectedFolder(next);
+      if (next !== FAVORITES_ROOT) await loadGames(next, "");
+      setLibraryMessage(`Đã tiêu trừ “${folder.name}”${data.removedGames ? ` cùng ${data.removedGames} kỳ cục` : ""}.`);
+    } catch (error) {
+      setLibraryMessage(error instanceof Error ? error.message : "Không tiêu trừ được quyển mục.");
+    } finally {
+      setFolderBusy(false);
     }
   }
 
@@ -210,6 +300,70 @@ export default function CollectionPage() {
       setLibraryMessage(error instanceof Error ? error.message : "Không nhập được PGN.");
     } finally {
       setImporting(false);
+    }
+  }
+
+  function beginGameEdit() {
+    if (!selectedGame) return;
+    setGameDraft(toGameDraft(selectedGame));
+    setEditingGame(true);
+  }
+
+  async function saveGameEdit() {
+    if (!selectedGame || !gameDraft || gameSaving) return;
+    if (!gameDraft.white.trim() || !gameDraft.black.trim()) {
+      setLibraryMessage("Danh xưng Bạch/Hắc phương bất khả để trống.");
+      return;
+    }
+    setGameSaving(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/library/games/${selectedGame.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(gameDraft),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Không tu chỉnh được kỳ cục.");
+      setSelectedGame(data);
+      setEditingGame(false);
+      setGameDraft(null);
+      const destination = data.folderId as string;
+      if (destination !== selectedFolder) {
+        setSelectedFolder(destination);
+        setTab("players");
+        setGameQuery("");
+        await loadGames(destination, "");
+      } else {
+        await loadGames(selectedFolder, gameQuery);
+      }
+      await loadOverview();
+      setLibraryMessage("Đã tu chỉnh kỳ cục.");
+    } catch (error) {
+      setLibraryMessage(error instanceof Error ? error.message : "Không tu chỉnh được kỳ cục.");
+    } finally {
+      setGameSaving(false);
+    }
+  }
+
+  async function deleteGame(game: GameSummary | GameRecord) {
+    if (gameSaving) return;
+    if (!window.confirm(`Tiêu trừ kỳ cục “${game.white} — ${game.black}”? Thao tác này bất khả hoàn nguyên.`)) return;
+    setGameSaving(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/library/games/${game.id}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Không tiêu trừ được kỳ cục.");
+      if (selectedGame?.id === game.id) {
+        setSelectedGame(null);
+        setEditingGame(false);
+        setGameDraft(null);
+      }
+      await Promise.all([loadOverview(), loadGames(selectedFolder, gameQuery)]);
+      setLibraryMessage("Đã tiêu trừ kỳ cục.");
+    } catch (error) {
+      setLibraryMessage(error instanceof Error ? error.message : "Không tiêu trừ được kỳ cục.");
+    } finally {
+      setGameSaving(false);
     }
   }
 
@@ -285,6 +439,25 @@ export default function CollectionPage() {
     }
   }
 
+  async function deletePosition(item: SavedPosition) {
+    if (saving) return;
+    if (!window.confirm(`Tiêu trừ kỳ thế “${item.title}”?`)) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/collection/${encodeURIComponent(item.id)}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Không tiêu trừ được kỳ thế.");
+      setItems((previous) => previous.filter((entry) => entry.id !== item.id));
+      if (selected?.id === item.id) setSelected(null);
+      setPositionMessage("Đã tiêu trừ kỳ thế.");
+      await loadOverview();
+    } catch (error) {
+      setPositionMessage(error instanceof Error ? error.message : "Không tiêu trừ được kỳ thế.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function analyzePosition() {
     if (!selected) return;
     const token = generation.current;
@@ -329,6 +502,7 @@ export default function CollectionPage() {
       setSelectedFolder(WORLD_FOLDER);
       setSelectedGame(null);
       setGameQuery("");
+      setEditingGame(false);
       void loadGames(WORLD_FOLDER, "");
     }
     if (tab === "players") {
@@ -336,6 +510,7 @@ export default function CollectionPage() {
       setSelectedFolder(next);
       setSelectedGame(null);
       setGameQuery("");
+      setEditingGame(false);
       void loadGames(next, "");
     }
   }, [tab]);
@@ -356,7 +531,7 @@ export default function CollectionPage() {
         <div>
           <p className={styles.kicker}>藏經閣 · KỲ PHỔ TÀNG THƯ</p>
           <h1>Tàng Kinh Các</h1>
-          <p className={styles.heroText}>Tàng kỳ thế từ cổ phổ, toàn bộ Vương Tọa Kỳ Phổ, cùng những danh kỳ cục của kỳ thủ ngươi sở ái. Một nơi để xem lại, diễn toán và tự lập kỳ học tàng thư.</p>
+          <p className={styles.heroText}>Tàng kỳ thế từ cổ phổ, toàn bộ Vương Tọa Kỳ Phổ, cùng những danh kỳ cục của kỳ thủ ngươi sở ái. Mỗi quyển mục đều khả lập, cải danh, tu chỉnh và tiêu trừ.</p>
         </div>
         <div className={styles.heroSeal} aria-hidden="true">藏</div>
       </section>
@@ -366,7 +541,7 @@ export default function CollectionPage() {
           Vương Tọa Kỳ Phổ<small>Thế Giới Kỳ Vương Tranh Bá</small>
         </button>
         <button data-active={tab === "players"} onClick={() => setTab("players")}>
-          Danh Kỳ Sở Ái<small>Tự lập kỳ thủ quyển mục</small>
+          Danh Kỳ Sở Ái<small>Tự lập · cải danh · tiêu trừ</small>
         </button>
         <button data-active={tab === "positions"} onClick={() => setTab("positions")}>
           Kỳ Thế Tàng<small>Thế cờ từ sách & Bí Cảnh</small>
@@ -383,15 +558,33 @@ export default function CollectionPage() {
               <div className={styles.folderList}>
                 {tab === "world" && (
                   <button className={styles.folderBtn} data-active={selectedFolder === WORLD_FOLDER} onClick={() => { setSelectedFolder(WORLD_FOLDER); setSelectedGame(null); void loadGames(WORLD_FOLDER, gameQuery); }}>
-                    <span className={styles.folderGlyph}>♔</span><span><strong>Vương Tọa Kỳ Phổ</strong><small>1886 → hiện đại</small></span><span className={styles.count}>{overview?.folders.find((f) => f.id === WORLD_FOLDER)?.gameCount ?? 0}</span>
+                    <span className={styles.folderGlyph}>♔</span><span><strong>Vương Tọa Kỳ Phổ</strong><small>1886 → hiện đại · hệ thống quyển</small></span><span className={styles.count}>{overview?.folders.find((f) => f.id === WORLD_FOLDER)?.gameCount ?? 0}</span>
                   </button>
                 )}
                 {tab === "players" && playerFolders.map((folder) => (
-                  <button key={folder.id} className={styles.folderBtn} data-active={selectedFolder === folder.id} onClick={() => { setSelectedFolder(folder.id); setSelectedGame(null); setGameQuery(""); void loadGames(folder.id, ""); }}>
-                    <span className={styles.folderGlyph}>棋</span><span><strong>{folder.name}</strong><small>{folder.description || "Kỳ thủ sở ái"}</small></span><span className={styles.count}>{folder.gameCount ?? 0}</span>
-                  </button>
+                  <div className="collectionFolderRow" key={folder.id}>
+                    <button className={styles.folderBtn} data-active={selectedFolder === folder.id} onClick={() => { setSelectedFolder(folder.id); setSelectedGame(null); setGameQuery(""); setEditingGame(false); void loadGames(folder.id, ""); }}>
+                      <span className={styles.folderGlyph}>棋</span><span><strong>{folder.name}</strong><small>{folder.description || "Kỳ thủ sở ái"}</small></span><span className={styles.count}>{folder.gameCount ?? 0}</span>
+                    </button>
+                    <div className="collectionRowActions">
+                      <button type="button" title="Cải danh quyển mục" onClick={() => beginFolderEdit(folder)}>✎</button>
+                      <button type="button" className="danger" title="Tiêu trừ quyển mục" onClick={() => void deleteFolder(folder)}>×</button>
+                    </div>
+                  </div>
                 ))}
               </div>
+
+              {folderEditing && (
+                <div className="collectionEditSheet">
+                  <strong>Tu chỉnh quyển mục</strong>
+                  <label>Danh xưng<input value={folderNameDraft} onChange={(e) => setFolderNameDraft(e.target.value)} maxLength={80} /></label>
+                  <label>Chú giải<textarea value={folderDescriptionDraft} onChange={(e) => setFolderDescriptionDraft(e.target.value)} maxLength={300} rows={3} /></label>
+                  <div className="collectionInlineActions">
+                    <button className={styles.primary} disabled={folderBusy || !folderNameDraft.trim()} onClick={() => void saveFolderEdit()}>{folderBusy ? "Đang khắc…" : "Khắc tồn"}</button>
+                    <button className={styles.action} disabled={folderBusy} onClick={() => setFolderEditing(null)}>Hủy</button>
+                  </div>
+                </div>
+              )}
 
               {tab === "players" && (
                 <div className={styles.createFolder}>
@@ -425,11 +618,14 @@ export default function CollectionPage() {
             <div className={styles.gameList}>
               {!gameLoading && !games.length && <div className={styles.empty}>{tab === "world" ? "Vương Tọa Kỳ Phổ thượng vô kỳ cục. Hãy bấm “Thu nhập toàn bộ” để đồng bộ." : playerFolders.length ? "Quyển mục thượng vô kỳ cục. Khả nhập một tệp PGN." : "Hãy lập quyển mục đầu tiên cho kỳ thủ ngươi yêu thích."}</div>}
               {games.map((game) => (
-                <button key={game.id} className={styles.gameItem} data-active={selectedGame?.id === game.id} onClick={() => void openGame(game)}>
-                  <strong>{game.white} — {game.black}</strong>
-                  <span>{game.event || game.sourceCollection} · {game.date || "?"}{game.round ? ` · ván ${game.round}` : ""}</span>
-                  <em>{game.result} {game.eco ? `· ${game.eco}` : ""}</em>
-                </button>
+                <div className="collectionGameRow" key={game.id}>
+                  <button className={styles.gameItem} data-active={selectedGame?.id === game.id} onClick={() => void openGame(game)}>
+                    <strong>{game.white} — {game.black}</strong>
+                    <span>{game.event || game.sourceCollection} · {game.date || "?"}{game.round ? ` · ván ${game.round}` : ""}</span>
+                    <em>{game.result} {game.eco ? `· ${game.eco}` : ""}</em>
+                  </button>
+                  <button className="collectionDeleteMini" type="button" title="Tiêu trừ kỳ cục" onClick={() => void deleteGame(game)}>×</button>
+                </div>
               ))}
             </div>
           </section>
@@ -439,8 +635,37 @@ export default function CollectionPage() {
               <div className={styles.viewer}>
                 <div className={styles.viewerHead}>
                   <div><h2>{selectedGame.white} — {selectedGame.black}</h2><p>{selectedGame.event} · {selectedGame.date} · {selectedGame.result}</p></div>
-                  {selectedGame.sourceUrl && <a className={styles.action} href={selectedGame.sourceUrl} target="_blank" rel="noreferrer">Nguyên lưu ↗</a>}
+                  <div className="collectionInlineActions">
+                    <button className={styles.action} onClick={beginGameEdit}>✎ Tu chỉnh</button>
+                    <button className={styles.danger} onClick={() => void deleteGame(selectedGame)}>× Tiêu trừ</button>
+                    {selectedGame.sourceUrl && <a className={styles.action} href={selectedGame.sourceUrl} target="_blank" rel="noreferrer">Nguyên lưu ↗</a>}
+                  </div>
                 </div>
+
+                {editingGame && gameDraft && (
+                  <div className="collectionEditSheet wide">
+                    <div className="collectionEditTitle"><strong>Tu chỉnh kỳ cục</strong><span>PGN đầu mục cũng sẽ được đồng bộ theo thông tin mới.</span></div>
+                    <div className="collectionEditGrid">
+                      <label>Bạch phương<input value={gameDraft.white} onChange={(e) => setGameDraft({ ...gameDraft, white: e.target.value })} /></label>
+                      <label>Hắc phương<input value={gameDraft.black} onChange={(e) => setGameDraft({ ...gameDraft, black: e.target.value })} /></label>
+                      <label>Sự kiện<input value={gameDraft.event} onChange={(e) => setGameDraft({ ...gameDraft, event: e.target.value })} /></label>
+                      <label>Niên đại<input value={gameDraft.date} onChange={(e) => setGameDraft({ ...gameDraft, date: e.target.value })} /></label>
+                      <label>Ván / vòng<input value={gameDraft.round} onChange={(e) => setGameDraft({ ...gameDraft, round: e.target.value })} /></label>
+                      <label>ECO<input value={gameDraft.eco} onChange={(e) => setGameDraft({ ...gameDraft, eco: e.target.value })} maxLength={12} /></label>
+                      <label>Kết cục<select value={gameDraft.result} onChange={(e) => setGameDraft({ ...gameDraft, result: e.target.value })}><option value="1-0">1-0</option><option value="0-1">0-1</option><option value="1/2-1/2">1/2-1/2</option><option value="*">*</option></select></label>
+                      <label>Địa điểm<input value={gameDraft.site} onChange={(e) => setGameDraft({ ...gameDraft, site: e.target.value })} /></label>
+                      <label className="span2">Danh xưng hiển thị<input value={gameDraft.title} onChange={(e) => setGameDraft({ ...gameDraft, title: e.target.value })} /></label>
+                      {selectedGame.folderId !== WORLD_FOLDER && playerFolders.length > 1 && (
+                        <label className="span2">Di chuyển sang quyển mục<select value={gameDraft.folderId} onChange={(e) => setGameDraft({ ...gameDraft, folderId: e.target.value })}>{playerFolders.map((folder) => <option value={folder.id} key={folder.id}>{folder.name}</option>)}</select></label>
+                      )}
+                    </div>
+                    <div className="collectionInlineActions">
+                      <button className={styles.primary} disabled={gameSaving} onClick={() => void saveGameEdit()}>{gameSaving ? "Đang khắc tồn…" : "Khắc tồn tu chỉnh"}</button>
+                      <button className={styles.action} disabled={gameSaving} onClick={() => { setEditingGame(false); setGameDraft(null); }}>Hủy</button>
+                    </div>
+                  </div>
+                )}
+
                 <div className={styles.boardLayout}>
                   <div className={styles.boardBox}>
                     <Chessboard options={{ id: `archive-${selectedGame.id}`, position: currentFen, allowDragging: false, showNotation: true, lightSquareStyle: { backgroundColor: "#f4efd9" }, darkSquareStyle: { backgroundColor: "#8eaa70" } }} />
@@ -474,7 +699,7 @@ export default function CollectionPage() {
           <aside className={styles.panel}>
             <div className={styles.panelHead}><p>KỲ THẾ TÀNG</p><h2>{items.length} kỳ thế</h2></div>
             <div className={styles.gameTools}><input className={styles.search} value={positionQuery} onChange={(e) => setPositionQuery(e.target.value)} placeholder="Tầm danh xưng, chủ đề, chú giải…" /><span className={styles.status}>{positionLoading ? "Đang triệu hồi…" : positionMessage}</span></div>
-            <div className={styles.positionList}>{filteredPositions.map((item) => <button key={item.id} data-active={selected?.id === item.id} onClick={() => selectPosition(item)}><strong>{item.title}</strong><p>{item.source === "book" ? "Cổ phổ" : "Lichess"} · {item.themes || "Vị phân loại"}</p></button>)}</div>
+            <div className={styles.positionList}>{filteredPositions.map((item) => <div className="collectionPositionRow" key={item.id}><button data-active={selected?.id === item.id} onClick={() => selectPosition(item)}><strong>{item.title}</strong><p>{item.source === "book" ? "Cổ phổ" : "Lichess"} · {item.themes || "Vị phân loại"}</p></button><button className="collectionDeleteMini" title="Tiêu trừ kỳ thế" onClick={() => void deletePosition(item)}>×</button></div>)}</div>
           </aside>
           <section className={styles.panel}>
             {selected ? <div className={styles.positionEditor}>
@@ -484,8 +709,9 @@ export default function CollectionPage() {
                 <label>Chủ đề<input maxLength={500} value={selected.themes} onChange={(e) => setSelected({ ...selected, themes: e.target.value })} /></label>
                 <label>Chú giải<textarea maxLength={3000} rows={6} value={selected.note} onChange={(e) => setSelected({ ...selected, note: e.target.value })} /></label>
                 {dirty && <p className={styles.status}>Hữu biến đổi vị khắc tồn.</p>}
-                <button className={styles.primary} disabled={saving || !selected.title.trim() || !dirty} onClick={() => void savePosition()}>{saving ? "Đang khắc tồn…" : "Khắc tồn chú giải"}</button>
+                <button className={styles.primary} disabled={saving || !selected.title.trim() || !dirty} onClick={() => void savePosition()}>{saving ? "Đang khắc tồn…" : "Khắc tồn tu chỉnh"}</button>
                 <button className={styles.action} disabled={positionAnalyzing} onClick={() => void analyzePosition()}>{positionAnalyzing ? "Stockfish diễn toán…" : "Diễn toán Stockfish"}</button>
+                <button className={styles.danger} disabled={saving} onClick={() => void deletePosition(selected)}>× Tiêu trừ kỳ thế</button>
                 <p className={styles.status}><a href={lichessAnalysisUrl(selected.fen)} target="_blank" rel="noreferrer">Lichess ↗</a> · <a href={chessComAnalysisUrl(selected.fen)} target="_blank" rel="noreferrer">Chess.com ↗</a></p>
                 {selected.sourcePath && <a className={styles.action} href={selected.sourcePath}>Hồi nguyên kỳ thế →</a>}
                 {positionLines.map((line) => <p className={styles.status} key={line.multipv}>{line.san}</p>)}
