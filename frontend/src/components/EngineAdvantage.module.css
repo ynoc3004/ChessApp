@@ -1,0 +1,31 @@
+.card {
+  margin: 18px 0 4px;
+  padding: 20px;
+  border: 1px solid #b9996c;
+  border-radius: 18px;
+  background: linear-gradient(135deg,#2e2721,#49392d);
+  color: #f9eedb;
+  box-shadow: 0 14px 28px #1b130f3d,inset 0 1px #fff5da25;
+}
+.heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.kicker { color: #dcb780; font-size: 10px; font-weight: 800; letter-spacing: .14em; }
+.heading h3 { margin: 8px 0 18px; color: #fff3df; font: 600 22px/1.25 Georgia,serif; }
+.score { flex: 0 0 auto; color: #f5d49b; font: 700 27px/1 Georgia,serif; font-variant-numeric: tabular-nums; }
+.meterLabels { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; color: #f8e9d3; font-size: 12px; font-weight: 700; }
+.meter { position: relative; height: 22px; border: 1px solid #cfb68e; border-radius: 999px; background: #171513; box-shadow: inset 0 2px 5px #0009; overflow: hidden; }
+.whiteShare { display: block; height: 100%; border-radius: 999px 0 0 999px; background: linear-gradient(#fffdf7,#e9dbc3); transition: width .4s ease; }
+.midpoint { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: #b9996c; }
+.caption { margin: 11px 0 16px; color: #d6c4ac; font-size: 11px!important; line-height: 1.55!important; }
+.variations { display: grid; gap: 7px; }
+.variation { display: grid; grid-template-columns: 28px 60px minmax(0,1fr); gap: 9px; align-items: start; padding: 10px 11px; border: 1px solid #d7bd9250; border-radius: 9px; background: #fff4de12; font-size: 12px; line-height: 1.5; }
+.variation:first-child { border-color: #dcb78096; background: #efc68222; }
+.rank { color: #d8b885; }
+.variation strong { color: #f9dfac; font-variant-numeric: tabular-nums; }
+.moves { color: #f9f0e2; overflow-wrap: anywhere; }
+@media(max-width:530px) {
+  .card { padding: 15px; }
+  .heading h3 { font-size: 19px; }
+  .score { font-size: 23px; }
+  .variation { grid-template-columns: 24px 50px minmax(0,1fr); gap: 5px; }
+}
+@media(prefers-reduced-motion:reduce) { .whiteShare { transition: none; } }

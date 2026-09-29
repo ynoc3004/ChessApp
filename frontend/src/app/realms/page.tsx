@@ -5,6 +5,7 @@ import { Chessboard, type PieceDropHandlerArgs } from "react-chessboard";
 import { Chess } from "chess.js";
 import BaguaSeal from "@/components/BaguaSeal";
 import SavePosition from "@/components/SavePosition";
+import EngineAdvantage from "@/components/EngineAdvantage";
 import { API_BASE } from "@/lib/api";
 import { attemptPuzzle, startPuzzle, type Puzzle } from "@/lib/puzzle";
 import { chessComAnalysisUrl, lichessAnalysisUrl } from "@/lib/fen";
@@ -125,7 +126,7 @@ export default function RealmsPage() {
       <aside className={styles.panel}><p className={styles.kicker}>{pathSelection ? `${pathSelection.name} · ${pathSelection.module}` : gates[gate][0]}</p><h2>Luyện tập từng nước</h2><p>Đã giải: {solved} · Không sai/gợi ý: {clean}</p><p>Số lần sai bài này: {mistakes}{hinted ? " · Đã dùng gợi ý" : ""}</p>
         {!done && <><button onClick={() => { setHinted(true); setMessage(`Thử quan sát quân ở ô ${puzzle.moves.split(/\s+/)[ply].slice(0, 2)}.`); }}>Gợi ý quân cần đi</button><button onClick={() => { setHinted(true); setMessage(`Nước tiếp theo: ${puzzle.moves.split(/\s+/)[ply]}.`); }}>Xem nước tiếp theo</button></>}
         <SavePosition position={{ id: `lichess:${puzzle.id}`, title: `Lichess #${puzzle.id}`, fen: startPuzzle(puzzle).fen(), source: "lichess", sourcePath: `https://lichess.org/training/${puzzle.id}`, themes: puzzle.themes }} />
-        {done && <><p>Rating Lichess: {puzzle.rating} · Chủ đề: {puzzle.themes}</p>{index + 1 < puzzles.length ? <button onClick={() => { setIndex(index + 1); open(puzzles[index + 1]); }}>Thế tiếp theo →</button> : <p>Hoàn thành lượt luyện. Bạn có thể chọn cửa khác và mở lượt mới.</p>}<button disabled={analyzing} onClick={() => void analyze()}>{analyzing ? "Stockfish đang phân tích…" : "Phân tích vị trí hiện tại bằng Stockfish"}</button><p><a href={lichessAnalysisUrl(fen)} target="_blank" rel="noreferrer">Mở Lichess</a> · <a href={chessComAnalysisUrl(fen)} target="_blank" rel="noreferrer">Mở chess.com</a></p>{lines.map(line => <p key={line.multipv}>{line.san}</p>)}</>}
+        {done && <><p>Rating Lichess: {puzzle.rating} · Chủ đề: {puzzle.themes}</p>{index + 1 < puzzles.length ? <button onClick={() => { setIndex(index + 1); open(puzzles[index + 1]); }}>Thế tiếp theo →</button> : <p>Hoàn thành lượt luyện. Bạn có thể chọn cửa khác và mở lượt mới.</p>}<button disabled={analyzing} onClick={() => void analyze()}>{analyzing ? "Stockfish đang phân tích…" : "Phân tích vị trí hiện tại bằng Stockfish"}</button><p><a href={lichessAnalysisUrl(fen)} target="_blank" rel="noreferrer">Mở Lichess</a> · <a href={chessComAnalysisUrl(fen)} target="_blank" rel="noreferrer">Mở chess.com</a></p><EngineAdvantage lines={lines} fen={fen} /></>}
       </aside>
     </section>}
   </main>;

@@ -10,6 +10,7 @@ import {
 } from "react";
 import Link from "next/link";
 import DaoAmbient from "@/components/DaoAmbient";
+import EngineAdvantage from "@/components/EngineAdvantage";
 import SavePosition from "@/components/SavePosition";
 import { Chess } from "chess.js";
 import { toPng } from "html-to-image";
@@ -1333,20 +1334,7 @@ export default function AnalysisClient({
                       Kéo quân trên bàn nhỏ để thử nước. Thanh bên trái cập nhật ưu thế
                       Trắng/Đen sau khi Stockfish tính xong.
                     </p>
-                  ) : (
-                    lines.map((line, index) => (
-                      <div className="compactEngineLine" key={line.multipv}>
-                        <strong>
-                          #{index + 1}{" "}
-                          {line.mate !== null
-                            ? `M${line.mate}`
-                            : `${line.evaluation >= 0 ? "+" : ""}${line.evaluation.toFixed(2)}`}
-                        </strong>
-                        <span>{line.san}</span>
-                        <small>d{line.depth}</small>
-                      </div>
-                    ))
-                  )}
+                  ) : <EngineAdvantage lines={lines} fen={engineFen} />}
                 </div>
               </div>
             )}

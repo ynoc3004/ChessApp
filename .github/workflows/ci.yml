@@ -18,6 +18,7 @@ jobs:
           node-version: 24
       - run: npm install
       - run: node tests/puzzle.test.mjs
+      - run: node --test tests/engine-evaluation.test.mjs
       - run: npm run build
 
   backend-syntax:
