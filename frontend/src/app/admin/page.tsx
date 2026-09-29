@@ -129,7 +129,7 @@ export default function AdminPage() {
       const firebaseCode = (error as { code?: string })?.code ?? "";
       setMessage(
         firebaseCode.includes("api-key")
-          ? "Firebase từ chối API key. Mở Firebase Console → Project settings → General → Your apps → Web app → Config; chép lại apiKey vào frontend/.env.local rồi khởi động lại npm run dev."
+          ? "Firebase từ chối API key. So sánh frontend/.env.local với Web App Config. Nếu khóa trùng, vào Google Cloud → APIs & Services → Credentials của project để kiểm tra khóa còn tồn tại và cho phép Firebase Authentication API."
           : error instanceof Error ? error.message : "Đăng nhập thất bại.",
       );
     } finally {
