@@ -31,7 +31,7 @@ npm install
 npm run dev
 ```
 
-File mẫu đã điền đúng cấu hình Web App `chessapp-ac295` mà chủ project cung cấp. Firebase Web config là thông tin phía client; bảo mật dựa vào Authentication và Firestore rules. `.env.local` được gitignore. Nếu `git switch` báo thay đổi local có nguy cơ bị ghi đè, hãy lưu các thay đổi đó trước khi chuyển nhánh.
+File mẫu đã điền các trường Web App của project `chessapp-ac295`, nhưng để trống `NEXT_PUBLIC_FIREBASE_API_KEY`. Trong Firebase Console, vào **Project settings → General → Your apps → Web app → Config**, copy chính xác `apiKey` hiện tại vào dòng này trong `frontend/.env.local`, rồi khởi động lại `npm run dev`. Key đã gửi trước đó bị Firebase từ chối với lỗi `auth/api-key-not-valid`; đừng tiếp tục dùng lại key ấy. Firebase Web config là thông tin phía client; bảo mật dựa vào Authentication và Firestore rules. `.env.local` được gitignore. Nếu `git switch` báo thay đổi local có nguy cơ bị ghi đè, hãy lưu các thay đổi đó trước khi chuyển nhánh.
 
 Mở `http://localhost:3000/admin` và đăng nhập bằng tài khoản vừa tạo. Nếu trang báo chưa có quyền, dùng UID được hiện ở trang để kiểm tra document `admins/{uid}`, trường `enabled` và rules đã Publish, rồi tải lại. Bấm **Khởi tạo dữ liệu mẫu** một lần để đưa bốn Đạo cùng các Môn/Cảnh lên Firestore. Nút này chỉ tạo mục mặc định còn thiếu, không ghi đè nội dung đã sửa.
 
