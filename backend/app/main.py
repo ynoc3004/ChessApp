@@ -12,10 +12,12 @@ from pathlib import Path
 import chess
 import chess.engine
 import cv2
+import fitz
+import numpy as np
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from .detector import docx_image_metadata, extract_from_docx, extract_from_pdf
@@ -77,6 +79,14 @@ class SavePositionRequest(BaseModel):
     recognizer: str | None = None
     preprocessVariant: str | None = None
     corners: BoardCornersPayload | None = None
+
+
+class ManualDiagramRequest(BaseModel):
+    page: int
+    x0: float
+    y0: float
+    x1: float
+    y1: float
 
 
 def resolve_engine_path() -> str | None:
@@ -436,6 +446,72 @@ def get_book(job_id: str):
         return json.loads(metadata_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
         raise HTTPException(status_code=500, detail="Could not read book metadata") from exc
+
+
+def _pdf_page(job_id: str, page_number: int):
+    _job_dir(job_id)
+    upload_path = UPLOAD_DIR / f"{job_id}.pdf"
+    if not upload_path.exists():
+        raise HTTPException(status_code=404, detail="PDF nguồn không còn trên máy.")
+    document = fitz.open(upload_path)
+    if page_number < 1 or page_number > len(document):
+        document.close()
+        raise HTTPException(status_code=400, detail="Số trang PDF không hợp lệ.")
+    return document
+
+
+@app.get("/api/books/{job_id}/pages/{page_number}")
+def preview_pdf_page(job_id: str, page_number: int):
+    document = _pdf_page(job_id, page_number)
+    try:
+        pix = document[page_number - 1].get_pixmap(matrix=fitz.Matrix(1.5, 1.5), alpha=False)
+        return Response(pix.tobytes("png"), media_type="image/png")
+    finally:
+        document.close()
+
+
+@app.post("/api/books/{job_id}/diagrams/manual")
+def add_manual_diagram(job_id: str, selection: ManualDiagramRequest):
+    job_dir = _job_dir(job_id)
+    if not (0 <= selection.x0 < selection.x1 <= 1 and 0 <= selection.y0 < selection.y1 <= 1
+            and selection.x1 - selection.x0 >= 0.02 and selection.y1 - selection.y0 >= 0.02):
+        raise HTTPException(status_code=400, detail="Vùng chọn phải nằm trong trang và đủ lớn.")
+    status_path = job_dir / JOB_STATUS
+    if status_path.exists():
+        status = json.loads(status_path.read_text(encoding="utf-8"))
+        if status.get("status") != "completed":
+            raise HTTPException(status_code=409, detail="Hãy đợi quét sách hoàn tất.")
+
+    metadata_path = job_dir / BOOK_METADATA
+    if not metadata_path.exists():
+        raise HTTPException(status_code=404, detail="Chưa có dữ liệu sách.")
+    document = _pdf_page(job_id, selection.page)
+    try:
+        page = document[selection.page - 1]
+        bounds = page.rect
+        clip = fitz.Rect(
+            bounds.x0 + selection.x0 * bounds.width, bounds.y0 + selection.y0 * bounds.height,
+            bounds.x0 + selection.x1 * bounds.width, bounds.y0 + selection.y1 * bounds.height,
+        )
+        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), clip=clip, alpha=False)
+        image = cv2.imdecode(np.frombuffer(pix.tobytes("png"), dtype=np.uint8), cv2.IMREAD_COLOR)
+    finally:
+        document.close()
+
+    book = json.loads(metadata_path.read_text(encoding="utf-8"))
+    positions = book.setdefault("positions", [])
+    index = max((int(item["id"]) for item in positions), default=0) + 1
+    filename = f"position-{index:04d}.png"
+    if not cv2.imwrite(str(job_dir / filename), image):
+        raise HTTPException(status_code=500, detail="Không ghi được ảnh diagram.")
+    positions.append({"id": index, "page": selection.page, "confidence": 1.0,
+                      "imageUrl": f"/files/{job_id}/{filename}"})
+    book["count"] = len(positions)
+    _write_json_atomic(metadata_path, book)
+    if status_path.exists():
+        status.update(count=book["count"], positions=positions)
+        _write_json_atomic(status_path, status)
+    return book
 
 
 @app.get("/api/books/{job_id}/recognized.json")

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import styles from "./home.module.css";
 import BaguaSeal from "@/components/BaguaSeal";
@@ -38,6 +38,11 @@ export default function HomePage() {
   const [scanJob, setScanJob] = useState<ScanJob | null>(null);
   const [pageQuery, setPageQuery] = useState("");
   const [galleryPage, setGalleryPage] = useState(1);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualPage, setManualPage] = useState(1);
+  const [manualSelection, setManualSelection] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const [manualDragging, setManualDragging] = useState(false);
+  const [manualSaving, setManualSaving] = useState(false);
   const PAGE_SIZE = 12;
 
   const filteredPositions = useMemo(() => {
@@ -69,6 +74,7 @@ export default function HomePage() {
     setPositions(book.positions);
     setPageQuery("");
     setGalleryPage(1);
+    setManualSelection(null);
     window.localStorage.setItem("chessBookReader:lastJobId", book.jobId);
   }
 
@@ -83,6 +89,36 @@ export default function HomePage() {
       setError(err instanceof Error ? err.message : "Không mở được sách.");
     } finally {
       setRestoring(false);
+    }
+  }
+
+  function selectionPoint(event: ReactPointerEvent<HTMLDivElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
+      y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
+    };
+  }
+
+  async function addManualDiagram() {
+    if (!manualSelection || !jobId) return;
+    const { x0, y0, x1, y1 } = manualSelection;
+    setManualSaving(true);
+    setError("");
+    try {
+      const response = await fetch(`${API_BASE}/api/books/${jobId}/diagrams/manual`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ page: manualPage, x0: Math.min(x0, x1), y0: Math.min(y0, y1), x1: Math.max(x0, x1), y1: Math.max(y0, y1) }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail ?? "Không thêm được diagram.");
+      openBook(data as UploadResponse);
+      setManualOpen(false);
+      void loadRecentBooks();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thêm được diagram.");
+    } finally {
+      setManualSaving(false);
     }
   }
 
@@ -402,6 +438,54 @@ export default function HomePage() {
             ))}
           </div>
         </section>
+
+      {jobId && !isDocx && !loading && scanJob?.status !== "failed" && (
+        <section className={styles.manualSection} aria-label="Thêm diagram thủ công">
+          <button className={styles.button} onClick={() => setManualOpen((value) => !value)}>
+            {manualOpen ? "Đóng chọn vùng" : "+ Thêm diagram thủ công"}
+          </button>
+          {manualOpen && (
+            <div>
+              <p>Nhập trang PDF rồi kéo chọn vùng hình cờ. Sau đó bấm Thêm vào sách.</p>
+              <label>Trang PDF <input type="number" min="1" value={manualPage} onChange={(event) => {
+                setManualPage(Number(event.target.value) || 1);
+                setManualSelection(null);
+              }} /></label>
+              <div className={styles.manualCanvas}
+                onPointerDown={(event) => {
+                  const point = selectionPoint(event);
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  setManualSelection({ x0: point.x, y0: point.y, x1: point.x, y1: point.y });
+                  setManualDragging(true);
+                }}
+                onPointerMove={(event) => {
+                  if (!manualDragging) return;
+                  const point = selectionPoint(event);
+                  setManualSelection((selection) => selection && { ...selection, x1: point.x, y1: point.y });
+                }}
+                onPointerUp={(event) => {
+                  const point = selectionPoint(event);
+                  setManualSelection((selection) => selection && { ...selection, x1: point.x, y1: point.y });
+                  setManualDragging(false);
+                }}
+                onPointerCancel={() => setManualDragging(false)}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`${API_BASE}/api/books/${jobId}/pages/${manualPage}`} alt={`Trang PDF ${manualPage}`} draggable={false} />
+                {manualSelection && <div className={styles.manualBox} style={{
+                  left: `${Math.min(manualSelection.x0, manualSelection.x1) * 100}%`,
+                  top: `${Math.min(manualSelection.y0, manualSelection.y1) * 100}%`,
+                  width: `${Math.abs(manualSelection.x1 - manualSelection.x0) * 100}%`,
+                  height: `${Math.abs(manualSelection.y1 - manualSelection.y0) * 100}%`,
+                }} />}
+              </div>
+              <button className={styles.button} disabled={!manualSelection || manualDragging || manualSaving} onClick={() => void addManualDiagram()}>
+                {manualSaving ? "Đang thêm…" : "Thêm vào sách"}
+              </button>
+            </div>
+          )}
+        </section>
+      )}
 
       {positions.length > 0 && (
         <section className={styles.results}>
