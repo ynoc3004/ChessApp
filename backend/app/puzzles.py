@@ -9,6 +9,7 @@ import chess
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from .library import router as library_router
+from .library_admin import router as library_admin_router
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 PUZZLES = DATA / "lichess-puzzles.sqlite3"
@@ -98,4 +99,7 @@ def save_collection(item: SavedPosition):
 
 # Library routes carry their own /api prefix. Appending them avoids changing
 # main.py while keeping the existing puzzle/collection endpoints intact.
+# Admin routes go first so compatibility deletes can clean both legacy SQLite
+# and the newer JSON-backed archive when necessary.
+router.routes.extend(library_admin_router.routes)
 router.routes.extend(library_router.routes)
