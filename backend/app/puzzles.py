@@ -8,6 +8,7 @@ import time
 import chess
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
+from .library import router as library_router
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 PUZZLES = DATA / "lichess-puzzles.sqlite3"
@@ -93,3 +94,8 @@ def save_collection(item: SavedPosition):
         db.execute("INSERT OR REPLACE INTO collection VALUES (?,?,?)", (item.id, item.model_dump_json(), time.time()))
         db.commit()
     return {"saved": True}
+
+
+# Library routes carry their own /api prefix. Appending them avoids changing
+# main.py while keeping the existing puzzle/collection endpoints intact.
+router.routes.extend(library_router.routes)
