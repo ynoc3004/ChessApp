@@ -108,8 +108,10 @@ def _position_warnings(placement: str) -> list[str]:
     if expanded.count("p") > 8:
         warnings.append("AI nhận hơn 8 tốt đen.")
 
-    board = chess.Board(f"{placement} w - - 0 1")
-    if not board.is_valid():
+    if not any(
+        chess.Board(f"{placement} {turn} - - 0 1").is_valid()
+        for turn in ("w", "b")
+    ):
         warnings.append(
             "Thế cờ AI đọc được chưa hợp lệ theo luật cờ vua; "
             "hãy kiểm tra lại các quân trước khi phân tích."
