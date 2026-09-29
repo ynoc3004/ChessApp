@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import io
+import sqlite3
 from contextlib import closing
+from pathlib import Path
 
 import chess.pgn
 from fastapi import APIRouter, HTTPException
@@ -18,9 +20,9 @@ from .library import (
     _positions,
     _write_json,
 )
-from .puzzles import collection_db
 
 router = APIRouter(prefix="/api")
+LEGACY_COLLECTION = Path(__file__).resolve().parent.parent / "data" / "collection.sqlite3"
 
 
 class GameUpdate(BaseModel):
@@ -109,14 +111,15 @@ def delete_folder_with_games(folder_id: str):
 def delete_saved_position_everywhere(position_id: str):
     removed = False
 
-    # Current app versions historically stored Kỳ Thế Tàng in SQLite.
-    try:
-        with closing(collection_db()) as db:
-            cursor = db.execute("DELETE FROM collection WHERE id=?", (position_id,))
-            db.commit()
-            removed = cursor.rowcount > 0
-    except Exception:
-        pass
+    # Legacy/current Kỳ Thế Tàng storage used by SavePosition.
+    if LEGACY_COLLECTION.exists():
+        try:
+            with closing(sqlite3.connect(LEGACY_COLLECTION, timeout=15)) as db:
+                cursor = db.execute("DELETE FROM collection WHERE id=?", (position_id,))
+                db.commit()
+                removed = cursor.rowcount > 0
+        except (sqlite3.Error, OSError):
+            pass
 
     # Newer archive layout also supports the JSON-backed store.
     with _LOCK:
