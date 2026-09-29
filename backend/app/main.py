@@ -145,6 +145,23 @@ def _write_json_atomic(path: Path, payload: dict) -> None:
         raise
 
 
+def recover_interrupted_jobs() -> None:
+    """A job has no surviving worker after the backend process restarts."""
+    for status_path in OUTPUT_DIR.glob(f"*/{JOB_STATUS}"):
+        try:
+            status = json.loads(status_path.read_text(encoding="utf-8"))
+            if status.get("status") in {"queued", "processing"}:
+                status.update(status="failed", error="Backend đã khởi động lại. Hãy quét sách lần nữa.")
+                _write_json_atomic(status_path, status)
+        except (OSError, json.JSONDecodeError):
+            continue
+
+
+@app.on_event("startup")
+def recover_jobs_on_startup() -> None:
+    recover_interrupted_jobs()
+
+
 def _scan_book_job(
     job_id: str,
     upload_path: Path,

@@ -87,19 +87,79 @@ export default function HomePage() {
     const savedJobId = window.localStorage.getItem("chessBookReader:lastJobId");
     if (!savedJobId) return;
 
+    const controller = new AbortController();
     setRestoring(true);
-    void fetch(`${API_BASE}/api/books/${savedJobId}`)
-      .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.detail ?? "Không khôi phục được lần quét trước");
-        const result = data as UploadResponse;
-        openBook(result);
-      })
-      .catch(() => {
-        window.localStorage.removeItem("chessBookReader:lastJobId");
-      })
-      .finally(() => setRestoring(false));
+    void (async () => {
+      try {
+        const statusResponse = await fetch(`${API_BASE}/api/jobs/${savedJobId}`, {
+          cache: "no-store", signal: controller.signal,
+        });
+        if (statusResponse.ok) {
+          const job = (await statusResponse.json()) as ScanJob;
+          if (controller.signal.aborted) return;
+          setJobId(savedJobId);
+          setFilename(job.filename || "");
+          setScanJob(job);
+          setPositions(job.positions ?? []);
+          if (job.status === "queued" || job.status === "processing") setLoading(true);
+          else if (job.status === "failed") setError(job.error || "Quét sách thất bại");
+          else openBook({ jobId: savedJobId, filename: job.filename, count: job.count, positions: job.positions ?? [] });
+          return;
+        }
+        if (statusResponse.status !== 404) throw new Error("Không đọc được tiến trình quét.");
+        const response = await fetch(`${API_BASE}/api/books/${savedJobId}`, { signal: controller.signal });
+        if (!response.ok) throw new Error("Không khôi phục được sách.");
+        const book = (await response.json()) as UploadResponse;
+        if (!controller.signal.aborted) openBook(book);
+      } catch {
+        if (!controller.signal.aborted) setError("Không nối lại được lần quét trước. Kiểm tra backend rồi tải lại trang.");
+      } finally {
+        if (!controller.signal.aborted) setRestoring(false);
+      }
+    })();
+    return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (!jobId || !scanJob || !["queued", "processing"].includes(scanJob.status)) return;
+    const controller = new AbortController();
+    let timer: number;
+    const poll = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/jobs/${jobId}`, {
+          cache: "no-store", signal: controller.signal,
+        });
+        if (response.status === 503) {
+          timer = window.setTimeout(poll, 750);
+          return;
+        }
+        const current = (await response.json()) as ScanJob;
+        if (!response.ok) throw new Error("Không đọc được tiến trình quét.");
+        if (controller.signal.aborted) return;
+        setScanJob(current);
+        setPositions(current.positions ?? []);
+        if (current.status === "failed") {
+          setError(current.error || "Quét sách thất bại");
+          setLoading(false);
+        } else if (current.status === "completed") {
+          openBook({ jobId, filename: current.filename, count: current.count, positions: current.positions ?? [] });
+          setLoading(false);
+          void loadRecentBooks();
+        } else {
+          timer = window.setTimeout(poll, 750);
+        }
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        setError(err instanceof Error ? err.message : "Không đọc được tiến trình quét.");
+        setLoading(false);
+      }
+    };
+    timer = window.setTimeout(poll, 750);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [jobId, scanJob?.status]);
 
   function selectFile(next: File | null) {
     setError("");
@@ -132,51 +192,13 @@ export default function HomePage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail ?? "Không bắt đầu quét được");
 
-      let current = data as ScanJob;
+      const current = data as ScanJob;
+      window.localStorage.setItem("chessBookReader:lastJobId", current.jobId);
       setScanJob(current);
       setJobId(current.jobId);
       setFilename(current.filename || file.name);
-
-      while (current.status === "queued" || current.status === "processing") {
-        await new Promise((resolve) => window.setTimeout(resolve, 750));
-
-        const statusResponse = await fetch(
-          `${API_BASE}/api/jobs/${current.jobId}`,
-          { cache: "no-store" },
-        );
-        const statusData = await statusResponse.json();
-        if (!statusResponse.ok) {
-          if (statusResponse.status === 503) {
-            // Backend is replacing status.json on Windows; retry on next poll.
-            continue;
-          }
-          throw new Error(statusData.detail ?? "Không đọc được tiến trình quét");
-        }
-
-        current = statusData as ScanJob;
-        setScanJob(current);
-        setPositions(current.positions ?? []);
-
-        if (current.status === "failed") {
-          throw new Error(current.error || "Quét sách thất bại");
-        }
-      }
-
-      if (current.status === "failed") {
-        throw new Error(current.error || "Quét sách thất bại");
-      }
-
-      const result: UploadResponse = {
-        jobId: current.jobId,
-        filename: current.filename || file.name,
-        count: current.count,
-        positions: current.positions ?? [],
-      };
-      openBook(result);
-      await loadRecentBooks();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
-    } finally {
       setLoading(false);
     }
   }
