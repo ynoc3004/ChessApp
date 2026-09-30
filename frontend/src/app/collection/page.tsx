@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { Chessboard } from "react-chessboard";
 import { API_BASE } from "@/lib/api";
 import { type SavedPosition } from "@/components/SavePosition";
@@ -61,7 +60,7 @@ export default function CollectionPage() {
     catch (e) { if (generation.current === token) setMessage(e instanceof Error ? e.message : "Stockfish chưa sẵn sàng."); }
     finally { if (generation.current === token) setAnalyzing(false); }
   }
-  return <main className={`${styles.page} ${archive.archive}`}><header><Link href="/">← Quét sách & phân tích</Link><Link href="/realms">Bát Quái Bí Cảnh →</Link></header>
+  return <main className={`${styles.page} ${archive.archive}`} id="main-content" tabIndex={-1}>
     <div className={archive.hero}><div><span className={archive.eyebrow}>KỲ PHỔ ĐẠO CÁC · LƯU GIỮ KỲ THẾ</span><h1>Tàng Kinh Các</h1><p>Thế cờ bạn chọn từ sách và Lichess. Gắn nhãn để tìm lại theo chủ đề.</p></div><div className={archive.heroMark} aria-hidden="true">藏</div></div>
     <section className={`${styles.panel} ${archive.shelf}`}><div className={archive.shelfHead}><div><span className={archive.eyebrow}>KỆ CỔ THƯ</span><h2>{items.length} kỳ thế đã lưu</h2></div><span className={archive.shelfOrnament} aria-hidden="true">✦ ── ✦</span></div><label>Tìm tên, chủ đề hoặc ghi chú<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Ví dụ: ghim quân, tàn cuộc…" /></label><p role="status">{loading ? "Đang tải…" : message}</p>{message.includes("Không tải") && <button onClick={() => void load()}>Thử lại</button>}
       {!loading && !items.length && !message && <p>Chưa có thế cờ. Bấm “Lưu Tàng Kinh Các” trong màn phân tích sách hoặc Bí Cảnh.</p>}
