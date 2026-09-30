@@ -97,13 +97,19 @@ class TrainingResultRequest(BaseModel):
 def _normalize(value: str) -> str:
     decomposed = unicodedata.normalize("NFD", value.lower().strip())
     plain = "".join(char for char in decomposed if unicodedata.category(char) != "Mn")
+    # Vietnamese đ/Đ is a distinct letter, not a base character + combining mark.
+    # Normalize it explicitly so teacher-authored Vietnamese skill names match aliases.
+    plain = plain.replace("đ", "d")
     return " ".join("".join(char if char.isalnum() else " " for char in plain).split())
 
 
 def skill_to_theme(skill: str) -> str | None:
     normalized = _normalize(skill)
+    haystack = f" {normalized} "
     for keywords, theme in _SKILL_THEME_KEYWORDS:
-        if any(keyword in normalized for keyword in keywords):
+        # Match complete words/phrases so `mate` does not accidentally match
+        # unrelated labels such as `Material`.
+        if any(f" {keyword} " in haystack for keyword in keywords):
             return theme
     for theme in THEME_LABELS:
         if _normalize(theme) == normalized:
