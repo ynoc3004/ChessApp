@@ -68,6 +68,42 @@ class ScannerV2Tests(unittest.TestCase):
             self.assertTrue(book["positions"][0]["needsReview"])
             self.assertFalse(book["positions"][1]["needsReview"])
 
+    def test_retry_worker_preserves_other_failed_pages(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "positions"
+            output.mkdir()
+            job_id = "d" * 32
+            job_dir = output / job_id
+            job_dir.mkdir()
+            source = root / f"{job_id}.pdf"
+            source.write_bytes(b"fake")
+            (job_dir / "book.json").write_text(
+                json.dumps({"jobId": job_id, "positions": []}), encoding="utf-8"
+            )
+            image = np.zeros((180, 180, 3), dtype=np.uint8)
+            carry = [{"page": 9, "error": "another failure"}]
+
+            with patch.object(scanner_v2, "OUTPUT_DIR", output), patch.object(
+                scanner_v2, "_detect_page", return_value=[(image, 0.9)]
+            ):
+                scanner_v2._CONTROLS[job_id] = scanner_v2.JobControl()
+                scanner_v2._scan_worker(
+                    job_id,
+                    source,
+                    "book.pdf",
+                    4,
+                    4,
+                    12,
+                    preserve_existing=True,
+                    carry_failed=carry,
+                )
+
+            status = json.loads((job_dir / "status.json").read_text(encoding="utf-8"))
+            self.assertEqual(status["status"], "completed")
+            self.assertEqual(status["failedPages"], carry)
+            self.assertEqual(status["pageStates"]["4"], "completed")
+
     def test_remove_page_positions_keeps_other_ids_and_deletes_related_files(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
