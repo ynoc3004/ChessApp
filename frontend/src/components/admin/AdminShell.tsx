@@ -143,7 +143,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           </button>
           {error && <p className={styles.error} role="alert">{error}</p>}
           <div className={styles.setup}>
-            Lần đầu dùng: đặt <code>CHESSAPP_ADMIN_TOKEN</code> trong terminal chạy backend rồi khởi động lại dịch vụ.
+            Lần đầu dùng: chạy <code>backend\start.ps1</code> để đặt và lưu mã quản trị cục bộ.
           </div>
         </form>
       </main>
@@ -156,6 +156,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     ["/admin/puzzles", "◇", "Puzzle DB"],
     ["/admin/corrections", "✦", "AI Corrections"],
     ["/admin/collection", "藏", "Tàng Kinh Các"],
+    ["/admin/audit", "◷", "Nhật ký"],
     ["/admin/system", "⚙", "Hệ thống"],
   ] as const;
 
