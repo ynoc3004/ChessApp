@@ -64,6 +64,7 @@ class AcademyTrainingTests(unittest.TestCase):
         self.assertEqual(skill_to_theme("Chiếu hết"), "mate")
         self.assertEqual(skill_to_theme("Tàn cuộc"), "endgame")
         self.assertIsNone(skill_to_theme("Tư duy chung"))
+        self.assertIsNone(skill_to_theme("Material"))
         minimum, maximum = recommended_rating_range(4, 900)
         self.assertLess(minimum, 900)
         self.assertGreater(maximum, 900)
