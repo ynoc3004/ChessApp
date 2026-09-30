@@ -226,6 +226,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
 
   const links = [
     ["/admin", "⌂", "Tổng quan", "admin.read"],
+    ["/admin/academy", "門", "Học Viện", "admin.write"],
     ["/admin/books", "▤", "Kỳ phổ", "admin.read"],
     ["/admin/puzzles", "◇", "Puzzle DB", "admin.read"],
     ["/admin/corrections", "✦", "AI Corrections", "admin.read"],
