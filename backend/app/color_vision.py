@@ -14,14 +14,14 @@ def _square_for_cell(row: int, column: int) -> str:
 
 
 def _cluster_threshold(values: list[float]) -> tuple[float, float]:
-    """Split outlined white pieces from solid black pieces by excess core ink."""
+    """Split outlined white pieces from solid black pieces by shape mass."""
     if len(values) < 2:
-        return 0.08, 0.0
+        return 0.28, 0.0
 
     low = min(values)
     high = max(values)
-    if high - low < 0.012:
-        return float(np.clip((low + high) / 2, 0.015, 0.22)), high - low
+    if high - low < 0.025:
+        return float(np.clip((low + high) / 2, 0.05, 0.5)), high - low
 
     for _ in range(10):
         low_group: list[float] = []
@@ -38,17 +38,49 @@ def _cluster_threshold(values: list[float]) -> tuple[float, float]:
 
     if low > high:
         low, high = high, low
-    return float(np.clip((low + high) / 2, 0.015, 0.22)), high - low
+    return float(np.clip((low + high) / 2, 0.05, 0.5)), high - low
+
+
+def _shape_mass(local: np.ndarray) -> tuple[float, float, float, float]:
+    """Return (score, largest-component, hole-area, ink-ratio)."""
+    if local.size == 0:
+        return 0.0, 0.0, 0.0, 0.0
+
+    binary = (local > 0).astype(np.uint8)
+    ink_ratio = float(binary.mean())
+    count, _labels, stats, _centroids = cv2.connectedComponentsWithStats(binary, 8)
+    largest = 0.0
+    if count > 1:
+        largest = float(stats[1:, cv2.CC_STAT_AREA].max()) / float(binary.size)
+
+    contours, hierarchy = cv2.findContours(
+        (binary * 255).astype(np.uint8),
+        cv2.RETR_CCOMP,
+        cv2.CHAIN_APPROX_SIMPLE,
+    )
+    hole_area = 0.0
+    if hierarchy is not None:
+        for index, contour in enumerate(contours):
+            if hierarchy[0][index][3] == -1:
+                continue
+            area = float(cv2.contourArea(contour))
+            if area >= 2.0:
+                hole_area += area / float(binary.size)
+
+    # Black pieces are one large solid component. White pieces often have a
+    # large bright cavity enclosed by their outline (king/bishop/rook especially).
+    score = largest - hole_area * 1.05 + ink_ratio * 0.12
+    return score, largest, hole_area, ink_ratio
 
 
 def analyze_piece_colors(image_path: Path) -> dict:
     """Estimate white/black piece color independently from piece type.
 
-    Historical chess books normally print black men as a solid black mass and
-    white men as a black outline with a light interior. The board background can
-    itself contain dark hatch strokes, so each cell is compared with *empty
-    cells of the same board parity*. This measures the extra solid ink caused by
-    the piece rather than confusing the printed square texture with piece color.
+    Historical chess books normally print black men as solid silhouettes and
+    white men as outlines with bright internal cavities. The resolver measures
+    connected solid mass and enclosed white-hole area, then subtracts the empty
+    background baseline of the same board parity so diagonal hatch texture does
+    not become a false color signal.
     """
     gray = _read_gray(image_path)
     board = _grid_variant(gray, VISION_SIZE)
@@ -61,11 +93,14 @@ def analyze_piece_colors(image_path: Path) -> dict:
         cv2.THRESH_BINARY + cv2.THRESH_OTSU,
     )
     solid_cutoff = float(np.clip(float(otsu_threshold) * 0.68, 55.0, 125.0))
-    solid_ink = (board < solid_cutoff).astype(np.float32)
+    solid_ink = (board < solid_cutoff).astype(np.uint8)
 
     cell = VISION_SIZE // 8
     margin = max(5, int(round(cell * 0.12)))
-    raw_fill: dict[str, float] = {}
+    raw_score: dict[str, float] = {}
+    largest_component: dict[str, float] = {}
+    hole_area: dict[str, float] = {}
+    ink_ratio: dict[str, float] = {}
     parity_by_square: dict[str, int] = {}
 
     for row in range(8):
@@ -76,28 +111,18 @@ def analyze_piece_colors(image_path: Path) -> dict:
             y1 = (row + 1) * cell - margin
             x0 = column * cell + margin
             x1 = (column + 1) * cell - margin
-            local = solid_ink[y0:y1, x0:x1]
-            if local.size == 0:
-                fill = 0.0
-            else:
-                h, w = local.shape[:2]
-                cy0, cy1 = int(h * 0.2), max(int(h * 0.8), int(h * 0.2) + 1)
-                cx0, cx1 = int(w * 0.2), max(int(w * 0.8), int(w * 0.2) + 1)
-                core = local[cy0:cy1, cx0:cx1]
-                core_ratio = float(core.mean()) if core.size else float(local.mean())
-                whole_ratio = float(local.mean())
-                fill = core_ratio * 0.82 + whole_ratio * 0.18
-            raw_fill[square] = fill
+            score, largest, holes, ratio = _shape_mass(solid_ink[y0:y1, x0:x1])
+            raw_score[square] = score
+            largest_component[square] = round(largest, 4)
+            hole_area[square] = round(holes, 4)
+            ink_ratio[square] = round(ratio, 4)
 
     background_samples: dict[int, list[float]] = {0: [], 1: []}
-    for square, fill in raw_fill.items():
+    for square, score in raw_score.items():
         occupied_probability = float(occupancy["occupancy"].get(square, 0.0))
         if occupied_probability <= 0.32:
-            background_samples[parity_by_square[square]].append(fill)
+            background_samples[parity_by_square[square]].append(score)
 
-    # Median protects the baseline from one missed piece among nominally empty
-    # squares. If a parity has too few clean empty cells, use the lower quartile
-    # of all cells with that parity as a conservative fallback.
     background_baseline: dict[int, float] = {}
     for parity in (0, 1):
         samples = background_samples[parity]
@@ -105,21 +130,21 @@ def analyze_piece_colors(image_path: Path) -> dict:
             background_baseline[parity] = float(np.median(samples))
         else:
             parity_values = [
-                fill for square, fill in raw_fill.items()
+                score for square, score in raw_score.items()
                 if parity_by_square[square] == parity
             ]
             background_baseline[parity] = float(np.percentile(parity_values, 25)) if parity_values else 0.0
 
-    fill_density: dict[str, float] = {}
-    occupied_fill: list[float] = []
-    for square, fill in raw_fill.items():
-        adjusted = max(0.0, fill - background_baseline[parity_by_square[square]])
-        fill_density[square] = round(adjusted, 4)
+    shape_mass: dict[str, float] = {}
+    occupied_mass: list[float] = []
+    for square, score in raw_score.items():
+        adjusted = max(0.0, score - background_baseline[parity_by_square[square]])
+        shape_mass[square] = round(adjusted, 4)
         if float(occupancy["occupancy"].get(square, 0.0)) >= 0.48:
-            occupied_fill.append(adjusted)
+            occupied_mass.append(adjusted)
 
-    color_threshold, separation = _cluster_threshold(occupied_fill)
-    scale = max(0.012, min(0.05, separation / 4 if separation > 0 else 0.035))
+    color_threshold, separation = _cluster_threshold(occupied_mass)
+    scale = max(0.02, min(0.09, separation / 4 if separation > 0 else 0.06))
 
     black_probability: dict[str, float] = {}
     color_confidence: dict[str, float] = {}
@@ -134,8 +159,8 @@ def analyze_piece_colors(image_path: Path) -> dict:
                 color_confidence[square] = 0.0
                 continue
 
-            fill = fill_density[square]
-            probability = 1.0 / (1.0 + math.exp(-(fill - color_threshold) / scale))
+            mass = shape_mass[square]
+            probability = 1.0 / (1.0 + math.exp(-(mass - color_threshold) / scale))
             confidence = abs(probability - 0.5) * 2.0
             confidence *= min(1.0, max(0.0, (occupied_probability - 0.35) / 0.45))
             black_probability[square] = round(probability, 3)
@@ -144,11 +169,13 @@ def analyze_piece_colors(image_path: Path) -> dict:
                 uncertain.append(square)
 
     return {
-        "method": "parity-normalized-solid-core-v3",
+        "method": "connected-mass-holes-v4",
         "blackProbability": black_probability,
         "colorConfidence": color_confidence,
-        "fillDensity": fill_density,
-        "rawFillDensity": {square: round(value, 4) for square, value in raw_fill.items()},
+        "shapeMass": shape_mass,
+        "largestComponent": largest_component,
+        "holeArea": hole_area,
+        "inkRatio": ink_ratio,
         "backgroundBaseline": {
             "lightParity": round(background_baseline[0], 4),
             "darkParity": round(background_baseline[1], 4),
