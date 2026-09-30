@@ -6,7 +6,8 @@ import { formatBytes, formatTime, type PuzzleStats, type PuzzleUpdateState } fro
 import styles from "../admin.module.css";
 
 export default function AdminPuzzlesPage() {
-  const { request } = useAdmin();
+  const { request, can } = useAdmin();
+  const canUpdate = can("puzzles.write");
   const [stats, setStats] = useState<PuzzleStats | null>(null);
   const [update, setUpdate] = useState<PuzzleUpdateState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,6 +44,7 @@ export default function AdminPuzzlesPage() {
   }, [load, request, update?.running]);
 
   async function startUpdate() {
+    if (!canUpdate) return;
     if (!window.confirm("Kiểm tra và tải database Lichess mới nếu có? Quá trình có thể dùng nhiều băng thông và dung lượng.")) return;
     setError("");
     try {
@@ -62,6 +64,7 @@ export default function AdminPuzzlesPage() {
       </section>
 
       {error && <div className={styles.error} role="alert">{error}</div>}
+      {!canUpdate && <div className={styles.notice}>Role hiện tại chỉ được xem Puzzle DB. Cần quyền <code>puzzles.write</code> để cập nhật dữ liệu Lichess.</div>}
       {update?.running && <div className={styles.notice}>Database đang được cập nhật ở backend. Trang này sẽ tự kiểm tra trạng thái cho đến khi hoàn tất.</div>}
       {update?.error && <div className={styles.error}>Lần cập nhật gần nhất lỗi: {update.error}</div>}
 
@@ -75,7 +78,7 @@ export default function AdminPuzzlesPage() {
       <section className={styles.panel}>
         <div className={styles.panelHead}><h2>Cập nhật kho puzzle</h2><span>{update?.finishedAt ? `Lần chạy: ${formatTime(update.finishedAt)}` : "Chưa chạy trong phiên này"}</span></div>
         <p className={styles.muted}>Backend dùng script cập nhật sẵn có của dự án, tải bản Lichess mới vào file tạm rồi chỉ thay database sau khi import thành công.</p>
-        <div className={styles.actions}><button className={styles.button} disabled={Boolean(update?.running)} onClick={() => void startUpdate()}>{update?.running ? "Đang cập nhật…" : "Kiểm tra & cập nhật Lichess DB"}</button></div>
+        <div className={styles.actions}><button className={styles.button} disabled={!canUpdate || Boolean(update?.running)} onClick={() => void startUpdate()}>{update?.running ? "Đang cập nhật…" : "Kiểm tra & cập nhật Lichess DB"}</button></div>
       </section>
 
       <section className={styles.split}>
