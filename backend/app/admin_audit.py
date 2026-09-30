@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import re
 import time
+from collections.abc import Awaitable, Callable
+from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query
 
 from . import admin as admin_core
 from .audit_store import audit_stats, list_events, record_event
@@ -15,7 +17,6 @@ _ID_SEGMENT = re.compile(r"^(?:[0-9a-f]{32}(?:-\d{4})?|\d+)$", re.IGNORECASE)
 
 def _normalized_action(method: str, path: str) -> tuple[str, str, str | None]:
     parts = [part for part in path.strip("/").split("/") if part]
-    # /api/admin/<resource>/...
     resource_type = parts[2] if len(parts) > 2 else "admin"
     resource_id: str | None = None
     normalized: list[str] = []
@@ -30,47 +31,65 @@ def _normalized_action(method: str, path: str) -> tuple[str, str, str | None]:
     return f"{method.upper()} {action_path}", resource_type, resource_id
 
 
-async def audit_admin_mutations(request: Request, call_next):
-    path = request.url.path
-    method = request.method.upper()
-    should_log = path.startswith("/api/admin/") and method not in {"GET", "HEAD", "OPTIONS"}
-    if not should_log:
-        return await call_next(request)
+def wrap_admin_routes(admin_router: APIRouter) -> None:
+    """Audit every mutating admin route without touching request bodies or auth headers."""
+    for route in admin_router.routes:
+        if getattr(route, "_chessapp_audited", False) or not hasattr(route, "app"):
+            continue
+        original = route.app
 
-    started = time.perf_counter()
-    action, resource_type, resource_id = _normalized_action(method, path)
-    try:
-        response = await call_next(request)
-    except Exception as exc:
-        record_event(
-            action,
-            resource_type,
-            resource_id,
-            status="failure",
-            message=type(exc).__name__,
-            details={
-                "method": method,
-                "path": path,
-                "durationMs": round((time.perf_counter() - started) * 1000, 2),
-            },
-        )
-        raise
+        async def audited_app(scope, receive, send, _original=original):
+            if scope.get("type") != "http":
+                return await _original(scope, receive, send)
+            method = str(scope.get("method") or "GET").upper()
+            if method in {"GET", "HEAD", "OPTIONS"}:
+                return await _original(scope, receive, send)
 
-    status = "success" if response.status_code < 400 else "failure"
-    record_event(
-        action,
-        resource_type,
-        resource_id,
-        status=status,
-        message=f"HTTP {response.status_code}",
-        details={
-            "method": method,
-            "path": path,
-            "statusCode": response.status_code,
-            "durationMs": round((time.perf_counter() - started) * 1000, 2),
-        },
-    )
-    return response
+            path = str(scope.get("path") or "")
+            action, resource_type, resource_id = _normalized_action(method, path)
+            started = time.perf_counter()
+            response_status: dict[str, int] = {}
+
+            async def send_with_status(message: dict[str, Any]) -> None:
+                if message.get("type") == "http.response.start":
+                    response_status["code"] = int(message.get("status", 200))
+                await send(message)
+
+            try:
+                result = await _original(scope, receive, send_with_status)
+            except Exception as exc:
+                record_event(
+                    action,
+                    resource_type,
+                    resource_id,
+                    status="failure",
+                    message=type(exc).__name__,
+                    details={
+                        "method": method,
+                        "path": path,
+                        "durationMs": round((time.perf_counter() - started) * 1000, 2),
+                    },
+                )
+                raise
+
+            code = response_status.get("code", 200)
+            record_event(
+                action,
+                resource_type,
+                resource_id,
+                status="success" if code < 400 else "failure",
+                message=f"HTTP {code}",
+                details={
+                    "method": method,
+                    "path": path,
+                    "statusCode": code,
+                    "durationMs": round((time.perf_counter() - started) * 1000, 2),
+                },
+            )
+            return result
+
+        route.app = audited_app
+        setattr(route, "_chessapp_audited", True)
 
 
 @router.get("")
