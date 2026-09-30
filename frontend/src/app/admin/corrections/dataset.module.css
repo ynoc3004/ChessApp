@@ -1,0 +1,32 @@
+.filters { display: grid; grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(150px, .8fr)); gap: 10px; }
+.filters label { display: grid; gap: 6px; color: #91887b; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; }
+.filters input, .filters select { min-height: 39px; padding: 8px 11px; border: 1px solid #ae925f48; border-radius: 9px; outline: 0; background: #0f1614; color: #e8ddc8; }
+.filters input:focus, .filters select:focus { border-color: #c6a15c; box-shadow: 0 0 0 3px #c6a15c18; }
+.exportBar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.secondaryGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.distribution { display: grid; gap: 8px; }
+.distributionRow { display: grid; grid-template-columns: minmax(100px, 1fr) 64px; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #c6a96718; color: #a9a094; font-size: 11px; }
+.distributionRow:last-child { border-bottom: 0; }
+.distributionRow strong { color: #e5d7bd; text-align: right; }
+.squareGrid { display: grid; grid-template-columns: repeat(8, minmax(38px, 1fr)); gap: 6px; }
+.square { min-height: 48px; padding: 7px 4px; display: grid; place-items: center; border: 1px solid #c6a96728; border-radius: 8px; background: #101714; text-align: center; }
+.square strong { color: #e7d7b9; font: 600 13px Georgia, serif; }
+.square span { color: #8d8478; font-size: 9px; }
+.sampleGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+.sample { padding: 17px; border: 1px solid #c6a9672d; border-radius: 13px; background: #111916; }
+.sampleHead { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: 12px; }
+.sample h3 { margin: 0; color: #e8dbc2; font-size: 13px; overflow-wrap: anywhere; }
+.sampleMeta { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0; color: #817a70; font-size: 10px; }
+.sampleMeta span { padding: 4px 6px; border: 1px solid #c6a96720; border-radius: 999px; }
+.detailGrid { display: grid; grid-template-columns: minmax(260px, .8fr) minmax(0, 1.2fr); gap: 18px; }
+.detailImage { width: 100%; max-width: 480px; aspect-ratio: 1; object-fit: contain; padding: 10px; border: 1px solid #c6a96730; border-radius: 11px; background: #ece0ca; }
+.diffGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.diff { padding: 9px; border: 1px solid #c6a96725; border-radius: 8px; background: #0b100f; }
+.diff strong { display: block; color: #e5c37e; margin-bottom: 4px; }
+.diff span { color: #aaa094; font-size: 10px; }
+.fen { display: grid; gap: 5px; margin: 10px 0; }
+.fen label { color: #81786c; font-size: 9px; letter-spacing: .09em; text-transform: uppercase; }
+.fen code { padding: 9px; border-radius: 7px; background: #0a0f0d; color: #bdb4a6; font-size: 10px; line-height: 1.55; overflow-wrap: anywhere; }
+.warning { color: #e4b08f; }
+@media (max-width: 1000px) { .filters { grid-template-columns: 1fr 1fr; } .secondaryGrid, .detailGrid { grid-template-columns: 1fr; } .squareGrid { grid-template-columns: repeat(4, minmax(38px, 1fr)); } }
+@media (max-width: 720px) { .filters, .sampleGrid { grid-template-columns: 1fr; } .diffGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
