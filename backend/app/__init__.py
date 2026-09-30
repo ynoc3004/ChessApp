@@ -13,11 +13,13 @@ from .admin_dataset import router as admin_dataset_router
 from .admin_maintenance import router as admin_maintenance_router
 from .admin_model import router as admin_model_router
 from .admin_restore import router as admin_restore_router
+from .admin_review import router as admin_review_router
 
 # Keep the main app wiring unchanged: extend the existing protected admin router.
 admin.router.include_router(admin_books_router)
 admin.router.include_router(admin_dataset_router)
 admin.router.include_router(admin_model_router)
+admin.router.include_router(admin_review_router)
 admin.router.include_router(admin_audit_router)
 admin.router.include_router(admin_users_router)
 admin.router.include_router(admin_maintenance_router)
