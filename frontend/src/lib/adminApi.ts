@@ -101,6 +101,46 @@ export type AdminCorrection = {
   hasImage: boolean;
 };
 
+export type DatasetSquareDiff = {
+  square: string;
+  aiPiece: string | null;
+  correctedPiece: string | null;
+};
+
+export type AdminDatasetSample = AdminCorrection & {
+  corners?: { x0: number; y0: number; x1: number; y1: number } | null;
+  imageBytes: number;
+  changed: boolean;
+  changedSquares: number;
+  validCorrectedFen: boolean;
+  validAiFen: boolean;
+  diffs: DatasetSquareDiff[];
+};
+
+export type AdminDatasetStats = {
+  total: number;
+  changed: number;
+  confirmed: number;
+  missingAiFen: number;
+  withImage: number;
+  missingImage: number;
+  invalidCorrectedFen: number;
+  datasetBytes: number;
+  averageChangedSquares: number;
+  recognizers: { name: string; count: number }[];
+  preprocessVariants: { name: string; count: number }[];
+  orientations: { name: string; count: number }[];
+  topErrorSquares: { square: string; count: number }[];
+};
+
+export type AdminDatasetSamplesResponse = {
+  samples: AdminDatasetSample[];
+  total: number;
+  filtered: number;
+  offset: number;
+  limit: number;
+};
+
 export type AdminCollectionItem = {
   id: string;
   title?: string;
