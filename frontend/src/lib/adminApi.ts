@@ -141,6 +141,34 @@ export type AdminDatasetSamplesResponse = {
   limit: number;
 };
 
+export type AdminAuditEvent = {
+  id: number;
+  createdAt: number;
+  action: string;
+  resourceType: string;
+  resourceId?: string | null;
+  status: "success" | "failure" | "started";
+  message?: string | null;
+  details: Record<string, unknown>;
+};
+
+export type AdminAuditResponse = {
+  events: AdminAuditEvent[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type AdminAuditStats = {
+  total: number;
+  success: number;
+  failure: number;
+  last24Hours: number;
+  topActions: { name: string; count: number }[];
+  topResources: { name: string; count: number }[];
+  databaseBytes: number;
+};
+
 export type AdminCollectionItem = {
   id: string;
   title?: string;
