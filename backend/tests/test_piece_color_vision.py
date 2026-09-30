@@ -48,6 +48,8 @@ class PieceColorVisionTests(unittest.TestCase):
             cv2.line(image, (cx - 16, cy + 20), (cx + 16, cy + 20), 0, 4)
 
         # e3 / g1 are outlined white-piece silhouettes with light interiors.
+        # Both deliberately sit on hatched squares to make sure background ink
+        # is subtracted instead of being mistaken for black-piece fill.
         for row, col in ((5, 4), (7, 6)):
             cx, cy = center(row, col)
             cv2.circle(image, (cx, cy - 9), 10, 0, 3)
@@ -65,7 +67,7 @@ class PieceColorVisionTests(unittest.TestCase):
             black = [vision["blackProbability"][square] for square in ("b8", "d5")]
             white = [vision["blackProbability"][square] for square in ("e3", "g1")]
             self.assertGreater(sum(black) / len(black), sum(white) / len(white) + 0.18)
-            self.assertEqual(vision["method"], "solid-core-ink-v2")
+            self.assertEqual(vision["method"], "parity-normalized-solid-core-v3")
 
     def test_color_resolver_flips_case_without_changing_piece_type(self):
         result = {
@@ -84,7 +86,7 @@ class PieceColorVisionTests(unittest.TestCase):
             "qualityReasons": [],
         }
         color_vision = {
-            "method": "solid-core-ink-v2",
+            "method": "parity-normalized-solid-core-v3",
             "blackProbability": {"e2": 0.94, "e1": 0.05, "e8": 0.96},
             "colorConfidence": {"e2": 0.88, "e1": 0.9, "e8": 0.92},
         }
