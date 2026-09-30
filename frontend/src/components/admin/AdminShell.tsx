@@ -229,6 +229,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     ["/admin/books", "▤", "Kỳ phổ", "admin.read"],
     ["/admin/puzzles", "◇", "Puzzle DB", "admin.read"],
     ["/admin/corrections", "✦", "AI Corrections", "admin.read"],
+    ["/admin/review", "審", "Review AI", "admin.read"],
     ["/admin/model", "棋", "Model AI", "admin.read"],
     ["/admin/collection", "藏", "Tàng Kinh Các", "admin.read"],
     ["/admin/audit", "◷", "Nhật ký", "audit.read"],
