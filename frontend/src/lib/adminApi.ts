@@ -1,3 +1,43 @@
+export type AdminPrincipal = {
+  id: string;
+  username: string;
+  displayName: string;
+  role: "owner" | "admin" | "moderator" | "user" | string;
+  authType: "bootstrap" | "account" | string;
+  permissions: string[];
+};
+
+export type AdminSessionResponse = {
+  ok: boolean;
+  principal: AdminPrincipal;
+};
+
+export type AdminLoginResponse = {
+  token: string;
+  expiresAt: number;
+  principal: AdminPrincipal;
+};
+
+export type AdminUser = {
+  id: string;
+  username: string;
+  displayName: string;
+  role: "owner" | "admin" | "moderator" | "user" | string;
+  enabled: boolean;
+  createdAt?: number | null;
+  updatedAt?: number | null;
+  lastLoginAt?: number | null;
+  authType: "bootstrap" | "account" | string;
+  immutable: boolean;
+  permissions: string[];
+};
+
+export type AdminRole = {
+  name: string;
+  description: string;
+  permissions: string[];
+};
+
 export type AdminStats = {
   books: number;
   diagrams: number;
@@ -150,6 +190,12 @@ export type AdminAuditEvent = {
   status: "success" | "failure" | "started";
   message?: string | null;
   details: Record<string, unknown>;
+  actor?: {
+    id?: string | null;
+    displayName?: string | null;
+    role?: string | null;
+    authType?: string | null;
+  } | null;
 };
 
 export type AdminAuditResponse = {
@@ -166,6 +212,7 @@ export type AdminAuditStats = {
   last24Hours: number;
   topActions: { name: string; count: number }[];
   topResources: { name: string; count: number }[];
+  topActors: { name: string; count: number }[];
   databaseBytes: number;
 };
 
