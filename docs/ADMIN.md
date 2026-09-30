@@ -93,31 +93,19 @@ Toàn quyền:
 - `audit.read`
 - `users.manage`
 
-Chỉ owner mới quản lý account và role.
+Chỉ owner mới quản lý account/role và thực hiện Safe Restore.
 
 ### admin
 
-Được quản trị dữ liệu, Puzzle DB, hệ thống và Audit Log nhưng **không có `users.manage`**.
+Được quản trị dữ liệu, Puzzle DB, hệ thống, backup và Audit Log nhưng **không có `users.manage`**, vì vậy không được restore.
 
 ### moderator
 
-Được:
-
-- xem Admin;
-- quản lý Kỳ phổ;
-- quản lý AI Dataset;
-- quản lý Tàng Kinh Các.
-
-Không được:
-
-- cập nhật Puzzle DB;
-- xem System console;
-- xem Audit Log;
-- quản lý tài khoản.
+Được quản lý Kỳ phổ, AI Dataset và Tàng Kinh Các. Không được cập nhật Puzzle DB, xem System/Audit, quản lý tài khoản hoặc backup/restore.
 
 ### user
 
-Không có quyền vào Nội Các. Role này dành cho tài khoản thường và không nhận `admin.read`.
+Không có quyền vào Nội Các.
 
 Permission được kiểm tra ở backend theo route và method. Việc ẩn nút/sidebar trên frontend chỉ là UX; backend vẫn là lớp quyết định cuối cùng.
 
@@ -129,28 +117,11 @@ Mọi tài khoản có quyền vào Nội Các đều có trang:
 /admin/security
 ```
 
-Tại đây account có thể:
+Account có thể xem session của chính mình, thu hồi session khác, đăng xuất mọi phiên khác và đổi mật khẩu. Đổi mật khẩu thu hồi toàn bộ session và yêu cầu đăng nhập lại.
 
-- xem tất cả session đăng nhập đang còn hiệu lực của chính mình;
-- nhận biết session hiện tại;
-- thu hồi từng session khác;
-- đăng xuất toàn bộ session khác và giữ session hiện tại;
-- đổi mật khẩu của chính mình.
+Owner có thể xem số session của mọi account và thu hồi toàn bộ session của một account từ xa.
 
-Khi đổi mật khẩu, backend thu hồi **toàn bộ** session của account, kể cả session hiện tại. Người dùng phải đăng nhập lại bằng mật khẩu mới.
-
-Owner có thêm bảng tổng hợp session của mọi account và có thể thu hồi toàn bộ session của một account từ xa.
-
-Security Center không lưu hoặc hiển thị:
-
-- IP;
-- User-Agent;
-- session token dạng rõ;
-- Authorization header.
-
-Session ID hiển thị trên UI là mã định danh một chiều dẫn xuất từ token hash, không phải session token thật.
-
-Owner local/bootstrap không dùng session SQLite. Muốn đổi khóa owner local, sửa `CHESSAPP_ADMIN_TOKEN` trong `backend/.env` rồi khởi động lại backend.
+Security Center không lưu hoặc hiển thị IP, User-Agent, session token dạng rõ hoặc Authorization header. Owner local/bootstrap không dùng session SQLite.
 
 ## 5. Backup & Maintenance — Admin v7
 
@@ -162,8 +133,8 @@ Owner và Admin có trang:
 
 Có hai loại snapshot:
 
-- **Core backup**: lưu kỳ phổ/diagram, file upload, Tàng Kinh Các, account + session hash, Audit Log, AI corrections và dữ liệu local khác; không đưa `lichess-puzzles.sqlite3` vào ZIP.
-- **Full backup**: giống Core nhưng có thêm Lichess Puzzle DB. File Full có thể rất lớn.
+- **Core backup**: kỳ phổ/diagram, file upload, Tàng Kinh Các, account + session hash, Audit Log, AI corrections và dữ liệu local khác; không chứa `lichess-puzzles.sqlite3`.
+- **Full backup**: Core + Lichess Puzzle DB.
 
 Backup được lưu tại:
 
@@ -171,37 +142,74 @@ Backup được lưu tại:
 backend/data/backups/
 ```
 
-Thư mục `backups/` không được nhét ngược vào backup mới, tránh backup lồng nhau.
+Thư mục `backups/` không được đưa ngược vào backup mới. SQLite được snapshot bằng SQLite backup API và `PRAGMA quick_check` trước khi đóng ZIP. Từ Admin v8, backup mới còn ghi SHA-256 cho từng file trong `manifest.json`; backup v7 cũ vẫn tương thích restore nhờ ZIP CRC + manifest + schema validation.
 
-Các file `.sqlite3` không được copy thẳng khi database đang mở. Backend dùng SQLite backup API tạo snapshot nhất quán, chạy `PRAGMA quick_check`, rồi mới đưa snapshot đó vào ZIP. Mỗi ZIP có `manifest.json` ghi scope, thời gian, danh sách file và dung lượng.
+Maintenance Center hỗ trợ tạo Core/Full backup, tải/xóa/prune snapshot và chạy integrity check cho các SQLite DB chính.
 
-Maintenance Center hỗ trợ:
+## 6. Safe Restore — Admin v8
 
-- tạo Core backup;
-- tạo Full backup;
-- tải ZIP qua API Admin đã xác thực;
-- xóa từng backup;
-- giữ 5 backup mới nhất và dọn các bản cũ hơn;
-- chạy `PRAGMA quick_check` trên `collection.sqlite3`, `admin-users.sqlite3`, `admin-audit.sqlite3` và `lichess-puzzles.sqlite3`.
+Chỉ **Owner** (`users.manage`) được restore. Admin thường có thể tạo/tải backup nhưng backend từ chối endpoint restore.
 
-Database chưa tồn tại được báo `Missing` và không tính là lỗi integrity.
+Luồng restore:
 
-**V7 chưa có restore tự động.** Restore cần thêm kiểm tra version/schema và rollback an toàn trước khi cho phép ghi đè database đang chạy. ZIP v7 được thiết kế để làm nguồn snapshot trước.
+```text
+Chọn backup
+→ Dry-run / restore plan
+→ Validate ZIP + manifest + path safety
+→ Verify SHA-256 nếu backup có checksum
+→ PRAGMA quick_check + schema validation cho SQLite
+→ Tạo pre-restore backup hiện trạng
+→ Giải nén vào staging
+→ Atomic replace dữ liệu trong scope
+→ Completed
+```
 
-## 6. Chức năng Admin
+UI yêu cầu nhập chính xác:
+
+```text
+RESTORE
+```
+
+trước khi gọi endpoint ghi dữ liệu.
+
+### Scope
+
+- Core restore không chạm `lichess-puzzles.sqlite3` hiện tại.
+- Full restore đưa toàn bộ dữ liệu trong Full snapshot về trạng thái của snapshot, gồm Puzzle DB.
+- File thuộc scope hiện tại nhưng không có trong snapshot sẽ bị xóa để dữ liệu khớp snapshot.
+- Thư mục `backend/data/backups/` luôn được giữ nguyên.
+
+### Session
+
+Nếu backup có `admin-users.sqlite3`, backend xóa toàn bộ `admin_sessions` trong bản staging trước khi áp dụng. Session cũ không được hồi sinh từ backup. Account đang thực hiện restore phải đăng nhập lại sau khi restore; owner local/bootstrap không bị ảnh hưởng.
+
+### Rollback
+
+Ngay trước khi ghi dữ liệu, backend tự tạo một Core hoặc Full **pre-restore backup** cùng scope với snapshot đích. Nếu apply phát sinh exception, backend tự khôi phục pre-restore backup. Nếu cả restore lẫn rollback thất bại, API trả trạng thái nghiêm trọng và phải ngừng ghi dữ liệu cho đến khi phục hồi thủ công từ pre-restore ZIP.
+
+### Audit
+
+Restore ghi các sự kiện:
+
+- `Restore started`
+- `Restore validated`
+- `Restore completed`
+- `Restore rolled back` khi có lỗi và rollback thành công
+
+## 7. Chức năng Admin
 
 - **Tổng quan**: số sách, diagram, puzzle, correction, Tàng Kinh Các, storage, Stockfish, uptime.
 - **Kỳ phổ**: quản lý sách, diagram, nhận dạng, re-scan/retry, cache AI, export và xóa dữ liệu.
-- **Puzzle DB**: tổng số puzzle, rating min/max, theme phổ biến, phân bố rating và cập nhật database Lichess khi role có `puzzles.write`.
-- **AI Dataset**: thống kê correction, filter/search, diff từng ô cờ, ảnh nguồn và export dataset cho retraining local.
-- **Tàng Kinh Các**: tìm và xóa thế cờ đã lưu, mở lại nguồn khi có đường dẫn.
-- **Nhật ký**: mutation Admin, HTTP status, thời gian xử lý và actor thực hiện.
+- **Puzzle DB**: thống kê và cập nhật database Lichess theo permission.
+- **AI Dataset**: correction, filter/search, diff ô cờ, ảnh nguồn và export dataset.
+- **Tàng Kinh Các**: tìm/xóa thế cờ và mở nguồn.
+- **Nhật ký**: mutation Admin, HTTP status, thời gian xử lý và actor.
 - **Tài khoản**: tạo account, đổi role, khóa/mở, reset mật khẩu, xóa account.
-- **Bảo mật**: session của chính mình, đổi mật khẩu, thu hồi session; owner có thể thu hồi session của account khác.
-- **Backup**: Core/Full snapshot, tải/xóa/prune backup và SQLite integrity check.
-- **Hệ thống**: backend uptime, Python/platform, Stockfish, data directory và dung lượng từng nhóm dữ liệu.
+- **Bảo mật**: session và đổi mật khẩu.
+- **Backup/Restore**: Core/Full snapshot, download/prune, integrity check, dry-run và Safe Restore.
+- **Hệ thống**: backend uptime, Python/platform, Stockfish và storage.
 
-## 7. Dữ liệu local của Admin
+## 8. Dữ liệu local của Admin
 
 Các database Admin nằm trong `backend/data/` và đã được Git bỏ qua:
 
@@ -212,19 +220,15 @@ backend/data/admin-audit.sqlite3
 
 `admin-users.sqlite3` chứa account, password hash và session hash. `admin-audit.sqlite3` chứa nhật ký thao tác.
 
-Audit Log không lưu:
+Audit Log không lưu `CHESSAPP_ADMIN_TOKEN`, Authorization header, mật khẩu hoặc request body.
 
-- `CHESSAPP_ADMIN_TOKEN`;
-- Authorization header;
-- mật khẩu;
-- request body.
-
-## 8. Lưu ý an toàn
+## 9. Lưu ý an toàn
 
 - Không commit `backend/.env` hoặc `CHESSAPP_ADMIN_TOKEN` vào Git.
-- Không đổi token thành `NEXT_PUBLIC_CHESSAPP_ADMIN_TOKEN`; biến `NEXT_PUBLIC_*` được bundle sang trình duyệt.
-- File `backend/.env.example` chỉ là mẫu và không chứa secret thật.
+- Không đổi token thành `NEXT_PUBLIC_CHESSAPP_ADMIN_TOKEN`.
+- Backup ZIP có thể chứa password hash/session hash nên phải xem là file nhạy cảm.
+- Không public hoặc commit ZIP backup lên GitHub.
 - Không dùng chung một account cho nhiều người nếu muốn Audit Log xác định đúng actor.
-- Các thao tác xóa trong admin đều yêu cầu xác nhận trên giao diện và API admin yêu cầu Bearer token hợp lệ.
-- Trước khi thay đổi dữ liệu lớn, nên tạo ít nhất một Core backup.
-- Chức năng cập nhật Lichess DB chạy bằng script hiện có và thay database sau khi import tệp mới thành công.
+- Trước thay đổi dữ liệu lớn, nên tạo ít nhất một Core backup.
+- Không tắt backend giữa lúc Safe Restore đang apply/rollback.
+- Sau Admin v8, nhánh Admin được xem là hoàn chỉnh; ưu tiên phát triển tiếp Scanner/Recognition/Analysis.
