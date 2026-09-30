@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hmac
 import json
 import os
 import platform
@@ -12,8 +11,10 @@ import time
 from contextlib import closing
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
+
+from .admin_auth import AdminPrincipal, count_users, require_admin
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -35,20 +36,6 @@ UPDATE_STATE: dict[str, object] = {
     "error": None,
     "changed": None,
 }
-
-
-def require_admin(authorization: str | None = Header(default=None)) -> None:
-    configured = os.getenv("CHESSAPP_ADMIN_TOKEN", "").strip()
-    if not configured:
-        raise HTTPException(
-            status_code=503,
-            detail="Admin chưa được cấu hình. Hãy đặt biến CHESSAPP_ADMIN_TOKEN rồi khởi động lại backend.",
-        )
-    prefix = "Bearer "
-    supplied = authorization[len(prefix):].strip() if authorization and authorization.startswith(prefix) else ""
-    if not supplied or not hmac.compare_digest(supplied, configured):
-        raise HTTPException(status_code=401, detail="Mã quản trị không đúng.")
-
 
 router = APIRouter(prefix="/api/admin", dependencies=[Depends(require_admin)])
 
@@ -197,8 +184,8 @@ def collection_items() -> list[dict]:
 
 
 @router.get("/session")
-def admin_session():
-    return {"ok": True}
+def admin_session(principal: AdminPrincipal = Depends(require_admin)):
+    return {"ok": True, "principal": principal.to_dict()}
 
 
 @router.get("/stats")
@@ -367,6 +354,6 @@ def admin_system():
         "booksBytes": directory_size(OUTPUT_DIR) + directory_size(UPLOAD_DIR),
         "puzzleBytes": PUZZLES_DB.stat().st_size if PUZZLES_DB.exists() else 0,
         "correctionBytes": directory_size(LEARNING_DIR),
-        "adminConfigured": bool(os.getenv("CHESSAPP_ADMIN_TOKEN", "").strip()),
+        "adminConfigured": bool(os.getenv("CHESSAPP_ADMIN_TOKEN", "").strip()) or count_users() > 0,
         "puzzleUpdate": dict(UPDATE_STATE),
     }

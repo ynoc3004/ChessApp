@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from .admin import router as admin_router
 from .admin_audit import wrap_admin_routes
+from .admin_auth import public_router as admin_auth_public_router
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 PUZZLES = DATA / "lichess-puzzles.sqlite3"
@@ -125,3 +126,4 @@ def delete_collection(item_id: str):
 # without composing the /api prefix a second time.
 wrap_admin_routes(admin_router)
 router.routes.extend(admin_router.routes)
+router.routes.extend(admin_auth_public_router.routes)
