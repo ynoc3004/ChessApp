@@ -4,7 +4,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app.academy import ensure_schema
 from app.academy_training import (
     DAY,
     TrainingResultRequest,
@@ -72,9 +71,9 @@ class AcademyTrainingTests(unittest.TestCase):
 
     def test_review_schedule(self):
         self.assertEqual(review_interval(0, False), (0, 1))
-        self.assertEqual(review_interval(0, True), (1, 1))
-        self.assertEqual(review_interval(1, True), (2, 3))
-        self.assertEqual(review_interval(2, True), (3, 7))
+        self.assertEqual(review_interval(0, True), (1, 3))
+        self.assertEqual(review_interval(1, True), (2, 7))
+        self.assertEqual(review_interval(2, True), (3, 14))
         self.assertEqual(review_interval(5, True), (6, 60))
 
     def test_profile_uses_placement_weakness(self):
@@ -141,9 +140,27 @@ class AcademyTrainingTests(unittest.TestCase):
             self.assertFalse(book["items"][0]["due"])
             due_book = mistake_book(student_id, database=database, puzzles_db=puzzles, now=now + DAY + 1)
             self.assertTrue(due_book["items"][0]["due"])
-            profile = training_profile(student_id, database, now=now)
-            self.assertEqual(profile["stats"]["attempts"], 1)
-            self.assertEqual(profile["skills"][0]["attempts"], 1)
+
+            clean_review = record_training_result(
+                student_id,
+                TrainingResultRequest(
+                    eventId="event-review-0002",
+                    puzzleId="p000",
+                    mode="review",
+                    skill="Đòn đôi",
+                    theme="fork",
+                    mistakes=0,
+                    hinted=False,
+                    elapsedMs=18_000,
+                ),
+                database=database,
+                puzzles_db=puzzles,
+                now=now + DAY + 2,
+            )
+            self.assertEqual(clean_review["review"]["intervalDays"], 3)
+            profile = training_profile(student_id, database, now=now + DAY + 2)
+            self.assertEqual(profile["stats"]["attempts"], 2)
+            self.assertEqual(next(item for item in profile["skills"] if item["skill"] == "Đòn đôi")["attempts"], 2)
 
     def test_event_id_is_idempotent_and_repeat_reduces_xp(self):
         with tempfile.TemporaryDirectory() as directory:
