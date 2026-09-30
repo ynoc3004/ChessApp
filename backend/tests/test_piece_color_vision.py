@@ -65,7 +65,7 @@ class PieceColorVisionTests(unittest.TestCase):
             black = [vision["blackProbability"][square] for square in ("b8", "d5")]
             white = [vision["blackProbability"][square] for square in ("e3", "g1")]
             self.assertGreater(sum(black) / len(black), sum(white) / len(white) + 0.18)
-            self.assertEqual(vision["method"], "dehatch-fill-density-v1")
+            self.assertEqual(vision["method"], "solid-core-ink-v2")
 
     def test_color_resolver_flips_case_without_changing_piece_type(self):
         result = {
@@ -84,7 +84,7 @@ class PieceColorVisionTests(unittest.TestCase):
             "qualityReasons": [],
         }
         color_vision = {
-            "method": "dehatch-fill-density-v1",
+            "method": "solid-core-ink-v2",
             "blackProbability": {"e2": 0.94, "e1": 0.05, "e8": 0.96},
             "colorConfidence": {"e2": 0.88, "e1": 0.9, "e8": 0.92},
         }
