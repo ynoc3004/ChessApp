@@ -241,6 +241,43 @@ export type AdminSystem = {
   puzzleUpdate: PuzzleUpdateState;
 };
 
+export type AdminBackup = {
+  id: string;
+  filename: string;
+  createdAt: number;
+  scope: "core" | "full" | "unknown" | string;
+  fileCount: number;
+  contentBytes: number;
+  archiveBytes: number;
+  includesPuzzleDb: boolean;
+  valid: boolean;
+};
+
+export type AdminMaintenanceSummary = {
+  backups: AdminBackup[];
+  backupCount: number;
+  backupBytes: number;
+  latestBackupAt: number | null;
+  coreExcludesPuzzleDb: boolean;
+};
+
+export type AdminIntegrityDatabase = {
+  name: string;
+  exists: boolean;
+  status: "ok" | "missing" | "error" | string;
+  message: string;
+  bytes: number;
+  durationMs?: number;
+};
+
+export type AdminIntegrityReport = {
+  healthy: boolean;
+  checked: number;
+  errors: number;
+  databases: AdminIntegrityDatabase[];
+  checkedAt: number;
+};
+
 export function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
   const units = ["B", "KB", "MB", "GB", "TB"];
