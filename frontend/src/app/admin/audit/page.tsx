@@ -80,7 +80,7 @@ export default function AdminAuditPage() {
         <div>
           <p className={styles.eyebrow}>NỘI CÁC · AUDIT LOG</p>
           <h1>Nhật ký quản trị</h1>
-          <p>Mọi thao tác thay đổi dữ liệu trong Admin được ghi tự động. Nhật ký không lưu mã quản trị, Authorization header hoặc request body.</p>
+          <p>Mọi thao tác thay đổi dữ liệu trong Admin được ghi tự động cùng danh tính thực hiện. Nhật ký không lưu mật khẩu, admin token, Authorization header hoặc request body.</p>
         </div>
         <button className={styles.refresh} disabled={loading} onClick={() => { void loadStats(); void loadEvents(); }}>↻ Làm mới</button>
       </section>
@@ -99,10 +99,7 @@ export default function AdminAuditPage() {
           <div className={styles.panelHead}><h2>Thao tác nhiều nhất</h2><span>Top action</span></div>
           <div className={auditStyles.rankList}>
             {(stats?.topActions ?? []).map((item) => (
-              <div className={auditStyles.rankRow} key={item.name}>
-                <button onClick={() => { setAction(item.name); setOffset(0); }}>{item.name}</button>
-                <strong>{item.count.toLocaleString("vi-VN")}</strong>
-              </div>
+              <div className={auditStyles.rankRow} key={item.name}><button onClick={() => { setAction(item.name); setOffset(0); }}>{item.name}</button><strong>{item.count.toLocaleString("vi-VN")}</strong></div>
             ))}
             {stats && stats.topActions.length === 0 && <div className={styles.empty}>Chưa có thao tác nào được ghi.</div>}
           </div>
@@ -111,12 +108,18 @@ export default function AdminAuditPage() {
           <div className={styles.panelHead}><h2>Nhóm dữ liệu</h2><span>Resource</span></div>
           <div className={auditStyles.rankList}>
             {(stats?.topResources ?? []).map((item) => (
-              <div className={auditStyles.rankRow} key={item.name}>
-                <button onClick={() => { setResource(item.name); setOffset(0); }}>{item.name}</button>
-                <strong>{item.count.toLocaleString("vi-VN")}</strong>
-              </div>
+              <div className={auditStyles.rankRow} key={item.name}><button onClick={() => { setResource(item.name); setOffset(0); }}>{item.name}</button><strong>{item.count.toLocaleString("vi-VN")}</strong></div>
             ))}
             {stats && stats.topResources.length === 0 && <div className={styles.empty}>Chưa có resource nào.</div>}
+          </div>
+        </article>
+        <article className={styles.panel}>
+          <div className={styles.panelHead}><h2>Người thao tác</h2><span>Actor</span></div>
+          <div className={auditStyles.rankList}>
+            {(stats?.topActors ?? []).map((item) => (
+              <div className={auditStyles.rankRow} key={item.name}><button onClick={() => { setQuery(item.name); setOffset(0); }}>{item.name}</button><strong>{item.count.toLocaleString("vi-VN")}</strong></div>
+            ))}
+            {stats && stats.topActors.length === 0 && <div className={styles.empty}>Chưa có actor nào.</div>}
           </div>
         </article>
       </section>
@@ -124,7 +127,7 @@ export default function AdminAuditPage() {
       <section className={styles.panel}>
         <div className={styles.panelHead}><h2>Bộ lọc</h2><button className={styles.button} onClick={resetFilters}>Xóa lọc</button></div>
         <div className={auditStyles.filters}>
-          <label>Tìm kiếm<input className={styles.input} value={query} onChange={(event) => { setQuery(event.target.value); setOffset(0); }} placeholder="action, ID, message…" /></label>
+          <label>Tìm kiếm<input className={styles.input} value={query} onChange={(event) => { setQuery(event.target.value); setOffset(0); }} placeholder="actor, action, ID, message…" /></label>
           <label>Trạng thái<select className={styles.select} value={status} onChange={(event) => { setStatus(event.target.value); setOffset(0); }}><option value="">Tất cả</option><option value="success">Thành công</option><option value="failure">Thất bại</option><option value="started">Đã bắt đầu</option></select></label>
           <label>Resource<select className={styles.select} value={resource} onChange={(event) => { setResource(event.target.value); setOffset(0); }}><option value="">Tất cả</option>{resourceOptions.map((value) => <option value={value} key={value}>{value}</option>)}</select></label>
           <label>Action<select className={styles.select} value={action} onChange={(event) => { setAction(event.target.value); setOffset(0); }}><option value="">Tất cả</option>{actionOptions.map((value) => <option value={value} key={value}>{value}</option>)}</select></label>
@@ -135,7 +138,7 @@ export default function AdminAuditPage() {
         <div className={styles.panelHead}><h2>Sự kiện</h2><span>{total.toLocaleString("vi-VN")} kết quả</span></div>
         <div className={styles.tableWrap}>
           <table className={styles.table}>
-            <thead><tr><th>Thời gian</th><th>Action</th><th>Resource</th><th>Trạng thái</th><th>Thông tin</th><th></th></tr></thead>
+            <thead><tr><th>Thời gian</th><th>Actor</th><th>Action</th><th>Resource</th><th>Trạng thái</th><th>Thông tin</th><th></th></tr></thead>
             <tbody>
               {events.map((event) => (
                 <EventRows event={event} expanded={expanded === event.id} onToggle={() => setExpanded((current) => current === event.id ? null : event.id)} key={event.id} />
@@ -160,6 +163,7 @@ function EventRows({ event, expanded, onToggle }: { event: AdminAuditEvent; expa
     <>
       <tr>
         <td><strong>{formatTime(event.createdAt)}</strong><div className={styles.muted}>#{event.id}</div></td>
+        <td>{event.actor ? <><strong>{event.actor.displayName || "Không rõ"}</strong><div className={styles.muted}>{event.actor.role || "—"} · {event.actor.authType || "—"}</div></> : <span className={styles.muted}>Không xác định</span>}</td>
         <td><div className={auditStyles.eventAction}><code>{event.action}</code></div></td>
         <td><div className={auditStyles.resource}><strong>{event.resourceType}</strong>{event.resourceId && <code>{event.resourceId}</code>}</div></td>
         <td><span className={badge}>{event.status === "failure" ? "Thất bại" : event.status === "started" ? "Đang chạy" : "Thành công"}</span></td>
@@ -168,8 +172,9 @@ function EventRows({ event, expanded, onToggle }: { event: AdminAuditEvent; expa
       </tr>
       {expanded && (
         <tr className={auditStyles.detailRow}>
-          <td colSpan={6}>
+          <td colSpan={7}>
             <div className={auditStyles.detailGrid}>
+              <div><span>Actor</span><strong>{event.actor?.displayName || "Không xác định"} · {event.actor?.role || "—"}</strong></div>
               <div><span>Action</span><strong>{event.action}</strong></div>
               <div><span>Resource ID</span><strong>{event.resourceId || "—"}</strong></div>
               <div><span>Message</span><strong>{event.message || "—"}</strong></div>
