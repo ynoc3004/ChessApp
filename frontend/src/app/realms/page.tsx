@@ -114,15 +114,17 @@ export default function RealmsPage() {
     const params = new URLSearchParams(window.location.search);
     const path = getDaoPath(params.get("path") ?? "");
     const moduleIndex = Number(params.get("module"));
+    let preserveManual = false;
     if (path && Number.isInteger(moduleIndex) && moduleIndex >= 1 && moduleIndex <= path.modules.length) {
       const module = path.modules[moduleIndex - 1];
       setPathSelection({ slug: path.slug, name: path.name, module: module.title, theme: module.puzzleTheme });
       setTrainingMode("manual");
+      preserveManual = true;
     }
     const saved = window.sessionStorage.getItem(ACADEMY_TOKEN_KEY) || "";
     if (saved) {
       setAcademyToken(saved);
-      void loadAcademy(saved);
+      void loadAcademy(saved, !preserveManual);
     }
     void refresh();
     return () => { generation.current++; if (openingTimer.current) clearTimeout(openingTimer.current); };
@@ -134,7 +136,7 @@ export default function RealmsPage() {
     catch { setMessage("Chưa kết nối được backend. Hãy bật dịch vụ xử lý sách rồi thử lại."); }
   }
 
-  async function loadAcademy(candidate = academyToken) {
+  async function loadAcademy(candidate = academyToken, setDefaultMode = false) {
     if (!candidate) return;
     try {
       const headers = { Authorization: `Bearer ${candidate}` };
@@ -151,9 +153,11 @@ export default function RealmsPage() {
       }
       const profile = await profileResponse.json() as AcademyProfile;
       setAcademyProfile(profile);
-      setMinimum(profile.ratingRange.minimum);
-      setMaximum(profile.ratingRange.maximum);
-      if (profile.student.placementStatus === "completed" && !pathSelection) setTrainingMode("personalized");
+      if (setDefaultMode) {
+        setMinimum(profile.ratingRange.minimum);
+        setMaximum(profile.ratingRange.maximum);
+        if (profile.student.placementStatus === "completed") setTrainingMode("personalized");
+      }
       const bookResponse = await fetch(`${API_BASE}/api/academy/training/mistakes?limit=8`, { cache: "no-store", headers });
       if (bookResponse.ok) setMistakeBook(await bookResponse.json() as MistakeBook);
     } catch (reason) {
@@ -236,7 +240,7 @@ export default function RealmsPage() {
       const masteryText = reward.mastery ? ` · ${reward.mastery.skill} ${reward.mastery.before.toFixed(0)}% → ${reward.mastery.after.toFixed(0)}%` : "";
       const reviewText = reward.review?.added ? ` · đã ghi Sổ Sai Lầm, ôn lại sau ${reward.review.intervalDays ?? 1} ngày` : "";
       setAcademyReward(`+${reward.xpAwarded} Tu Vi · ${ratingText}${masteryText}${reviewText}`);
-      void loadAcademy(academyToken);
+      void loadAcademy(academyToken, false);
     } catch (reason) {
       reportedPuzzle.current = "";
       setAcademyReward(reason instanceof Error ? `Chưa lưu được tiến độ: ${reason.message}` : "Chưa lưu được tiến độ.");
@@ -334,8 +338,8 @@ export default function RealmsPage() {
       {academyReward && <p className={styles.reward} role="status">{academyReward}</p>}
     </section>
 
-    {academyProfile && mistakeBook && mistakeBook.total > 0 && <section className={styles.mistakeBook}>
-      <div><p className={styles.kicker}>SỔ SAI LẦM</p><h2>{mistakeBook.total} thế đang được theo dõi · {mistakeBook.due} đến hạn</h2><p>Sai hoặc dùng gợi ý sẽ đưa puzzle vào đây. Vượt lại sạch nhiều lần thì khoảng ôn tự giãn ra.</p></div>
+    {academyProfile && mistakeBook && academyProfile.review.total > 0 && <section className={styles.mistakeBook}>
+      <div><p className={styles.kicker}>SỔ SAI LẦM</p><h2>{academyProfile.review.total} thế đang được theo dõi · {academyProfile.review.due} đến hạn</h2><p>Sai hoặc dùng gợi ý sẽ đưa puzzle vào đây. Vượt lại sạch nhiều lần thì khoảng ôn tự giãn ra.</p></div>
       <div className={styles.mistakeList}>{mistakeBook.items.slice(0, 5).map(item => <span key={item.puzzleId} data-due={item.due}><strong>{item.skill}</strong><small>#{item.puzzleId} · {item.rating ?? "—"} · {item.due ? "đến hạn" : `ôn ${new Date(item.nextReviewAt * 1000).toLocaleDateString("vi-VN")}`}</small></span>)}</div>
     </section>}
 
