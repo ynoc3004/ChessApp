@@ -7,7 +7,6 @@ import shutil
 import sqlite3
 import stat
 import tempfile
-import time
 import zipfile
 from contextlib import closing
 from pathlib import Path, PurePosixPath
@@ -17,13 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from .admin_auth import AdminPrincipal, require_permission
-from .admin_maintenance import (
-    BACKUP_DIR,
-    DATA_DIR,
-    _find_backup,
-    _include_path,
-    create_backup,
-)
+from .admin_maintenance import BACKUP_DIR, DATA_DIR, _find_backup, _include_path, create_backup
 from .audit_store import safe_record_event
 
 BACKUP_FORMAT = "chessapp-admin-backup-v1"
@@ -52,20 +45,16 @@ class RestoreApplyError(RuntimeError):
         self.pre_backup = pre_backup
 
 
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def _safe_data_relative(archive_name: str, scope: str) -> Path:
+    # ZIP uses POSIX separators. Backslashes/drive-like segments are rejected
+    # explicitly because the target machine is commonly Windows.
+    if "\\" in archive_name or "\x00" in archive_name:
+        raise RestoreValidationError(f"Đường dẫn backup không an toàn: {archive_name}")
     pure = PurePosixPath(archive_name)
     if pure.is_absolute() or len(pure.parts) < 2 or pure.parts[0] != "data":
         raise RestoreValidationError(f"Đường dẫn backup không hợp lệ: {archive_name}")
     relative_pure = PurePosixPath(*pure.parts[1:])
-    if any(part in {"", ".", ".."} for part in relative_pure.parts):
+    if any(part in {"", ".", ".."} or ":" in part for part in relative_pure.parts):
         raise RestoreValidationError(f"Đường dẫn backup không an toàn: {archive_name}")
     relative = Path(*relative_pure.parts)
     if not _include_path(relative, scope):
@@ -108,8 +97,7 @@ def _read_manifest(archive: zipfile.ZipFile) -> dict[str, Any]:
     scope = str(manifest.get("scope") or "")
     if scope not in {"core", "full"}:
         raise RestoreValidationError("Backup scope không hợp lệ.")
-    entries = manifest.get("entries")
-    if not isinstance(entries, list):
+    if not isinstance(manifest.get("entries"), list):
         raise RestoreValidationError("Manifest thiếu danh sách file.")
     return manifest
 
@@ -120,12 +108,11 @@ def _stage_archive(archive_path: Path, staging: Path) -> dict[str, Any]:
         manifest = _read_manifest(archive)
         scope = str(manifest["scope"])
         infos = {info.filename: info for info in archive.infolist() if not info.is_dir()}
-        manifest_entries = manifest["entries"]
         declared: set[str] = set()
         staged_files: list[dict[str, Any]] = []
         total_bytes = 0
 
-        for entry in manifest_entries:
+        for entry in manifest["entries"]:
             if not isinstance(entry, dict):
                 raise RestoreValidationError("Manifest chứa entry không hợp lệ.")
             archive_name = str(entry.get("path") or "")
@@ -157,13 +144,11 @@ def _stage_archive(archive_path: Path, staging: Path) -> dict[str, Any]:
             if expected_sha and expected_sha != actual_sha:
                 raise RestoreValidationError(f"SHA-256 không khớp: {archive_name}")
 
-            sqlite_status = None
-            sqlite_message = None
             sqlite_tables: list[str] = []
             if target.suffix.lower() == ".sqlite3":
-                sqlite_status, sqlite_message, sqlite_tables = _sqlite_schema(target)
-                if not sqlite_status:
-                    raise RestoreValidationError(f"SQLite không hợp lệ ({archive_name}): {sqlite_message}")
+                ok, message, sqlite_tables = _sqlite_schema(target)
+                if not ok:
+                    raise RestoreValidationError(f"SQLite không hợp lệ ({archive_name}): {message}")
 
             total_bytes += int(target.stat().st_size)
             staged_files.append({
@@ -175,8 +160,7 @@ def _stage_archive(archive_path: Path, staging: Path) -> dict[str, Any]:
             })
 
         extra_data_files = sorted(
-            name for name in infos
-            if name.startswith("data/") and name not in declared
+            name for name in infos if name.startswith("data/") and name not in declared
         )
         if extra_data_files:
             raise RestoreValidationError("ZIP có file dữ liệu không được khai báo trong manifest.")
@@ -184,12 +168,7 @@ def _stage_archive(archive_path: Path, staging: Path) -> dict[str, Any]:
         if isinstance(declared_count, int) and declared_count != len(staged_files):
             raise RestoreValidationError("Số file trong manifest không khớp nội dung backup.")
 
-    return {
-        "manifest": manifest,
-        "scope": scope,
-        "files": staged_files,
-        "totalBytes": total_bytes,
-    }
+    return {"manifest": manifest, "scope": scope, "files": staged_files, "totalBytes": total_bytes}
 
 
 def _current_scope_files(data_root: Path, scope: str) -> set[str]:
@@ -276,6 +255,14 @@ def _clear_staged_sessions(staging: Path) -> bool:
     return True
 
 
+def _ensure_safe_destination(data_root: Path, relative: Path) -> None:
+    current = data_root
+    for part in relative.parts[:-1]:
+        current = current / part
+        if current.exists() and current.is_symlink():
+            raise RestoreValidationError(f"Không restore qua thư mục symbolic link: {relative.as_posix()}")
+
+
 def _apply_staged(staging: Path, data_root: Path, scope: str, restore_paths: set[str]) -> tuple[int, int]:
     current_paths = _current_scope_files(data_root, scope)
     remove_paths = sorted(current_paths - restore_paths, reverse=True)
@@ -283,16 +270,20 @@ def _apply_staged(staging: Path, data_root: Path, scope: str, restore_paths: set
     restored = 0
 
     for relative_text in remove_paths:
-        destination = data_root / Path(relative_text)
+        relative = Path(relative_text)
+        _ensure_safe_destination(data_root, relative)
+        destination = data_root / relative
         if destination.exists() and destination.is_file():
             destination.unlink()
             removed += 1
 
     for relative_text in sorted(restore_paths):
-        source = staging / Path(relative_text)
+        relative = Path(relative_text)
+        _ensure_safe_destination(data_root, relative)
+        source = staging / relative
         if not source.is_file():
             raise RestoreValidationError(f"Staging thiếu file: {relative_text}")
-        destination = data_root / Path(relative_text)
+        destination = data_root / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         temporary = destination.with_name(f".{destination.name}.restore-tmp")
         try:
@@ -302,16 +293,17 @@ def _apply_staged(staging: Path, data_root: Path, scope: str, restore_paths: set
             temporary.unlink(missing_ok=True)
         restored += 1
 
-    # Empty directories are harmless, but clean them up so the restored tree is
-    # easier to inspect. Never touch the backups directory.
     if data_root.exists():
         directories = sorted(
-            (path for path in data_root.rglob("*") if path.is_dir() and path != BACKUP_DIR),
+            (path for path in data_root.rglob("*") if path.is_dir()),
             key=lambda path: len(path.parts),
             reverse=True,
         )
         for directory in directories:
             try:
+                relative = directory.relative_to(data_root)
+                if relative.parts and relative.parts[0] == "backups":
+                    continue
                 directory.rmdir()
             except OSError:
                 pass
@@ -353,7 +345,7 @@ def restore_backup(
     if archive_path is None:
         raise FileNotFoundError(backup_id)
 
-    # Validate completely before taking the rollback snapshot or touching data.
+    # A complete dry-run happens before any current data is mutated.
     plan = build_restore_plan(backup_id, data_dir=data_root, backup_dir=backups)
     safe_record_event(
         "POST maintenance/restore",
@@ -384,7 +376,6 @@ def restore_backup(
             apply_func=apply_func,
         )
     except Exception as exc:
-        rollback_ok = False
         try:
             _apply_archive(pre_path, data_root=data_root, clear_sessions=True)
             rollback_ok = True
@@ -462,7 +453,11 @@ def admin_restore_backup(
         raise HTTPException(status_code=409, detail=f"Backup không thể restore: {exc}") from exc
     except RestoreApplyError as exc:
         status = 500 if exc.rollback_ok else 503
-        detail = f"{exc}. " + ("Dữ liệu đã rollback về trạng thái trước restore." if exc.rollback_ok else "Rollback cũng thất bại; hãy dừng ghi dữ liệu và dùng pre-restore backup để phục hồi thủ công.")
+        detail = f"{exc}. " + (
+            "Dữ liệu đã rollback về trạng thái trước restore; account session có thể đã bị thu hồi."
+            if exc.rollback_ok
+            else "Rollback cũng thất bại; hãy dừng ghi dữ liệu và dùng pre-restore backup để phục hồi thủ công."
+        )
         raise HTTPException(status_code=status, detail=detail) from exc
     result["reauthenticate"] = bool(result["sessionsRevoked"] and principal.auth_type == "account")
     return result
