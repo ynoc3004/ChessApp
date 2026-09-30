@@ -13,6 +13,7 @@ from .admin import router as admin_router
 from .admin_audit import wrap_admin_routes
 from .admin_auth import public_router as admin_auth_public_router
 from .admin_security import router as admin_security_router
+from .scanner_v2 import router as scanner_v2_router
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 PUZZLES = DATA / "lichess-puzzles.sqlite3"
@@ -122,9 +123,8 @@ def delete_collection(item_id: str):
     return {"deleted": True}
 
 
-# main.py already mounts this router. Admin routes have their own /api/admin
-# paths and authentication dependency, so attach those concrete routes here
-# without composing the /api prefix a second time.
+# main.py already mounts this router. Routes below already carry their complete
+# /api/... path, so append the concrete routes instead of nesting the /api prefix.
 wrap_admin_routes(admin_router)
 router.routes.extend(admin_router.routes)
 router.routes.extend(admin_auth_public_router.routes)
@@ -132,3 +132,5 @@ router.routes.extend(admin_auth_public_router.routes)
 # Keep them outside wrap_admin_routes so self-service password/session mutations
 # remain available to moderator accounts that only have admin.read.
 router.routes.extend(admin_security_router.routes)
+# Scanner v2 is public application functionality, not an Admin route.
+router.routes.extend(scanner_v2_router.routes)

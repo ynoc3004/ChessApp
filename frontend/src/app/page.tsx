@@ -36,7 +36,11 @@ export default function HomePage() {
   const [dragging, setDragging] = useState(false);
   const [recentBooks, setRecentBooks] = useState<BookSummary[]>([]);
   const [scanJob, setScanJob] = useState<ScanJob | null>(null);
+  const [scanAction, setScanAction] = useState("");
+  const [pageStart, setPageStart] = useState("");
+  const [pageEnd, setPageEnd] = useState("");
   const [pageQuery, setPageQuery] = useState("");
+  const [reviewOnly, setReviewOnly] = useState(false);
   const [galleryPage, setGalleryPage] = useState(1);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualPage, setManualPage] = useState(1);
@@ -46,21 +50,21 @@ export default function HomePage() {
   const PAGE_SIZE = 12;
 
   const filteredPositions = useMemo(() => {
+    let result = reviewOnly ? positions.filter((position) => position.needsReview) : positions;
     const query = pageQuery.trim();
-    if (!query) return positions;
+    if (!query) return result;
     const page = Number(query);
-    if (!Number.isFinite(page)) return positions;
-    return positions.filter((position) => position.page === page);
-  }, [pageQuery, positions]);
+    if (!Number.isFinite(page)) return result;
+    result = result.filter((position) => position.page === page);
+    return result;
+  }, [pageQuery, positions, reviewOnly]);
 
-  const totalGalleryPages = Math.max(
-    1,
-    Math.ceil(filteredPositions.length / PAGE_SIZE),
-  );
-
+  const totalGalleryPages = Math.max(1, Math.ceil(filteredPositions.length / PAGE_SIZE));
   const scanCultivation = cultivationStage(scanJob?.progress ?? 0);
   const isDocx = /\.docx$/i.test(filename);
   const sourceLabel = isDocx ? "ảnh số" : "trang PDF";
+  const reviewCount = positions.filter((position) => position.needsReview).length;
+  const scanRunning = Boolean(scanJob && ["queued", "processing", "paused"].includes(scanJob.status));
 
   const visiblePositions = filteredPositions.slice(
     (galleryPage - 1) * PAGE_SIZE,
@@ -73,6 +77,7 @@ export default function HomePage() {
     setSkippedVectorImages(book.skippedVectorImages ?? 0);
     setPositions(book.positions);
     setPageQuery("");
+    setReviewOnly(false);
     setGalleryPage(1);
     setManualOpen(false);
     setManualPage(1);
@@ -151,7 +156,7 @@ export default function HomePage() {
     setRestoring(true);
     void (async () => {
       try {
-        const statusResponse = await fetch(`${API_BASE}/api/jobs/${savedJobId}`, {
+        const statusResponse = await fetch(`${API_BASE}/api/scanner/v2/jobs/${savedJobId}`, {
           cache: "no-store", signal: controller.signal,
         });
         if (statusResponse.ok) {
@@ -162,9 +167,9 @@ export default function HomePage() {
           setSkippedVectorImages(job.skippedVectorImages ?? 0);
           setScanJob(job);
           setPositions(job.positions ?? []);
-          if (job.status === "queued" || job.status === "processing") setLoading(true);
+          if (["queued", "processing", "paused"].includes(job.status)) setLoading(true);
           else if (job.status === "failed") setError(job.error || "Quét sách thất bại");
-          else openBook({ jobId: savedJobId, filename: job.filename, count: job.count, positions: job.positions ?? [], skippedVectorImages: job.skippedVectorImages });
+          else openBook({ jobId: savedJobId, filename: job.filename, count: job.count, positions: job.positions ?? [], skippedVectorImages: job.skippedVectorImages, scannerVersion: job.scannerVersion });
           return;
         }
         if (statusResponse.status !== 404) throw new Error("Không đọc được tiến trình quét.");
@@ -182,12 +187,12 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    if (!jobId || !scanJob || !["queued", "processing"].includes(scanJob.status)) return;
+    if (!jobId || !scanJob || !["queued", "processing", "paused"].includes(scanJob.status)) return;
     const controller = new AbortController();
     let timer: number;
     const poll = async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/jobs/${jobId}`, {
+        const response = await fetch(`${API_BASE}/api/scanner/v2/jobs/${jobId}`, {
           cache: "no-store", signal: controller.signal,
         });
         if (response.status === 503) {
@@ -204,10 +209,12 @@ export default function HomePage() {
           setError(current.error || "Quét sách thất bại");
           setLoading(false);
         } else if (current.status === "completed") {
-          openBook({ jobId, filename: current.filename, count: current.count, positions: current.positions ?? [], skippedVectorImages: current.skippedVectorImages });
+          openBook({ jobId, filename: current.filename, count: current.count, positions: current.positions ?? [], skippedVectorImages: current.skippedVectorImages, scannerVersion: current.scannerVersion });
+          setScanJob(current);
           setLoading(false);
           void loadRecentBooks();
         } else {
+          setLoading(true);
           timer = window.setTimeout(poll, 750);
         }
       } catch (err) {
@@ -216,7 +223,7 @@ export default function HomePage() {
         setLoading(false);
       }
     };
-    timer = window.setTimeout(poll, 750);
+    timer = window.setTimeout(poll, 500);
     return () => {
       controller.abort();
       window.clearTimeout(timer);
@@ -236,18 +243,27 @@ export default function HomePage() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!file || loading || restoring) return;
+    const start = pageStart ? Number(pageStart) : null;
+    const end = pageEnd ? Number(pageEnd) : null;
+    if ((start !== null && start < 1) || (end !== null && end < 1) || (start !== null && end !== null && start > end)) {
+      setError("Khoảng trang chưa hợp lệ. Trang bắt đầu phải nhỏ hơn hoặc bằng trang kết thúc.");
+      return;
+    }
 
     setLoading(true);
     setError("");
     setPositions([]);
     setJobId("");
     setScanJob(null);
+    setReviewOnly(false);
 
     const body = new FormData();
     body.append("file", file);
+    if (pageStart) body.append("page_start", pageStart);
+    if (pageEnd) body.append("page_end", pageEnd);
 
     try {
-      const response = await fetch(`${API_BASE}/api/books/start`, {
+      const response = await fetch(`${API_BASE}/api/scanner/v2/start`, {
         method: "POST",
         body,
       });
@@ -263,6 +279,45 @@ export default function HomePage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
       setLoading(false);
+    }
+  }
+
+  async function controlScan(action: "pause" | "resume") {
+    if (!jobId || scanAction) return;
+    setScanAction(action);
+    setError("");
+    try {
+      const response = await fetch(`${API_BASE}/api/scanner/v2/jobs/${jobId}/${action}`, { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail ?? "Không đổi được trạng thái quét.");
+      setScanJob(data as ScanJob);
+      setLoading(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không đổi được trạng thái quét.");
+    } finally {
+      setScanAction("");
+    }
+  }
+
+  async function retryPage(page: number) {
+    if (!jobId || scanAction) return;
+    setScanAction(`retry-${page}`);
+    setError("");
+    try {
+      const response = await fetch(`${API_BASE}/api/scanner/v2/jobs/${jobId}/retry-page`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ page }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail ?? `Không retry được ${sourceLabel} ${page}.`);
+      setScanJob(data as ScanJob);
+      setPositions((data as ScanJob).positions ?? []);
+      setLoading(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Không retry được ${sourceLabel} ${page}.`);
+    } finally {
+      setScanAction("");
     }
   }
 
@@ -286,6 +341,7 @@ export default function HomePage() {
         setPositions([]);
         setScanJob(null);
         setPageQuery("");
+        setReviewOnly(false);
         setGalleryPage(1);
         setManualOpen(false);
         setManualPage(1);
@@ -333,7 +389,7 @@ export default function HomePage() {
       </div>
       <div className={styles.workspace}>
       <section className={styles.importSection} id="upload" aria-labelledby="import-title">
-        <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>01 / KHAI PHỔ</p><h2 id="import-title">Nhập sách của bạn</h2></div><span className={styles.formatBadge}>PDF · DOCX</span></div>
+        <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>01 / KHAI PHỔ · SCANNER V2</p><h2 id="import-title">Nhập sách của bạn</h2></div><span className={styles.formatBadge}>PDF · DOCX</span></div>
       <form className={styles.uploadCard} onSubmit={submit}>
         <label
           className={`${styles.dropzone} ${dragging ? styles.dragging : ""}`}
@@ -357,11 +413,19 @@ export default function HomePage() {
             onChange={(e) => selectFile(e.target.files?.[0] ?? null)}
           />
         </label>
+        <div className={styles.scanRange}>
+          <div>
+            <strong>Khoảng cần quét</strong>
+            <span>Để trống để quét toàn bộ. Với DOCX, số này là thứ tự ảnh.</span>
+          </div>
+          <label>Từ <input type="number" min="1" inputMode="numeric" placeholder="1" value={pageStart} disabled={loading} onChange={(event) => setPageStart(event.target.value.replace(/[^0-9]/g, ""))} /></label>
+          <label>Đến <input type="number" min="1" inputMode="numeric" placeholder="Cuối" value={pageEnd} disabled={loading} onChange={(event) => setPageEnd(event.target.value.replace(/[^0-9]/g, ""))} /></label>
+        </div>
         <button className={styles.primary} disabled={!file || loading || restoring}>
-          {loading ? "Đang quét kỳ phổ…" : "Quét sách và tìm thế cờ →"}
+          {loading ? "Đang quét kỳ phổ…" : "Quét bằng Scanner v2 →"}
         </button>
-        <p className={styles.privacyNote}>Sách được gửi đến dịch vụ xử lý bạn đã cấu hình.</p>
-        {scanJob && loading && (
+        <p className={styles.privacyNote}>Scanner v2 xử lý từng trang độc lập để có thể pause, retry và duyệt lỗi.</p>
+        {scanJob && scanRunning && (
           <div className={styles.scanProgress}>
             <div className={styles.scanScene} aria-hidden="true">
               <span className={styles.scanMoon} />
@@ -371,31 +435,50 @@ export default function HomePage() {
               <span className={styles.scanSpark}>✦</span>
             </div>
             <div className={styles.cultivationHeader}>
-              <div className={styles.realmSeal} aria-hidden="true">{scanCultivation.mark}</div>
+              <div className={styles.realmSeal} aria-hidden="true">{scanJob.status === "paused" ? "止" : scanCultivation.mark}</div>
               <div>
-                <span className={styles.realmKicker}>CẢNH GIỚI QUÉT PHỔ</span>
-                <strong>{scanJob.status === "queued" ? "Tụ Khí" : scanCultivation.name}</strong>
-                <small>{scanJob.status === "queued" ? "Đang chuẩn bị pháp trận xử lý" : scanCultivation.note}</small>
+                <span className={styles.realmKicker}>CẢNH GIỚI QUÉT PHỔ · V2</span>
+                <strong>{scanJob.status === "queued" ? "Tụ Khí" : scanJob.status === "paused" ? "Tạm Dừng" : scanCultivation.name}</strong>
+                <small>{scanJob.status === "paused" ? "Worker sẽ tiếp tục từ trang kế tiếp khi mở lại" : scanJob.status === "queued" ? "Đang chuẩn bị pháp trận xử lý" : scanCultivation.note}</small>
               </div>
               <span className={styles.realmPercent}>{scanJob.progress.toFixed(1)}%</span>
             </div>
             <div className={styles.progressTrack} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.max(0, scanJob.progress))} aria-label="Tiến trình quét">
-              <div
-                className={styles.progressFill}
-                style={{ width: `${Math.max(1, scanJob.progress)}%` }}
-              />
+              <div className={styles.progressFill} style={{ width: `${Math.max(1, scanJob.progress)}%` }} />
             </div>
             <p className={styles.subtle}>
-              {scanJob.total > 0
-                ? `Đã xử lý ${scanJob.current} / ${scanJob.total}`
-                : "Đang đọc thông tin tài liệu"}{" "}
-              · đã lĩnh hội {scanJob.count} kỳ đồ.
+              {scanJob.total > 0 ? `Đã xử lý ${scanJob.current} / ${scanJob.total}` : "Đang đọc thông tin tài liệu"}
+              {scanJob.currentPage ? ` · đang ở ${isDocx ? "ảnh" : "trang"} ${scanJob.currentPage}` : ""}
+              {scanJob.pageStart && scanJob.pageEnd ? ` · phạm vi ${scanJob.pageStart}–${scanJob.pageEnd}/${scanJob.sourceTotal ?? "?"}` : ""}
+              {` · đã lĩnh hội ${scanJob.count} kỳ đồ.`}
             </p>
+            <div className={styles.scanLiveStats}>
+              <span>{scanJob.reviewCount ?? positions.filter((item) => item.needsReview).length} cần duyệt</span>
+              <span>{scanJob.failedPages?.length ?? 0} trang lỗi</span>
+              <span>{scanJob.status === "paused" ? "Đã tạm dừng" : "Worker đang hoạt động"}</span>
+            </div>
+            <div className={styles.scanControls}>
+              {scanJob.status === "paused" ? (
+                <button type="button" className={styles.button} disabled={Boolean(scanAction)} onClick={() => void controlScan("resume")}>{scanAction === "resume" ? "Đang tiếp tục…" : "▶ Tiếp tục quét"}</button>
+              ) : (
+                <button type="button" className={styles.button} disabled={Boolean(scanAction) || scanJob.status === "queued"} onClick={() => void controlScan("pause")}>{scanAction === "pause" ? "Đang dừng…" : "Ⅱ Tạm dừng"}</button>
+              )}
+            </div>
             <div className={styles.scanMilestones} aria-label="Các chặng quét sách">
               {["Khai Phổ", "Quan Trận", "Ngộ Cục", "Khắc Ấn"].map((stage, index) => (
-                <span key={stage} aria-current={scanJob.progress >= [0, 20, 50, 80][index] && scanJob.progress < [20, 50, 80, 100][index] ? "step" : undefined}>
-                  {stage}
-                </span>
+                <span key={stage} aria-current={scanJob.progress >= [0, 20, 50, 80][index] && scanJob.progress < [20, 50, 80, 100][index] ? "step" : undefined}>{stage}</span>
+              ))}
+            </div>
+          </div>
+        )}
+        {scanJob?.status === "completed" && Boolean(scanJob.failedPages?.length) && (
+          <div className={styles.failedPages}>
+            <div><strong>Có {scanJob.failedPages?.length} trang cần quét lại</strong><span>Scanner đã bỏ qua trang lỗi và hoàn thành các trang còn lại.</span></div>
+            <div className={styles.failedPageList}>
+              {scanJob.failedPages?.map((failed) => (
+                <button type="button" className={styles.button} key={failed.page} disabled={Boolean(scanAction)} title={failed.error} onClick={() => void retryPage(failed.page)}>
+                  {scanAction === `retry-${failed.page}` ? "Đang retry…" : `Retry ${isDocx ? "ảnh" : "trang"} ${failed.page}`}
+                </button>
               ))}
             </div>
           </div>
@@ -404,7 +487,7 @@ export default function HomePage() {
         {error && <p className={styles.error} role="alert">{error}</p>}
         {skippedVectorImages > 0 && <p className={styles.notice} role="status">Đã bỏ qua {skippedVectorImages} ảnh EMF/WMF trong DOCX vì định dạng này chưa đọc được.</p>}
         {scanJob?.status === "completed" && positions.length === 0 && (
-          <p className={styles.notice} role="status">Đã quét xong nhưng chưa tìm thấy hình cờ. Thử sách có hình bàn cờ rõ hơn.</p>
+          <p className={styles.notice} role="status">Đã quét xong nhưng chưa tìm thấy hình cờ. Bạn có thể dùng “Thêm diagram thủ công” để khoanh vùng bàn cờ bị detector bỏ sót.</p>
         )}
       </form>
       </section>
@@ -412,9 +495,9 @@ export default function HomePage() {
         <p className={styles.eyebrow}>HÀNH TRÌNH HỌC CỜ</p>
         <h2 id="guide-title">Từ trang sách<br />đến bàn cờ.</h2>
         <ol className={styles.steps}>
-          <li><span>01</span><div><strong>Chọn kỳ phổ</strong><p>Tải sách PDF hoặc DOCX bạn muốn học.</p></div></li>
-          <li><span>02</span><div><strong>Khám phá thế cờ</strong><p>Xem các hình cờ tìm được, lọc theo trang sách.</p></div></li>
-          <li><span>03</span><div><strong>Thử nước, hiểu sâu</strong><p>Kiểm tra bàn cờ nhận diện và phân tích bằng Stockfish.</p></div></li>
+          <li><span>01</span><div><strong>Chọn phạm vi</strong><p>Quét toàn bộ sách hoặc chỉ một đoạn trang cần học.</p></div></li>
+          <li><span>02</span><div><strong>Kiểm soát tiến trình</strong><p>Tạm dừng, tiếp tục và retry riêng trang lỗi mà không quét lại cả sách.</p></div></li>
+          <li><span>03</span><div><strong>Duyệt kỳ đồ nghi ngờ</strong><p>Mở các thế confidence thấp để sửa quân trực tiếp trên bàn cờ trước khi phân tích.</p></div></li>
         </ol>
         <p className={styles.guideNote}>Một thế cờ hay đáng để bạn dừng lại.</p>
       </aside>
@@ -428,23 +511,12 @@ export default function HomePage() {
           <div className={styles.recentBookList}>
             {recentBooks.map((book) => (
               <article className={styles.recentBookItem} key={book.jobId}>
-                <div>
-                  <strong>{book.filename}</strong>
-                  <p className={styles.subtle}>{book.count} hình cờ</p>
-                </div>
+                <div><strong>{book.filename}</strong><p className={styles.subtle}>{book.count} hình cờ</p></div>
                 <div className={styles.actions}>
-                  <button className={styles.button} disabled={loading || restoring} onClick={() => void openRecentBook(book)}>
-                    Mở sách
-                  </button>
-                  <a className={styles.button} href={`${API_BASE}/api/books/${book.jobId}/download`}>
-                    Tải ảnh ZIP
-                  </a>
-                  <a className={styles.button} href={`${API_BASE}/api/books/${book.jobId}/recognized.json`}>
-                    Xuất FEN
-                  </a>
-                  <button className={styles.button + " " + styles.dangerButton} disabled={loading || restoring} onClick={() => void deleteBook(book)}>
-                    Xóa
-                  </button>
+                  <button className={styles.button} disabled={loading || restoring} onClick={() => void openRecentBook(book)}>Mở sách</button>
+                  <a className={styles.button} href={`${API_BASE}/api/books/${book.jobId}/download`}>Tải ảnh ZIP</a>
+                  <a className={styles.button} href={`${API_BASE}/api/books/${book.jobId}/recognized.json`}>Xuất FEN</a>
+                  <button className={styles.button + " " + styles.dangerButton} disabled={loading || restoring} onClick={() => void deleteBook(book)}>Xóa</button>
                 </div>
               </article>
             ))}
@@ -453,47 +525,24 @@ export default function HomePage() {
 
       {jobId && !isDocx && !loading && scanJob?.status !== "failed" && (
         <section className={styles.manualSection} aria-label="Thêm diagram thủ công">
-          <button className={styles.button} onClick={() => setManualOpen((value) => !value)}>
-            {manualOpen ? "Đóng chọn vùng" : "+ Thêm diagram thủ công"}
-          </button>
+          <div className={styles.manualHeader}>
+            <div><strong>Detector bỏ sót bàn cờ?</strong><p>Khoanh trực tiếp trên trang PDF để thêm kỳ đồ thủ công vào sách.</p></div>
+            <button className={styles.button} onClick={() => setManualOpen((value) => !value)}>{manualOpen ? "Đóng chọn vùng" : "+ Thêm diagram thủ công"}</button>
+          </div>
           {manualOpen && (
             <div>
-              <p>Nhập trang PDF rồi kéo chọn vùng hình cờ. Sau đó bấm Thêm vào sách.</p>
-              <label>Trang PDF <input type="number" min="1" value={manualPage} onChange={(event) => {
-                setManualPage(Number(event.target.value) || 1);
-                setManualSelection(null);
-              }} /></label>
+              <label>Trang PDF <input type="number" min="1" value={manualPage} onChange={(event) => { setManualPage(Number(event.target.value) || 1); setManualSelection(null); }} /></label>
               <div className={styles.manualCanvas}
-                onPointerDown={(event) => {
-                  const point = selectionPoint(event);
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                  setManualSelection({ x0: point.x, y0: point.y, x1: point.x, y1: point.y });
-                  setManualDragging(true);
-                }}
-                onPointerMove={(event) => {
-                  if (!manualDragging) return;
-                  const point = selectionPoint(event);
-                  setManualSelection((selection) => selection && { ...selection, x1: point.x, y1: point.y });
-                }}
-                onPointerUp={(event) => {
-                  const point = selectionPoint(event);
-                  setManualSelection((selection) => selection && { ...selection, x1: point.x, y1: point.y });
-                  setManualDragging(false);
-                }}
+                onPointerDown={(event) => { const point = selectionPoint(event); event.currentTarget.setPointerCapture(event.pointerId); setManualSelection({ x0: point.x, y0: point.y, x1: point.x, y1: point.y }); setManualDragging(true); }}
+                onPointerMove={(event) => { if (!manualDragging) return; const point = selectionPoint(event); setManualSelection((selection) => selection && { ...selection, x1: point.x, y1: point.y }); }}
+                onPointerUp={(event) => { const point = selectionPoint(event); setManualSelection((selection) => selection && { ...selection, x1: point.x, y1: point.y }); setManualDragging(false); }}
                 onPointerCancel={() => setManualDragging(false)}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={`${API_BASE}/api/books/${jobId}/pages/${manualPage}`} alt={`Trang PDF ${manualPage}`} draggable={false} />
-                {manualSelection && <div className={styles.manualBox} style={{
-                  left: `${Math.min(manualSelection.x0, manualSelection.x1) * 100}%`,
-                  top: `${Math.min(manualSelection.y0, manualSelection.y1) * 100}%`,
-                  width: `${Math.abs(manualSelection.x1 - manualSelection.x0) * 100}%`,
-                  height: `${Math.abs(manualSelection.y1 - manualSelection.y0) * 100}%`,
-                }} />}
+                {manualSelection && <div className={styles.manualBox} style={{ left: `${Math.min(manualSelection.x0, manualSelection.x1) * 100}%`, top: `${Math.min(manualSelection.y0, manualSelection.y1) * 100}%`, width: `${Math.abs(manualSelection.x1 - manualSelection.x0) * 100}%`, height: `${Math.abs(manualSelection.y1 - manualSelection.y0) * 100}%` }} />}
               </div>
-              <button className={styles.button} disabled={!manualSelection || manualDragging || manualSaving} onClick={() => void addManualDiagram()}>
-                {manualSaving ? "Đang thêm…" : "Thêm vào sách"}
-              </button>
+              <button className={styles.button} disabled={!manualSelection || manualDragging || manualSaving} onClick={() => void addManualDiagram()}>{manualSaving ? "Đang thêm…" : "Thêm vào sách"}</button>
             </div>
           )}
         </section>
@@ -502,80 +551,37 @@ export default function HomePage() {
       {positions.length > 0 && (
         <section className={styles.results}>
           <div className={styles.galleryToolbar}>
-            <div>
-              <p className={styles.eyebrow}>KỲ PHỔ · {filename}</p>
-              <h2>{positions.length} thế cờ trong sách</h2>
-            </div>
+            <div><p className={styles.eyebrow}>KỲ PHỔ · {filename}</p><h2>{positions.length} thế cờ trong sách</h2><p className={styles.subtle}>{reviewCount ? `${reviewCount} kỳ đồ detector chưa chắc — nên duyệt trước khi học.` : "Detector không đánh dấu kỳ đồ nào cần duyệt thêm."}</p></div>
 
             <div className={styles.pageSearch}>
               <label htmlFor="page-search">Tìm theo {sourceLabel}</label>
               <div>
-                <input
-                  id="page-search"
-                  inputMode="numeric"
-                  placeholder="VD: 126"
-                  value={pageQuery}
-                  onChange={(event) => {
-                    setPageQuery(event.target.value.replace(/[^0-9]/g, ""));
-                    setGalleryPage(1);
-                  }}
-                />
-                {pageQuery && (
-                  <button
-                    className={styles.button}
-                    onClick={() => {
-                      setPageQuery("");
-                      setGalleryPage(1);
-                    }}
-                  >
-                    Xóa lọc
-                  </button>
-                )}
+                <input id="page-search" inputMode="numeric" placeholder="VD: 126" value={pageQuery} onChange={(event) => { setPageQuery(event.target.value.replace(/[^0-9]/g, "")); setGalleryPage(1); }} />
+                {pageQuery && <button className={styles.button} onClick={() => { setPageQuery(""); setGalleryPage(1); }}>Xóa lọc</button>}
               </div>
             </div>
 
             <div className={styles.galleryActions}>
-              {jobId && (
-                <>
-                  <a className={styles.button} href={`${API_BASE}/api/books/${jobId}/download`}>
-                    Tải toàn bộ ảnh
-                  </a>
-                  <a className={styles.button} href={`${API_BASE}/api/books/${jobId}/recognized.json`}>
-                    Xuất FEN
-                  </a>
-                </>
-              )}
+              {reviewCount > 0 && <button className={`${styles.button} ${reviewOnly ? styles.reviewActive : ""}`} onClick={() => { setReviewOnly((value) => !value); setGalleryPage(1); }}>{reviewOnly ? "Hiện tất cả" : `⚠ Cần duyệt (${reviewCount})`}</button>}
+              {jobId && <><a className={styles.button} href={`${API_BASE}/api/books/${jobId}/download`}>Tải toàn bộ ảnh</a><a className={styles.button} href={`${API_BASE}/api/books/${jobId}/recognized.json`}>Xuất FEN</a></>}
             </div>
           </div>
 
-          {pageQuery && filteredPositions.length === 0 && (
-            <div className={styles.emptySearch}>
-              Không tìm thấy hình cờ ở {sourceLabel} {pageQuery}.
-            </div>
-          )}
+          {(pageQuery || reviewOnly) && filteredPositions.length === 0 && <div className={styles.emptySearch}>Không có kỳ đồ phù hợp bộ lọc hiện tại.</div>}
 
           <div className={styles.grid}>
             {visiblePositions.map((position) => (
-              <article className={styles.card} key={position.id}>
+              <article className={`${styles.card} ${position.needsReview ? styles.reviewCard : ""}`} key={position.id}>
                 <div className={styles.imageWrap}>
+                  {position.needsReview && <span className={styles.reviewBadge}>⚠ Cần duyệt</span>}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={resolveImageUrl(position.imageUrl)} alt={`Chess position ${position.id}`} />
                 </div>
                 <div className={styles.cardBody}>
-                  <div>
-                    <strong>Kỳ trận #{position.id}</strong>
-                    <p className={styles.subtle}>
-                      {isDocx ? "Ảnh số" : "Trang PDF"}: {position.page} · độ tin cậy detector {(position.confidence * 100).toFixed(0)}%
-                    </p>
-                  </div>
+                  <div><strong>Kỳ trận #{position.id}</strong><p className={styles.subtle}>{isDocx ? "Ảnh số" : "Trang PDF"}: {position.page} · độ tin cậy detector {(position.confidence * 100).toFixed(0)}%</p></div>
                   <div className={styles.actions}>
                     <a className={styles.button} href={`${API_BASE}/api/books/${jobId}/positions/${position.id}/download`} download>Tải ảnh</a>
-                    <Link
-                      className={styles.button + " " + styles.primaryLink}
-                      href={`/analysis?job=${jobId}&position=${position.id}&image=${encodeURIComponent(position.imageUrl)}`}
-                    >
-                      Phân tích thế cờ →
-                    </Link>
+                    <Link className={styles.button + " " + styles.primaryLink} href={`/analysis?job=${jobId}&position=${position.id}&image=${encodeURIComponent(position.imageUrl)}`}>{position.needsReview ? "Duyệt & sửa bàn cờ →" : "Phân tích thế cờ →"}</Link>
                   </div>
                 </div>
               </article>
@@ -584,25 +590,9 @@ export default function HomePage() {
 
           {filteredPositions.length > PAGE_SIZE && (
             <div className={styles.galleryPager}>
-              <button
-                className={styles.button}
-                disabled={galleryPage <= 1}
-                onClick={() => setGalleryPage((page) => Math.max(1, page - 1))}
-              >
-                ← Trang trước
-              </button>
-              <span>
-                {galleryPage} / {totalGalleryPages}
-              </span>
-              <button
-                className={styles.button}
-                disabled={galleryPage >= totalGalleryPages}
-                onClick={() =>
-                  setGalleryPage((page) => Math.min(totalGalleryPages, page + 1))
-                }
-              >
-                Trang sau →
-              </button>
+              <button className={styles.button} disabled={galleryPage <= 1} onClick={() => setGalleryPage((page) => Math.max(1, page - 1))}>← Trang trước</button>
+              <span>{galleryPage} / {totalGalleryPages}</span>
+              <button className={styles.button} disabled={galleryPage >= totalGalleryPages} onClick={() => setGalleryPage((page) => Math.min(totalGalleryPages, page + 1))}>Trang sau →</button>
             </div>
           )}
         </section>
