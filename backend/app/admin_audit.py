@@ -5,11 +5,17 @@ import time
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
 
-from . import admin as admin_core
+from .admin_auth import (
+    authenticate_token,
+    extract_bearer,
+    require_permission,
+    required_permission,
+)
 from .audit_store import audit_stats, list_events, safe_record_event
 
-router = APIRouter(prefix="/audit", dependencies=[Depends(admin_core.require_admin)])
+router = APIRouter(prefix="/audit", dependencies=[Depends(require_permission("audit.read"))])
 
 _ID_SEGMENT = re.compile(r"^(?:[0-9a-f]{32}(?:-\d{4})?|\d+)$", re.IGNORECASE)
 
@@ -35,8 +41,18 @@ def _normalized_action(method: str, path: str, route_path: str | None = None) ->
     return f"{method.upper()} {action_path}", resource_type, resource_id
 
 
+def _authorization_from_scope(scope: dict[str, Any]) -> str | None:
+    for name, value in scope.get("headers") or []:
+        if bytes(name).lower() == b"authorization":
+            try:
+                return bytes(value).decode("latin-1")
+            except UnicodeDecodeError:
+                return None
+    return None
+
+
 def wrap_admin_routes(admin_router: APIRouter) -> None:
-    """Audit every mutating admin route without touching request bodies or auth headers."""
+    """Apply fine-grained RBAC and audit every mutating admin route."""
     for route in admin_router.routes:
         if getattr(route, "_chessapp_audited", False) or not hasattr(route, "app"):
             continue
@@ -46,12 +62,42 @@ def wrap_admin_routes(admin_router: APIRouter) -> None:
         async def audited_app(scope, receive, send, _original=original, _route_path=route_path):
             if scope.get("type") != "http":
                 return await _original(scope, receive, send)
+
             method = str(scope.get("method") or "GET").upper()
+            path = str(scope.get("path") or "")
+            action, resource_type, resource_id = _normalized_action(method, path, _route_path)
+            principal = None
+            authorization = _authorization_from_scope(scope)
+            try:
+                token = extract_bearer(authorization)
+                if token:
+                    principal = authenticate_token(token)
+                    scope["chessapp_admin_principal"] = principal.to_dict()
+            except PermissionError:
+                principal = None
+
+            if principal is not None:
+                permission = required_permission(method, _route_path or path)
+                if permission not in principal.permissions:
+                    if method not in {"GET", "HEAD", "OPTIONS"}:
+                        safe_record_event(
+                            action,
+                            resource_type,
+                            resource_id,
+                            status="failure",
+                            message="HTTP 403",
+                            details={"method": method, "path": path, "requiredPermission": permission},
+                            actor=principal.to_dict(),
+                        )
+                    response = JSONResponse(
+                        status_code=403,
+                        content={"detail": "Bạn không có quyền thực hiện thao tác này."},
+                    )
+                    return await response(scope, receive, send)
+
             if method in {"GET", "HEAD", "OPTIONS"}:
                 return await _original(scope, receive, send)
 
-            path = str(scope.get("path") or "")
-            action, resource_type, resource_id = _normalized_action(method, path, _route_path)
             started = time.perf_counter()
             response_status: dict[str, int] = {}
 
@@ -74,6 +120,7 @@ def wrap_admin_routes(admin_router: APIRouter) -> None:
                         "path": path,
                         "durationMs": round((time.perf_counter() - started) * 1000, 2),
                     },
+                    actor=principal.to_dict() if principal else None,
                 )
                 raise
 
@@ -90,6 +137,7 @@ def wrap_admin_routes(admin_router: APIRouter) -> None:
                     "statusCode": code,
                     "durationMs": round((time.perf_counter() - started) * 1000, 2),
                 },
+                actor=principal.to_dict() if principal else None,
             )
             return result
 
