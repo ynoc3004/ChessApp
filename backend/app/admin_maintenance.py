@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sqlite3
@@ -75,6 +76,14 @@ def _sqlite_snapshot(source: Path, destination: Path) -> None:
             raise sqlite3.DatabaseError(f"SQLite quick_check thất bại cho {source.name}.")
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _zip_file(archive: zipfile.ZipFile, source: Path, archive_name: str) -> int:
     archive.write(source, archive_name)
     return int(source.stat().st_size)
@@ -120,11 +129,13 @@ def create_backup(
                             actual_source = snapshot_root / relative
                             _sqlite_snapshot(source, actual_source)
 
+                        checksum = _sha256(actual_source)
                         size = _zip_file(archive, actual_source, archive_name)
                         content_bytes += size
                         entries.append({
                             "path": archive_name,
                             "bytes": size,
+                            "sha256": checksum,
                             "sqliteSnapshot": sqlite_snapshot,
                         })
 
