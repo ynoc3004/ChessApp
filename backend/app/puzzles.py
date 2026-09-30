@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from .admin import router as admin_router
 from .admin_audit import wrap_admin_routes
 from .admin_auth import public_router as admin_auth_public_router
+from .admin_security import router as admin_security_router
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 PUZZLES = DATA / "lichess-puzzles.sqlite3"
@@ -127,3 +128,7 @@ def delete_collection(item_id: str):
 wrap_admin_routes(admin_router)
 router.routes.extend(admin_router.routes)
 router.routes.extend(admin_auth_public_router.routes)
+# Security routes carry their own authentication dependencies and audit events.
+# Keep them outside wrap_admin_routes so self-service password/session mutations
+# remain available to moderator accounts that only have admin.read.
+router.routes.extend(admin_security_router.routes)

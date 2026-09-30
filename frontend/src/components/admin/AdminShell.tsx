@@ -232,6 +232,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     ["/admin/collection", "藏", "Tàng Kinh Các", "admin.read"],
     ["/admin/audit", "◷", "Nhật ký", "audit.read"],
     ["/admin/users", "♙", "Tài khoản", "users.manage"],
+    ["/admin/security", "⌾", "Bảo mật", "admin.read"],
     ["/admin/system", "⚙", "Hệ thống", "system.read"],
   ] as const;
 

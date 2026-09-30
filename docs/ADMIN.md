@@ -121,7 +121,38 @@ Không có quyền vào Nội Các. Role này dành cho tài khoản thường v
 
 Permission được kiểm tra ở backend theo route và method. Việc ẩn nút/sidebar trên frontend chỉ là UX; backend vẫn là lớp quyết định cuối cùng.
 
-## 4. Chức năng Admin
+## 4. Security Center — Admin v6
+
+Mọi tài khoản có quyền vào Nội Các đều có trang:
+
+```text
+/admin/security
+```
+
+Tại đây account có thể:
+
+- xem tất cả session đăng nhập đang còn hiệu lực của chính mình;
+- nhận biết session hiện tại;
+- thu hồi từng session khác;
+- đăng xuất toàn bộ session khác và giữ session hiện tại;
+- đổi mật khẩu của chính mình.
+
+Khi đổi mật khẩu, backend thu hồi **toàn bộ** session của account, kể cả session hiện tại. Người dùng phải đăng nhập lại bằng mật khẩu mới.
+
+Owner có thêm bảng tổng hợp session của mọi account và có thể thu hồi toàn bộ session của một account từ xa.
+
+Security Center không lưu hoặc hiển thị:
+
+- IP;
+- User-Agent;
+- session token dạng rõ;
+- Authorization header.
+
+Session ID hiển thị trên UI là mã định danh một chiều dẫn xuất từ token hash, không phải session token thật.
+
+Owner local/bootstrap không dùng session SQLite. Muốn đổi khóa owner local, sửa `CHESSAPP_ADMIN_TOKEN` trong `backend/.env` rồi khởi động lại backend.
+
+## 5. Chức năng Admin
 
 - **Tổng quan**: số sách, diagram, puzzle, correction, Tàng Kinh Các, storage, Stockfish, uptime.
 - **Kỳ phổ**: quản lý sách, diagram, nhận dạng, re-scan/retry, cache AI, export và xóa dữ liệu.
@@ -130,9 +161,10 @@ Permission được kiểm tra ở backend theo route và method. Việc ẩn n�
 - **Tàng Kinh Các**: tìm và xóa thế cờ đã lưu, mở lại nguồn khi có đường dẫn.
 - **Nhật ký**: mutation Admin, HTTP status, thời gian xử lý và actor thực hiện.
 - **Tài khoản**: tạo account, đổi role, khóa/mở, reset mật khẩu, xóa account.
+- **Bảo mật**: session của chính mình, đổi mật khẩu, thu hồi session; owner có thể thu hồi session của account khác.
 - **Hệ thống**: backend uptime, Python/platform, Stockfish, data directory và dung lượng từng nhóm dữ liệu.
 
-## 5. Dữ liệu local của Admin
+## 6. Dữ liệu local của Admin
 
 Các database Admin nằm trong `backend/data/` và đã được Git bỏ qua:
 
@@ -150,7 +182,7 @@ Audit Log không lưu:
 - mật khẩu;
 - request body.
 
-## 6. Lưu ý an toàn
+## 7. Lưu ý an toàn
 
 - Không commit `backend/.env` hoặc `CHESSAPP_ADMIN_TOKEN` vào Git.
 - Không đổi token thành `NEXT_PUBLIC_CHESSAPP_ADMIN_TOKEN`; biến `NEXT_PUBLIC_*` được bundle sang trình duyệt.

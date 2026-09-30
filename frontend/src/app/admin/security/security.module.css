@@ -1,0 +1,16 @@
+.sessionList { display: grid; gap: 10px; }
+.sessionCard { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 15px 16px; border: 1px solid #c6a9672b; border-radius: 12px; background: #101714; }
+.sessionCard p { margin: 7px 0; color: #8f877c; font-size: 11px; line-height: 1.55; }
+.sessionCard code { color: #a8956f; font-size: 10px; }
+.sessionTitle { display: flex; align-items: center; gap: 9px; }
+.sessionTitle strong { color: #eadfc9; font-size: 13px; }
+.sessionTitle span { padding: 4px 7px; border: 1px solid #6f9a7950; border-radius: 999px; background: #31513e35; color: #afd0b8; font-size: 9px; }
+.passwordForm { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: end; gap: 10px; }
+.passwordForm label { display: grid; gap: 6px; color: #91887b; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; }
+.passwordForm input { min-width: 0; width: 100%; }
+.ownerNotice { padding: 16px; border: 1px solid #c6a96730; border-radius: 12px; background: #101714; }
+.ownerNotice strong { color: #eadfc9; }
+.ownerNotice p { margin: 8px 0 0; color: #9d9589; font-size: 12px; line-height: 1.7; }
+.ownerNotice code { color: #d0b276; }
+@media (max-width: 1000px) { .passwordForm { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 720px) { .sessionCard { align-items: stretch; flex-direction: column; } .passwordForm { grid-template-columns: 1fr; } }
