@@ -152,7 +152,43 @@ Session ID hiển thị trên UI là mã định danh một chiều dẫn xuất
 
 Owner local/bootstrap không dùng session SQLite. Muốn đổi khóa owner local, sửa `CHESSAPP_ADMIN_TOKEN` trong `backend/.env` rồi khởi động lại backend.
 
-## 5. Chức năng Admin
+## 5. Backup & Maintenance — Admin v7
+
+Owner và Admin có trang:
+
+```text
+/admin/maintenance
+```
+
+Có hai loại snapshot:
+
+- **Core backup**: lưu kỳ phổ/diagram, file upload, Tàng Kinh Các, account + session hash, Audit Log, AI corrections và dữ liệu local khác; không đưa `lichess-puzzles.sqlite3` vào ZIP.
+- **Full backup**: giống Core nhưng có thêm Lichess Puzzle DB. File Full có thể rất lớn.
+
+Backup được lưu tại:
+
+```text
+backend/data/backups/
+```
+
+Thư mục `backups/` không được nhét ngược vào backup mới, tránh backup lồng nhau.
+
+Các file `.sqlite3` không được copy thẳng khi database đang mở. Backend dùng SQLite backup API tạo snapshot nhất quán, chạy `PRAGMA quick_check`, rồi mới đưa snapshot đó vào ZIP. Mỗi ZIP có `manifest.json` ghi scope, thời gian, danh sách file và dung lượng.
+
+Maintenance Center hỗ trợ:
+
+- tạo Core backup;
+- tạo Full backup;
+- tải ZIP qua API Admin đã xác thực;
+- xóa từng backup;
+- giữ 5 backup mới nhất và dọn các bản cũ hơn;
+- chạy `PRAGMA quick_check` trên `collection.sqlite3`, `admin-users.sqlite3`, `admin-audit.sqlite3` và `lichess-puzzles.sqlite3`.
+
+Database chưa tồn tại được báo `Missing` và không tính là lỗi integrity.
+
+**V7 chưa có restore tự động.** Restore cần thêm kiểm tra version/schema và rollback an toàn trước khi cho phép ghi đè database đang chạy. ZIP v7 được thiết kế để làm nguồn snapshot trước.
+
+## 6. Chức năng Admin
 
 - **Tổng quan**: số sách, diagram, puzzle, correction, Tàng Kinh Các, storage, Stockfish, uptime.
 - **Kỳ phổ**: quản lý sách, diagram, nhận dạng, re-scan/retry, cache AI, export và xóa dữ liệu.
@@ -162,9 +198,10 @@ Owner local/bootstrap không dùng session SQLite. Muốn đổi khóa owner loc
 - **Nhật ký**: mutation Admin, HTTP status, thời gian xử lý và actor thực hiện.
 - **Tài khoản**: tạo account, đổi role, khóa/mở, reset mật khẩu, xóa account.
 - **Bảo mật**: session của chính mình, đổi mật khẩu, thu hồi session; owner có thể thu hồi session của account khác.
+- **Backup**: Core/Full snapshot, tải/xóa/prune backup và SQLite integrity check.
 - **Hệ thống**: backend uptime, Python/platform, Stockfish, data directory và dung lượng từng nhóm dữ liệu.
 
-## 6. Dữ liệu local của Admin
+## 7. Dữ liệu local của Admin
 
 Các database Admin nằm trong `backend/data/` và đã được Git bỏ qua:
 
@@ -182,11 +219,12 @@ Audit Log không lưu:
 - mật khẩu;
 - request body.
 
-## 7. Lưu ý an toàn
+## 8. Lưu ý an toàn
 
 - Không commit `backend/.env` hoặc `CHESSAPP_ADMIN_TOKEN` vào Git.
 - Không đổi token thành `NEXT_PUBLIC_CHESSAPP_ADMIN_TOKEN`; biến `NEXT_PUBLIC_*` được bundle sang trình duyệt.
 - File `backend/.env.example` chỉ là mẫu và không chứa secret thật.
 - Không dùng chung một account cho nhiều người nếu muốn Audit Log xác định đúng actor.
 - Các thao tác xóa trong admin đều yêu cầu xác nhận trên giao diện và API admin yêu cầu Bearer token hợp lệ.
+- Trước khi thay đổi dữ liệu lớn, nên tạo ít nhất một Core backup.
 - Chức năng cập nhật Lichess DB chạy bằng script hiện có và thay database sau khi import tệp mới thành công.
