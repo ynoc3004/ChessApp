@@ -68,6 +68,30 @@ def record_event(
         return int(cursor.lastrowid)
 
 
+def safe_record_event(
+    action: str,
+    resource_type: str,
+    resource_id: str | None = None,
+    *,
+    status: str = "success",
+    message: str | None = None,
+    details: dict[str, Any] | None = None,
+) -> bool:
+    """Audit must never break the admin action it observes."""
+    try:
+        record_event(
+            action,
+            resource_type,
+            resource_id,
+            status=status,
+            message=message,
+            details=details,
+        )
+        return True
+    except (OSError, sqlite3.Error, ValueError, TypeError):
+        return False
+
+
 def list_events(
     *,
     limit: int = 100,
