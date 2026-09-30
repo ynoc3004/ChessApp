@@ -242,6 +242,7 @@ def _scan_worker(
     total_source: int,
     *,
     preserve_existing: bool = False,
+    carry_failed: list[dict[str, Any]] | None = None,
 ) -> None:
     job_dir = OUTPUT_DIR / job_id
     status_path = job_dir / JOB_STATUS
@@ -251,6 +252,7 @@ def _scan_worker(
     positions = _load_positions(job_dir) if preserve_existing else []
     extra = docx_image_metadata(source) if source.suffix.lower() == ".docx" else {}
     status = _status_base(job_id, filename, start, end, total_source, positions)
+    status["failedPages"] = [dict(item) for item in (carry_failed or [])]
     status.update(status="processing", phase="detect")
     status.update(extra)
     _write_json_atomic(status_path, status)
@@ -274,8 +276,14 @@ def _scan_worker(
                     next_id += 1
                 status["pageStates"][str(page)] = "completed"
                 status["processedPages"].append(page)
+                status["failedPages"] = [
+                    item for item in status["failedPages"] if int(item.get("page", -1)) != page
+                ]
             except Exception as exc:
                 status["pageStates"][str(page)] = "failed"
+                status["failedPages"] = [
+                    item for item in status["failedPages"] if int(item.get("page", -1)) != page
+                ]
                 status["failedPages"].append({"page": page, "error": str(exc)})
 
             processed += 1
@@ -312,6 +320,7 @@ def _start_thread(
     total_source: int,
     *,
     preserve_existing: bool = False,
+    carry_failed: list[dict[str, Any]] | None = None,
 ) -> None:
     with _CONTROLS_LOCK:
         current = _CONTROLS.get(job_id)
@@ -321,7 +330,7 @@ def _start_thread(
         thread = threading.Thread(
             target=_scan_worker,
             args=(job_id, source, filename, start, end, total_source),
-            kwargs={"preserve_existing": preserve_existing},
+            kwargs={"preserve_existing": preserve_existing, "carry_failed": carry_failed},
             daemon=True,
             name=f"scanner-v2-{job_id[:8]}",
         )
@@ -394,6 +403,18 @@ def get_job_v2(job_id: str):
     status = _read_json(status_path)
     if not status:
         raise HTTPException(status_code=404, detail="Không có trạng thái scan.")
+
+    if status.get("scannerVersion") == 2 and status.get("status") == "paused":
+        with _CONTROLS_LOCK:
+            control = _CONTROLS.get(job_id)
+            alive = bool(control and control.worker and control.worker.is_alive())
+        if not alive:
+            status.update(
+                status="failed",
+                phase="failed",
+                error="Backend đã khởi động lại khi job đang tạm dừng. Hãy retry trang cần thiết hoặc quét lại phạm vi.",
+            )
+            _write_json_atomic(status_path, status)
     return status
 
 
@@ -438,12 +459,27 @@ def retry_page_v2(job_id: str, payload: RetryPageRequest):
     if payload.page > total_source:
         raise HTTPException(status_code=400, detail=f"Trang/ảnh phải nằm trong 1–{total_source}.")
 
+    carry_failed = [
+        dict(item)
+        for item in status.get("failedPages", [])
+        if isinstance(item, dict) and int(item.get("page", -1)) != payload.page
+    ]
     _remove_page_positions(job_id, payload.page)
     filename = status.get("filename") or _read_json(job_dir / BOOK_METADATA).get("filename")
     retry_status = _status_base(job_id, filename, payload.page, payload.page, total_source, _load_positions(job_dir))
     retry_status["retryPage"] = payload.page
+    retry_status["failedPages"] = carry_failed
     _write_json_atomic(job_dir / JOB_STATUS, retry_status)
-    _start_thread(job_id, source, filename, payload.page, payload.page, total_source, preserve_existing=True)
+    _start_thread(
+        job_id,
+        source,
+        filename,
+        payload.page,
+        payload.page,
+        total_source,
+        preserve_existing=True,
+        carry_failed=carry_failed,
+    )
     return retry_status
 
 
