@@ -59,9 +59,9 @@ class RecognitionReviewTests(unittest.TestCase):
 
     def test_review_routes_registered(self):
         paths = {getattr(route, "path", "") for route in router.routes}
-        self.assertIn("/queue", paths)
-        self.assertIn("/batch", paths)
-        self.assertIn("/{job_id}/{position_id}/confirm", paths)
+        self.assertIn("/review/queue", paths)
+        self.assertIn("/review/batch", paths)
+        self.assertIn("/review/{job_id}/{position_id}/confirm", paths)
 
 
 if __name__ == "__main__":
