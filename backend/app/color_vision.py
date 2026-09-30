@@ -14,14 +14,14 @@ def _square_for_cell(row: int, column: int) -> str:
 
 
 def _cluster_threshold(values: list[float]) -> tuple[float, float]:
-    """Split outlined white pieces from solid black pieces by core ink fill."""
+    """Split outlined white pieces from solid black pieces by excess core ink."""
     if len(values) < 2:
-        return 0.16, 0.0
+        return 0.08, 0.0
 
     low = min(values)
     high = max(values)
-    if high - low < 0.018:
-        return float(np.clip((low + high) / 2, 0.06, 0.28)), high - low
+    if high - low < 0.012:
+        return float(np.clip((low + high) / 2, 0.015, 0.22)), high - low
 
     for _ in range(10):
         low_group: list[float] = []
@@ -38,25 +38,22 @@ def _cluster_threshold(values: list[float]) -> tuple[float, float]:
 
     if low > high:
         low, high = high, low
-    return float(np.clip((low + high) / 2, 0.06, 0.28)), high - low
+    return float(np.clip((low + high) / 2, 0.015, 0.22)), high - low
 
 
 def analyze_piece_colors(image_path: Path) -> dict:
     """Estimate white/black piece color independently from piece type.
 
     Historical chess books normally print black men as a solid black mass and
-    white men as a black outline with a light interior. Diagonal hatch lines can
-    be dark too, so color is measured from *very dark solid ink in the core* of
-    each occupied square instead of from overall darkness. Hatch strokes are
-    sparse in the core; a filled black rook/pawn/king is not.
+    white men as a black outline with a light interior. The board background can
+    itself contain dark hatch strokes, so each cell is compared with *empty
+    cells of the same board parity*. This measures the extra solid ink caused by
+    the piece rather than confusing the printed square texture with piece color.
     """
     gray = _read_gray(image_path)
     board = _grid_variant(gray, VISION_SIZE)
     occupancy = analyze_board_vision(image_path)
 
-    # Otsu describes the page's general print split, but its threshold can also
-    # include grey hatch texture. Keep only the darker portion so hatch strokes
-    # contribute far less than solid black piece bodies.
     otsu_threshold, _ = cv2.threshold(
         board,
         0,
@@ -68,12 +65,13 @@ def analyze_piece_colors(image_path: Path) -> dict:
 
     cell = VISION_SIZE // 8
     margin = max(5, int(round(cell * 0.12)))
-    fill_density: dict[str, float] = {}
-    occupied_fill: list[float] = []
+    raw_fill: dict[str, float] = {}
+    parity_by_square: dict[str, int] = {}
 
     for row in range(8):
         for column in range(8):
             square = _square_for_cell(row, column)
+            parity_by_square[square] = (row + column) % 2
             y0 = row * cell + margin
             y1 = (row + 1) * cell - margin
             x0 = column * cell + margin
@@ -88,16 +86,40 @@ def analyze_piece_colors(image_path: Path) -> dict:
                 core = local[cy0:cy1, cx0:cx1]
                 core_ratio = float(core.mean()) if core.size else float(local.mean())
                 whole_ratio = float(local.mean())
-                # Core density dominates: a white outlined piece has dark
-                # contour pixels but a mostly light center, unlike a black one.
                 fill = core_ratio * 0.82 + whole_ratio * 0.18
+            raw_fill[square] = fill
 
-            fill_density[square] = round(fill, 4)
-            if float(occupancy["occupancy"].get(square, 0.0)) >= 0.48:
-                occupied_fill.append(fill)
+    background_samples: dict[int, list[float]] = {0: [], 1: []}
+    for square, fill in raw_fill.items():
+        occupied_probability = float(occupancy["occupancy"].get(square, 0.0))
+        if occupied_probability <= 0.32:
+            background_samples[parity_by_square[square]].append(fill)
+
+    # Median protects the baseline from one missed piece among nominally empty
+    # squares. If a parity has too few clean empty cells, use the lower quartile
+    # of all cells with that parity as a conservative fallback.
+    background_baseline: dict[int, float] = {}
+    for parity in (0, 1):
+        samples = background_samples[parity]
+        if samples:
+            background_baseline[parity] = float(np.median(samples))
+        else:
+            parity_values = [
+                fill for square, fill in raw_fill.items()
+                if parity_by_square[square] == parity
+            ]
+            background_baseline[parity] = float(np.percentile(parity_values, 25)) if parity_values else 0.0
+
+    fill_density: dict[str, float] = {}
+    occupied_fill: list[float] = []
+    for square, fill in raw_fill.items():
+        adjusted = max(0.0, fill - background_baseline[parity_by_square[square]])
+        fill_density[square] = round(adjusted, 4)
+        if float(occupancy["occupancy"].get(square, 0.0)) >= 0.48:
+            occupied_fill.append(adjusted)
 
     color_threshold, separation = _cluster_threshold(occupied_fill)
-    scale = max(0.016, min(0.06, separation / 4 if separation > 0 else 0.045))
+    scale = max(0.012, min(0.05, separation / 4 if separation > 0 else 0.035))
 
     black_probability: dict[str, float] = {}
     color_confidence: dict[str, float] = {}
@@ -122,10 +144,15 @@ def analyze_piece_colors(image_path: Path) -> dict:
                 uncertain.append(square)
 
     return {
-        "method": "solid-core-ink-v2",
+        "method": "parity-normalized-solid-core-v3",
         "blackProbability": black_probability,
         "colorConfidence": color_confidence,
         "fillDensity": fill_density,
+        "rawFillDensity": {square: round(value, 4) for square, value in raw_fill.items()},
+        "backgroundBaseline": {
+            "lightParity": round(background_baseline[0], 4),
+            "darkParity": round(background_baseline[1], 4),
+        },
         "colorThreshold": round(color_threshold, 4),
         "clusterSeparation": round(float(separation), 4),
         "solidInkCutoff": round(solid_cutoff, 2),
