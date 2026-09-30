@@ -105,8 +105,6 @@ def skill_to_theme(skill: str) -> str | None:
     for keywords, theme in _SKILL_THEME_KEYWORDS:
         if any(keyword in normalized for keyword in keywords):
             return theme
-    # Accept an exact Lichess theme supplied by a teacher without forcing it
-    # through the Vietnamese alias table.
     for theme in THEME_LABELS:
         if _normalize(theme) == normalized:
             return theme
@@ -121,8 +119,8 @@ def theme_label(theme: str | None) -> str:
 
 def recommended_rating_range(step: int | None, puzzle_rating: int) -> tuple[int, int]:
     safe_step = max(1, min(20, int(step or 1)))
-    # Step is curriculum level, not Elo. Blend it with the student's own
-    # adaptive puzzle rating instead of pretending there is a direct conversion.
+    # Step is curriculum level, not Elo. Blend it with the student's adaptive
+    # puzzle rating instead of pretending there is a direct conversion.
     step_center = 650 + (safe_step - 1) * 140
     center = round((max(400, puzzle_rating) * 2 + step_center) / 3)
     return max(400, center - 220), min(3000, center + 260)
@@ -131,8 +129,10 @@ def recommended_rating_range(step: int | None, puzzle_rating: int) -> tuple[int,
 def review_interval(repetitions: int, clean: bool) -> tuple[int, int]:
     if not clean:
         return 0, 1
+    # The first error already schedules a 1-day review. A clean review then
+    # advances to 3 days, followed by 7, 14, 30 and 60 days.
     next_repetitions = max(0, repetitions) + 1
-    schedule = (1, 3, 7, 14, 30, 60)
+    schedule = (3, 7, 14, 30, 60, 60)
     interval = schedule[min(next_repetitions - 1, len(schedule) - 1)]
     return next_repetitions, interval
 
@@ -251,7 +251,7 @@ def training_profile(student_id: str, database: Path | None = None, now: float |
         due_review = int(db.execute(
             "SELECT COUNT(*) FROM academy_review_items WHERE student_id=? AND next_review<=?", (student_id, current_time)
         ).fetchone()[0])
-        mistake_book = int(db.execute(
+        mistake_book_count = int(db.execute(
             "SELECT COUNT(*) FROM academy_review_items WHERE student_id=?", (student_id,)
         ).fetchone()[0])
 
@@ -314,7 +314,7 @@ def training_profile(student_id: str, database: Path | None = None, now: float |
             "themeLabel": recommendation.get("themeLabel") if recommendation else "Tổng hợp",
             "reason": "Ưu tiên kỹ năng có mastery thấp nhất" if recommendation else "Chưa đủ dữ liệu kỹ năng; luyện tổng hợp",
         },
-        "review": {"due": due_review, "total": mistake_book},
+        "review": {"due": due_review, "total": mistake_book_count},
         "stats": {
             "attempts": total_attempts,
             "clean": clean_attempts,
@@ -365,7 +365,6 @@ def _sample_puzzle_ids(
     if total <= 0 or limit <= 0:
         return []
 
-    # Stratified offsets avoid ORDER BY RANDOM() on the 6M+ row Lichess database.
     attempts = min(total, max(limit * 5, limit))
     offsets: list[int] = []
     if attempts == 1:
@@ -416,9 +415,10 @@ def _load_puzzles(
             item = dict(row)
             themes = str(item.get("themes") or "").split()
             selected_theme = preferred_theme if preferred_theme in themes else (themes[0] if themes else preferred_theme)
+            focused = bool(preferred_theme and selected_theme == preferred_theme)
             item["academyMode"] = mode
             item["academyTheme"] = selected_theme or ""
-            item["academySkill"] = preferred_skill or theme_label(selected_theme)
+            item["academySkill"] = preferred_skill if focused and preferred_skill else theme_label(selected_theme)
             result.append(item)
     return result
 
@@ -497,15 +497,25 @@ def build_training_session(
         mixed = _sample_puzzle_ids(
             pdb, minimum, maximum, limit - len(focused), exclude=blocked
         )
-    ids = focused + mixed
-    random.shuffle(ids)
-    puzzles = _load_puzzles(
-        ids, puzzle_path, mode="personalized", preferred_skill=target_skill, preferred_theme=target_theme
+
+    focused_puzzles = _load_puzzles(
+        focused,
+        puzzle_path,
+        mode="personalized",
+        preferred_skill=target_skill,
+        preferred_theme=target_theme,
     )
+    mixed_puzzles = _load_puzzles(
+        mixed,
+        puzzle_path,
+        mode="personalized",
+    )
+    puzzles = focused_puzzles + mixed_puzzles
+    random.shuffle(puzzles)
     return {
         "mode": "personalized",
         "puzzles": puzzles,
-        "matching": len(ids),
+        "matching": len(focused) + len(mixed),
         "profile": profile,
         "personalization": {
             "skill": target_skill,
@@ -690,7 +700,13 @@ def record_training_result(
     }
 
 
-def mistake_book(student_id: str, limit: int = 50, database: Path | None = None, puzzles_db: Path | None = None, now: float | None = None) -> dict[str, Any]:
+def mistake_book(
+    student_id: str,
+    limit: int = 50,
+    database: Path | None = None,
+    puzzles_db: Path | None = None,
+    now: float | None = None,
+) -> dict[str, Any]:
     path = database or ACADEMY_DB
     puzzle_path = puzzles_db or PUZZLES_DB
     current_time = time.time() if now is None else now
