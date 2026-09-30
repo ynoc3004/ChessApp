@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import json
+import multiprocessing as mp
 import os
 import re
+import shutil
 import threading
 import time
 import uuid
+import zipfile
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +24,7 @@ from .detector import (
     _grid_score,
     detect_boards_in_image,
     docx_image_metadata,
-    extract_docx_images,
+    docx_image_order,
 )
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,6 +34,8 @@ OUTPUT_DIR = DATA_DIR / "positions"
 BOOK_METADATA = "book.json"
 JOB_STATUS = "status.json"
 LOW_DETECTOR_CONFIDENCE = 0.76
+DEFAULT_PAGE_TIMEOUT_SECONDS = 60.0
+HEARTBEAT_INTERVAL_SECONDS = 1.0
 
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -39,6 +45,10 @@ router = APIRouter(prefix="/api/scanner/v2", tags=["scanner-v2"])
 
 class RetryPageRequest(BaseModel):
     page: int = Field(ge=1, le=100000)
+
+
+class PageTimeoutError(RuntimeError):
+    pass
 
 
 @dataclass
@@ -52,6 +62,15 @@ class JobControl:
 
 _CONTROLS: dict[str, JobControl] = {}
 _CONTROLS_LOCK = threading.RLock()
+
+
+def _page_timeout_seconds() -> float:
+    raw = os.getenv("CHESSAPP_SCANNER_PAGE_TIMEOUT", str(DEFAULT_PAGE_TIMEOUT_SECONDS))
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        value = DEFAULT_PAGE_TIMEOUT_SECONDS
+    return max(15.0, min(600.0, value))
 
 
 def _valid_job_id(job_id: str) -> bool:
@@ -101,10 +120,26 @@ def _source_path(job_id: str, suffix: str | None = None) -> Path:
         candidate = UPLOAD_DIR / f"{job_id}{suffix}"
         if candidate.exists():
             return candidate
-    matches = [path for path in UPLOAD_DIR.glob(f"{job_id}.*") if path.suffix.lower() in {".pdf", ".docx"}]
+    matches = [
+        path
+        for path in UPLOAD_DIR.glob(f"{job_id}.*")
+        if path.suffix.lower() in {".pdf", ".docx"}
+    ]
     if len(matches) != 1:
         raise HTTPException(status_code=404, detail="Không tìm thấy file sách nguồn.")
     return matches[0]
+
+
+@lru_cache(maxsize=16)
+def _cached_docx_image_names(path_text: str, mtime_ns: int, size: int) -> tuple[str, ...]:
+    del mtime_ns, size
+    names = docx_image_order(Path(path_text))
+    return tuple(name for name in names if not name.lower().endswith((".emf", ".wmf")))
+
+
+def _docx_image_names(path: Path) -> tuple[str, ...]:
+    stat = path.stat()
+    return _cached_docx_image_names(str(path.resolve()), stat.st_mtime_ns, stat.st_size)
 
 
 def _source_total(path: Path) -> int:
@@ -115,11 +150,15 @@ def _source_total(path: Path) -> int:
         finally:
             document.close()
     if path.suffix.lower() == ".docx":
-        return sum(1 for _name, _image in extract_docx_images(path))
+        return len(_docx_image_names(path))
     raise ValueError("Định dạng sách không được hỗ trợ.")
 
 
-def _normalize_range(total: int, page_start: int | None, page_end: int | None) -> tuple[int, int]:
+def _normalize_range(
+    total: int,
+    page_start: int | None,
+    page_end: int | None,
+) -> tuple[int, int]:
     if total < 1:
         raise ValueError("Tài liệu không có trang/ảnh có thể quét.")
     start = 1 if page_start is None else page_start
@@ -134,17 +173,27 @@ def _render_pdf_page(path: Path, page_number: int) -> np.ndarray:
     try:
         page = document[page_number - 1]
         pix = page.get_pixmap(matrix=fitz.Matrix(2.2, 2.2), alpha=False)
-        array = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
-        return cv2.cvtColor(array, cv2.COLOR_RGBA2BGR if pix.n == 4 else cv2.COLOR_RGB2BGR)
+        array = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
+            pix.height, pix.width, pix.n
+        )
+        return cv2.cvtColor(
+            array,
+            cv2.COLOR_RGBA2BGR if pix.n == 4 else cv2.COLOR_RGB2BGR,
+        )
     finally:
         document.close()
 
 
 def _docx_image(path: Path, image_number: int) -> np.ndarray:
-    for index, (_name, image) in enumerate(extract_docx_images(path), start=1):
-        if index == image_number:
-            return image
-    raise IndexError(f"Không tìm thấy ảnh số {image_number}.")
+    names = _docx_image_names(path)
+    if image_number < 1 or image_number > len(names):
+        raise IndexError(f"Không tìm thấy ảnh số {image_number}.")
+    with zipfile.ZipFile(path) as archive:
+        data = np.frombuffer(archive.read(names[image_number - 1]), dtype=np.uint8)
+    image = cv2.imdecode(data, cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError(f"Không giải mã được ảnh số {image_number}.")
+    return image
 
 
 def _detect_page(path: Path, page_number: int) -> list[tuple[np.ndarray, float]]:
@@ -153,13 +202,142 @@ def _detect_page(path: Path, page_number: int) -> list[tuple[np.ndarray, float]]
 
     image = _docx_image(path, page_number)
     ratio = image.shape[1] / max(image.shape[0], 1)
-    direct_score = _grid_score(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)) if 0.70 <= ratio <= 1.35 else 0.0
+    direct_score = (
+        _grid_score(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY))
+        if 0.70 <= ratio <= 1.35
+        else 0.0
+    )
     if direct_score >= 0.58:
         return [(image, direct_score)]
     return detect_boards_in_image(image)
 
 
-def _position_payload(job_id: str, position_id: int, page: int, score: float) -> dict[str, Any]:
+def _isolated_detect_to_files(
+    source_text: str,
+    page_number: int,
+    temp_dir_text: str,
+) -> dict[str, Any]:
+    """Run one page in a child process so a pathological page can be killed."""
+    try:
+        source = Path(source_text)
+        temp_dir = Path(temp_dir_text)
+        detected = _detect_page(source, page_number)
+        items: list[dict[str, Any]] = []
+        for index, (crop, score) in enumerate(detected, start=1):
+            name = f"crop-{index:04d}.png"
+            target = temp_dir / name
+            if not cv2.imwrite(str(target), crop):
+                raise OSError(f"Không ghi được ảnh tạm {name}.")
+            items.append({"filename": name, "score": float(score)})
+        return {"ok": True, "items": items}
+    except BaseException as exc:
+        return {
+            "ok": False,
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+
+
+class _PageDetector:
+    """Persistent one-process detector with per-page timeout and restart."""
+
+    def __init__(self, timeout_seconds: float | None = None) -> None:
+        self.timeout_seconds = timeout_seconds or _page_timeout_seconds()
+        self._context = mp.get_context("spawn")
+        self._pool: Any = None
+
+    def _ensure_pool(self):
+        if self._pool is None:
+            self._pool = self._context.Pool(processes=1)
+        return self._pool
+
+    def _restart_pool(self) -> None:
+        if self._pool is not None:
+            try:
+                self._pool.terminate()
+                self._pool.join()
+            finally:
+                self._pool = None
+
+    def close(self) -> None:
+        self._restart_pool()
+
+    def detect(
+        self,
+        source: Path,
+        page_number: int,
+        job_dir: Path,
+        status_path: Path,
+        status: dict[str, Any],
+    ) -> list[tuple[np.ndarray, float]]:
+        temp_dir = job_dir / f".scanner-v2-page-{page_number}-{uuid.uuid4().hex[:8]}"
+        temp_dir.mkdir(parents=True, exist_ok=False)
+        started = time.monotonic()
+        started_at = time.time()
+        status.update(
+            pageStartedAt=started_at,
+            heartbeatAt=started_at,
+            pageElapsedSeconds=0.0,
+            pageTimeoutSeconds=self.timeout_seconds,
+            workerAlive=True,
+        )
+        _write_json_atomic(status_path, status)
+
+        try:
+            result = self._ensure_pool().apply_async(
+                _isolated_detect_to_files,
+                (str(source), page_number, str(temp_dir)),
+            )
+            while True:
+                elapsed = time.monotonic() - started
+                remaining = self.timeout_seconds - elapsed
+                if remaining <= 0:
+                    self._restart_pool()
+                    raise PageTimeoutError(
+                        f"Trang/ảnh {page_number} xử lý quá {self.timeout_seconds:.0f} giây; "
+                        "Scanner đã bỏ qua để tiếp tục trang kế tiếp."
+                    )
+                try:
+                    payload = result.get(timeout=min(HEARTBEAT_INTERVAL_SECONDS, remaining))
+                    break
+                except mp.TimeoutError:
+                    status["heartbeatAt"] = time.time()
+                    status["pageElapsedSeconds"] = round(time.monotonic() - started, 1)
+                    status["workerAlive"] = True
+                    _write_json_atomic(status_path, status)
+
+            status["heartbeatAt"] = time.time()
+            status["pageElapsedSeconds"] = round(time.monotonic() - started, 1)
+            if not payload.get("ok"):
+                raise RuntimeError(payload.get("error") or "Worker trang dừng bất thường.")
+
+            detected: list[tuple[np.ndarray, float]] = []
+            for item in payload.get("items", []):
+                image = cv2.imread(str(temp_dir / item["filename"]), cv2.IMREAD_COLOR)
+                if image is None:
+                    raise RuntimeError("Không đọc lại được ảnh tạm từ worker trang.")
+                detected.append((image, float(item["score"])))
+            return detected
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def _detect_page_guarded(
+    detector: _PageDetector,
+    source: Path,
+    page_number: int,
+    job_dir: Path,
+    status_path: Path,
+    status: dict[str, Any],
+) -> list[tuple[np.ndarray, float]]:
+    return detector.detect(source, page_number, job_dir, status_path, status)
+
+
+def _position_payload(
+    job_id: str,
+    position_id: int,
+    page: int,
+    score: float,
+) -> dict[str, Any]:
     confidence = round(float(score), 3)
     return {
         "id": position_id,
@@ -177,7 +355,12 @@ def _load_positions(job_dir: Path) -> list[dict[str, Any]]:
     return [dict(item) for item in positions if isinstance(item, dict)]
 
 
-def _persist_book(job_id: str, filename: str | None, positions: list[dict[str, Any]], extra: dict[str, Any]) -> None:
+def _persist_book(
+    job_id: str,
+    filename: str | None,
+    positions: list[dict[str, Any]],
+    extra: dict[str, Any],
+) -> None:
     payload = {
         "jobId": job_id,
         "filename": filename,
@@ -218,18 +401,35 @@ def _status_base(
         "failedPages": [],
         "pageStates": {str(page): "pending" for page in pages},
         "reviewCount": sum(1 for item in (positions or []) if item.get("needsReview")),
+        "pageStartedAt": None,
+        "heartbeatAt": None,
+        "pageElapsedSeconds": 0.0,
+        "pageTimeoutSeconds": _page_timeout_seconds(),
+        "workerAlive": False,
     }
 
 
-def _wait_if_paused(control: JobControl, status_path: Path, status: dict[str, Any]) -> None:
+def _wait_if_paused(
+    control: JobControl,
+    status_path: Path,
+    status: dict[str, Any],
+) -> None:
+    last_heartbeat = 0.0
     while not control.run_event.wait(timeout=0.25):
+        now = time.monotonic()
         if status.get("status") != "paused":
             status["status"] = "paused"
             status["phase"] = "paused"
+        if now - last_heartbeat >= HEARTBEAT_INTERVAL_SECONDS:
+            status["heartbeatAt"] = time.time()
+            status["workerAlive"] = True
             _write_json_atomic(status_path, status)
+            last_heartbeat = now
     if status.get("status") == "paused":
         status["status"] = "processing"
         status["phase"] = "detect"
+        status["heartbeatAt"] = time.time()
+        status["workerAlive"] = True
         _write_json_atomic(status_path, status)
 
 
@@ -249,50 +449,99 @@ def _scan_worker(
     with _CONTROLS_LOCK:
         control = _CONTROLS.setdefault(job_id, JobControl())
 
+    for stale in job_dir.glob(".scanner-v2-page-*"):
+        if stale.is_dir():
+            shutil.rmtree(stale, ignore_errors=True)
+
     positions = _load_positions(job_dir) if preserve_existing else []
     extra = docx_image_metadata(source) if source.suffix.lower() == ".docx" else {}
     status = _status_base(job_id, filename, start, end, total_source, positions)
     status["failedPages"] = [dict(item) for item in (carry_failed or [])]
-    status.update(status="processing", phase="detect")
+    status.update(
+        status="processing",
+        phase="detect",
+        workerAlive=True,
+        heartbeatAt=time.time(),
+    )
     status.update(extra)
     _write_json_atomic(status_path, status)
 
+    detector = _PageDetector(status["pageTimeoutSeconds"])
     processed = 0
     try:
         for page in range(start, end + 1):
             _wait_if_paused(control, status_path, status)
             status["currentPage"] = page
             status["pageStates"][str(page)] = "processing"
+            status["pageStartedAt"] = time.time()
+            status["heartbeatAt"] = time.time()
+            status["pageElapsedSeconds"] = 0.0
+            status["workerAlive"] = True
             _write_json_atomic(status_path, status)
 
             try:
-                detected = _detect_page(source, page)
-                next_id = max((int(item.get("id", 0)) for item in positions), default=0) + 1
+                detected = _detect_page_guarded(
+                    detector,
+                    source,
+                    page,
+                    job_dir,
+                    status_path,
+                    status,
+                )
+                next_id = max(
+                    (int(item.get("id", 0)) for item in positions),
+                    default=0,
+                ) + 1
                 for crop, score in detected:
                     filename_png = f"position-{next_id:04d}.png"
                     if not cv2.imwrite(str(job_dir / filename_png), crop):
                         raise OSError(f"Không ghi được {filename_png}.")
-                    positions.append(_position_payload(job_id, next_id, page, score))
+                    positions.append(
+                        _position_payload(job_id, next_id, page, score)
+                    )
                     next_id += 1
                 status["pageStates"][str(page)] = "completed"
                 status["processedPages"].append(page)
                 status["failedPages"] = [
-                    item for item in status["failedPages"] if int(item.get("page", -1)) != page
+                    item
+                    for item in status["failedPages"]
+                    if int(item.get("page", -1)) != page
                 ]
             except Exception as exc:
                 status["pageStates"][str(page)] = "failed"
                 status["failedPages"] = [
-                    item for item in status["failedPages"] if int(item.get("page", -1)) != page
+                    item
+                    for item in status["failedPages"]
+                    if int(item.get("page", -1)) != page
                 ]
                 status["failedPages"].append({"page": page, "error": str(exc)})
 
             processed += 1
             status["current"] = processed
-            status["progress"] = round(processed / max(1, end - start + 1) * 100, 1)
+            status["progress"] = round(
+                processed / max(1, end - start + 1) * 100,
+                1,
+            )
             status["count"] = len(positions)
             status["positions"] = positions
-            status["reviewCount"] = sum(1 for item in positions if item.get("needsReview"))
-            _persist_book(job_id, filename, positions, {**extra, "scanRange": {"start": start, "end": end, "sourceTotal": total_source}})
+            status["reviewCount"] = sum(
+                1 for item in positions if item.get("needsReview")
+            )
+            status["heartbeatAt"] = time.time()
+            status["workerAlive"] = True
+            _persist_book(
+                job_id,
+                filename,
+                positions,
+                {
+                    **extra,
+                    "scanRange": {
+                        "start": start,
+                        "end": end,
+                        "sourceTotal": total_source,
+                    },
+                },
+            )
             _write_json_atomic(status_path, status)
 
         status.update(
@@ -304,11 +553,27 @@ def _scan_worker(
             count=len(positions),
             positions=positions,
             error=None,
+            pageStartedAt=None,
+            pageElapsedSeconds=0.0,
+            heartbeatAt=time.time(),
+            workerAlive=False,
         )
         _write_json_atomic(status_path, status)
     except Exception as exc:
-        status.update(status="failed", phase="failed", error=str(exc), count=len(positions), positions=positions)
+        status.update(
+            status="failed",
+            phase="failed",
+            error=str(exc),
+            count=len(positions),
+            positions=positions,
+            currentPage=None,
+            pageStartedAt=None,
+            heartbeatAt=time.time(),
+            workerAlive=False,
+        )
         _write_json_atomic(status_path, status)
+    finally:
+        detector.close()
 
 
 def _start_thread(
@@ -330,7 +595,10 @@ def _start_thread(
         thread = threading.Thread(
             target=_scan_worker,
             args=(job_id, source, filename, start, end, total_source),
-            kwargs={"preserve_existing": preserve_existing, "carry_failed": carry_failed},
+            kwargs={
+                "preserve_existing": preserve_existing,
+                "carry_failed": carry_failed,
+            },
             daemon=True,
             name=f"scanner-v2-{job_id[:8]}",
         )
@@ -360,6 +628,12 @@ def _remove_page_positions(job_id: str, page: int) -> list[dict[str, Any]]:
     book["count"] = len(kept)
     _write_json_atomic(book_path, book)
     return kept
+
+
+def _worker_alive(job_id: str) -> bool:
+    with _CONTROLS_LOCK:
+        control = _CONTROLS.get(job_id)
+        return bool(control and control.worker and control.worker.is_alive())
 
 
 @router.post("/start")
@@ -404,17 +678,23 @@ def get_job_v2(job_id: str):
     if not status:
         raise HTTPException(status_code=404, detail="Không có trạng thái scan.")
 
-    if status.get("scannerVersion") == 2 and status.get("status") == "paused":
-        with _CONTROLS_LOCK:
-            control = _CONTROLS.get(job_id)
-            alive = bool(control and control.worker and control.worker.is_alive())
-        if not alive:
-            status.update(
-                status="failed",
-                phase="failed",
-                error="Backend đã khởi động lại khi job đang tạm dừng. Hãy retry trang cần thiết hoặc quét lại phạm vi.",
-            )
-            _write_json_atomic(status_path, status)
+    alive = _worker_alive(job_id)
+    status["workerAlive"] = alive
+    if (
+        status.get("scannerVersion") == 2
+        and status.get("status") in {"queued", "processing", "paused"}
+        and not alive
+    ):
+        status.update(
+            status="failed",
+            phase="failed",
+            workerAlive=False,
+            error=(
+                "Worker quét sách không còn hoạt động. Backend có thể đã khởi động lại; "
+                "hãy retry trang lỗi hoặc quét lại phần còn lại."
+            ),
+        )
+        _write_json_atomic(status_path, status)
     return status
 
 
@@ -424,11 +704,19 @@ def pause_job_v2(job_id: str):
     with _CONTROLS_LOCK:
         control = _CONTROLS.get(job_id)
         if not control or not control.worker or not control.worker.is_alive():
-            raise HTTPException(status_code=409, detail="Job không còn chạy để tạm dừng.")
+            raise HTTPException(
+                status_code=409,
+                detail="Job không còn chạy để tạm dừng.",
+            )
         control.run_event.clear()
     status_path = OUTPUT_DIR / job_id / JOB_STATUS
     status = _read_json(status_path)
-    status.update(status="paused", phase="paused")
+    status.update(
+        status="paused",
+        phase="paused",
+        heartbeatAt=time.time(),
+        workerAlive=True,
+    )
     _write_json_atomic(status_path, status)
     return status
 
@@ -439,11 +727,19 @@ def resume_job_v2(job_id: str):
     with _CONTROLS_LOCK:
         control = _CONTROLS.get(job_id)
         if not control or not control.worker or not control.worker.is_alive():
-            raise HTTPException(status_code=409, detail="Worker không còn tồn tại; hãy retry trang lỗi hoặc quét lại.")
+            raise HTTPException(
+                status_code=409,
+                detail="Worker không còn tồn tại; hãy retry trang lỗi hoặc quét lại.",
+            )
         control.run_event.set()
     status_path = OUTPUT_DIR / job_id / JOB_STATUS
     status = _read_json(status_path)
-    status.update(status="processing", phase="detect")
+    status.update(
+        status="processing",
+        phase="detect",
+        heartbeatAt=time.time(),
+        workerAlive=True,
+    )
     _write_json_atomic(status_path, status)
     return status
 
@@ -453,11 +749,17 @@ def retry_page_v2(job_id: str, payload: RetryPageRequest):
     job_dir = _job_dir(job_id)
     status = _read_json(job_dir / JOB_STATUS)
     if status.get("status") in {"queued", "processing", "paused"}:
-        raise HTTPException(status_code=409, detail="Hãy đợi job hiện tại kết thúc trước khi retry trang.")
+        raise HTTPException(
+            status_code=409,
+            detail="Hãy đợi job hiện tại kết thúc trước khi retry trang.",
+        )
     source = _source_path(job_id)
     total_source = _source_total(source)
     if payload.page > total_source:
-        raise HTTPException(status_code=400, detail=f"Trang/ảnh phải nằm trong 1–{total_source}.")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Trang/ảnh phải nằm trong 1–{total_source}.",
+        )
 
     carry_failed = [
         dict(item)
@@ -465,8 +767,17 @@ def retry_page_v2(job_id: str, payload: RetryPageRequest):
         if isinstance(item, dict) and int(item.get("page", -1)) != payload.page
     ]
     _remove_page_positions(job_id, payload.page)
-    filename = status.get("filename") or _read_json(job_dir / BOOK_METADATA).get("filename")
-    retry_status = _status_base(job_id, filename, payload.page, payload.page, total_source, _load_positions(job_dir))
+    filename = status.get("filename") or _read_json(job_dir / BOOK_METADATA).get(
+        "filename"
+    )
+    retry_status = _status_base(
+        job_id,
+        filename,
+        payload.page,
+        payload.page,
+        total_source,
+        _load_positions(job_dir),
+    )
     retry_status["retryPage"] = payload.page
     retry_status["failedPages"] = carry_failed
     _write_json_atomic(job_dir / JOB_STATUS, retry_status)
@@ -488,7 +799,13 @@ def review_queue_v2(job_id: str):
     job_dir = _job_dir(job_id)
     positions = _load_positions(job_dir)
     review = [item for item in positions if bool(item.get("needsReview"))]
-    review.sort(key=lambda item: (float(item.get("confidence", 1)), int(item.get("page", 0)), int(item.get("id", 0))))
+    review.sort(
+        key=lambda item: (
+            float(item.get("confidence", 1)),
+            int(item.get("page", 0)),
+            int(item.get("id", 0)),
+        )
+    )
     return {
         "jobId": job_id,
         "threshold": LOW_DETECTOR_CONFIDENCE,
