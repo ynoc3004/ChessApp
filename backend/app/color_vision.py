@@ -9,6 +9,39 @@ import numpy as np
 from .preprocess import VISION_SIZE, _grid_variant, _read_gray, analyze_board_vision
 
 
+RECOGNITION_CACHE_VERSION = "recognition-v3.1-color-v1"
+
+
+def invalidate_legacy_recognition_caches(
+    output_dir: Path,
+    version: str = RECOGNITION_CACHE_VERSION,
+) -> int:
+    """Drop only regenerable AI caches once when recognition logic changes.
+
+    User-corrected `.user.json` files are never touched. A small marker avoids
+    rescanning/deleting caches on every backend restart. Bump the version string
+    when the recognition algorithm changes incompatibly again.
+    """
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        marker = output_dir / ".recognition-cache-version"
+        if marker.exists() and marker.read_text(encoding="utf-8").strip() == version:
+            return 0
+
+        removed = 0
+        for cache_path in output_dir.glob("*/position-*.recognition.json"):
+            try:
+                cache_path.unlink()
+                removed += 1
+            except OSError:
+                continue
+        marker.write_text(version, encoding="utf-8")
+        return removed
+    except OSError:
+        # Cache migration must never prevent the backend from starting.
+        return 0
+
+
 def _square_for_cell(row: int, column: int) -> str:
     return f"{chr(ord('a') + column)}{8 - row}"
 
@@ -185,3 +218,10 @@ def analyze_piece_colors(image_path: Path) -> dict:
         "solidInkCutoff": round(solid_cutoff, 2),
         "uncertainColorSquares": uncertain,
     }
+
+
+# Imported by `recognizer.py` during backend startup. This intentionally clears
+# only derivative AI caches once for this recognition-version upgrade so old
+# color-wrong results cannot silently bypass the new resolver.
+_DATA_POSITIONS = Path(__file__).resolve().parent.parent / "data" / "positions"
+invalidate_legacy_recognition_caches(_DATA_POSITIONS)
