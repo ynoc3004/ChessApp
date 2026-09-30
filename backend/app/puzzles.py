@@ -9,6 +9,7 @@ import chess
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from .academy import public_router as academy_public_router
 from .admin import router as admin_router
 from .admin_audit import wrap_admin_routes
 from .admin_auth import public_router as admin_auth_public_router
@@ -50,8 +51,6 @@ def puzzle_session(theme: str = "", minimum: int = Query(800, ge=0, le=4000), ma
         where = "theme=? AND rating BETWEEN ? AND ?" if theme else "rating BETWEEN ? AND ?"
         params = (theme, minimum, maximum) if theme else (minimum, maximum)
         total = db.execute(f"SELECT COUNT(*) FROM {table} WHERE {where}", params).fetchone()[0]
-        # One random offset per slice of the indexed rating range prevents a
-        # session from returning ten almost identical ratings in one block.
         count = min(limit, total)
         offsets = [
             random.randrange(index * total // count, (index + 1) * total // count)
@@ -128,6 +127,8 @@ def delete_collection(item_id: str):
 wrap_admin_routes(admin_router)
 router.routes.extend(admin_router.routes)
 router.routes.extend(admin_auth_public_router.routes)
+# Academy student authentication is deliberately separate from Admin RBAC.
+router.routes.extend(academy_public_router.routes)
 # Security routes carry their own authentication dependencies and audit events.
 # Keep them outside wrap_admin_routes so self-service password/session mutations
 # remain available to moderator accounts that only have admin.read.
