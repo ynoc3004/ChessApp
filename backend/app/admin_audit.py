@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 
 from . import admin as admin_core
-from .audit_store import audit_stats, list_events, record_event
+from .audit_store import audit_stats, list_events, safe_record_event
 
 router = APIRouter(prefix="/audit", dependencies=[Depends(admin_core.require_admin)])
 
@@ -63,7 +63,7 @@ def wrap_admin_routes(admin_router: APIRouter) -> None:
             try:
                 result = await _original(scope, receive, send_with_status)
             except Exception as exc:
-                record_event(
+                safe_record_event(
                     action,
                     resource_type,
                     resource_id,
@@ -78,7 +78,7 @@ def wrap_admin_routes(admin_router: APIRouter) -> None:
                 raise
 
             code = response_status.get("code", 200)
-            record_event(
+            safe_record_event(
                 action,
                 resource_type,
                 resource_id,
