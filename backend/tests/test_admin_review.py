@@ -4,8 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from app import admin
-from app.admin_review import _diff_kind, _risk, correction_stats
+from app.admin_review import _diff_kind, _risk, correction_stats, router
 
 
 class RecognitionReviewTests(unittest.TestCase):
@@ -59,10 +58,10 @@ class RecognitionReviewTests(unittest.TestCase):
             self.assertEqual(stats["correctedSquares"], 2)
 
     def test_review_routes_registered(self):
-        paths = {getattr(route, "path", "") for route in admin.router.routes}
-        self.assertIn("/api/admin/review/queue", paths)
-        self.assertIn("/api/admin/review/batch", paths)
-        self.assertIn("/api/admin/review/{job_id}/{position_id}/confirm", paths)
+        paths = {getattr(route, "path", "") for route in router.routes}
+        self.assertIn("/queue", paths)
+        self.assertIn("/batch", paths)
+        self.assertIn("/{job_id}/{position_id}/confirm", paths)
 
 
 if __name__ == "__main__":
