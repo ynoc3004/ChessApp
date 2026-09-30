@@ -26,6 +26,22 @@ class AdminRestoreTests(unittest.TestCase):
                 db.execute("INSERT INTO admin_sessions VALUES (?, 'owner')", (f"token-{index}",))
             db.commit()
 
+    def _malicious_archive(self, backups: Path, backup_id: str, archive_entry: str) -> None:
+        archive_path = backups / f"chessapp-backup-20260930-000000-core-{backup_id}.zip"
+        payload = b"evil"
+        manifest = {
+            "format": "chessapp-admin-backup-v1",
+            "createdAt": 1,
+            "scope": "core",
+            "backupId": backup_id,
+            "fileCount": 1,
+            "contentBytes": len(payload),
+            "entries": [{"path": archive_entry, "bytes": len(payload)}],
+        }
+        with zipfile.ZipFile(archive_path, "w") as archive:
+            archive.writestr(archive_entry, payload)
+            archive.writestr("manifest.json", json.dumps(manifest))
+
     def test_restore_routes_are_registered(self):
         paths = set(main.app.openapi()["paths"])
         self.assertIn("/api/admin/maintenance/backups/{backup_id}/restore-plan", paths)
@@ -81,30 +97,30 @@ class AdminRestoreTests(unittest.TestCase):
             with sqlite3.connect(data / "admin-users.sqlite3") as db:
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM admin_sessions").fetchone()[0], 0)
 
-    def test_restore_rejects_path_traversal_before_touching_data(self):
+    def test_restore_rejects_posix_path_traversal_before_touching_data(self):
         with tempfile.TemporaryDirectory() as directory:
             data = Path(directory) / "data"
             backups = data / "backups"
             data.mkdir()
             backups.mkdir()
             backup_id = "aaaaaaaaaaaa"
-            archive_path = backups / f"chessapp-backup-20260930-000000-core-{backup_id}.zip"
-            manifest = {
-                "format": "chessapp-admin-backup-v1",
-                "createdAt": 1,
-                "scope": "core",
-                "backupId": backup_id,
-                "fileCount": 1,
-                "contentBytes": 4,
-                "entries": [{"path": "data/../evil.txt", "bytes": 4}],
-            }
-            with zipfile.ZipFile(archive_path, "w") as archive:
-                archive.writestr("data/../evil.txt", "evil")
-                archive.writestr("manifest.json", json.dumps(manifest))
+            self._malicious_archive(backups, backup_id, "data/../evil.txt")
 
             with self.assertRaises(RestoreValidationError):
                 build_restore_plan(backup_id, data_dir=data, backup_dir=backups)
             self.assertFalse((Path(directory) / "evil.txt").exists())
+
+    def test_restore_rejects_windows_backslash_traversal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            data = Path(directory) / "data"
+            backups = data / "backups"
+            data.mkdir()
+            backups.mkdir()
+            backup_id = "bbbbbbbbbbbb"
+            self._malicious_archive(backups, backup_id, "data/..\\evil.txt")
+
+            with self.assertRaises(RestoreValidationError):
+                build_restore_plan(backup_id, data_dir=data, backup_dir=backups)
 
     def test_failed_apply_rolls_back_to_pre_restore_state(self):
         with tempfile.TemporaryDirectory() as directory:
