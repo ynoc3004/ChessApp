@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 import time
-from collections.abc import Awaitable, Callable
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
@@ -15,18 +14,23 @@ router = APIRouter(prefix="/audit", dependencies=[Depends(admin_core.require_adm
 _ID_SEGMENT = re.compile(r"^(?:[0-9a-f]{32}(?:-\d{4})?|\d+)$", re.IGNORECASE)
 
 
-def _normalized_action(method: str, path: str) -> tuple[str, str, str | None]:
-    parts = [part for part in path.strip("/").split("/") if part]
-    resource_type = parts[2] if len(parts) > 2 else "admin"
+def _normalized_action(method: str, path: str, route_path: str | None = None) -> tuple[str, str, str | None]:
+    raw_parts = [part for part in path.strip("/").split("/") if part]
+    template_parts = [part for part in (route_path or path).strip("/").split("/") if part]
+    resource_type = template_parts[2] if len(template_parts) > 2 else "admin"
     resource_id: str | None = None
     normalized: list[str] = []
-    for index, part in enumerate(parts[2:]):
-        if _ID_SEGMENT.fullmatch(part):
-            if resource_id is None and index > 0:
-                resource_id = part
+
+    for absolute_index, template_part in enumerate(template_parts[2:], start=2):
+        dynamic = template_part.startswith("{") and template_part.endswith("}")
+        raw_part = raw_parts[absolute_index] if absolute_index < len(raw_parts) else ""
+        if dynamic or (not route_path and _ID_SEGMENT.fullmatch(template_part)):
+            if resource_id is None and absolute_index > 2:
+                resource_id = raw_part or template_part
             normalized.append(":id")
         else:
-            normalized.append(part)
+            normalized.append(template_part)
+
     action_path = "/".join(normalized) or "admin"
     return f"{method.upper()} {action_path}", resource_type, resource_id
 
@@ -37,8 +41,9 @@ def wrap_admin_routes(admin_router: APIRouter) -> None:
         if getattr(route, "_chessapp_audited", False) or not hasattr(route, "app"):
             continue
         original = route.app
+        route_path = str(getattr(route, "path", ""))
 
-        async def audited_app(scope, receive, send, _original=original):
+        async def audited_app(scope, receive, send, _original=original, _route_path=route_path):
             if scope.get("type") != "http":
                 return await _original(scope, receive, send)
             method = str(scope.get("method") or "GET").upper()
@@ -46,7 +51,7 @@ def wrap_admin_routes(admin_router: APIRouter) -> None:
                 return await _original(scope, receive, send)
 
             path = str(scope.get("path") or "")
-            action, resource_type, resource_id = _normalized_action(method, path)
+            action, resource_type, resource_id = _normalized_action(method, path, _route_path)
             started = time.perf_counter()
             response_status: dict[str, int] = {}
 
