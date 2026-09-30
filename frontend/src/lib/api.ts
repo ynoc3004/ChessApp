@@ -13,6 +13,8 @@ export type Position = {
   page: number;
   confidence: number;
   imageUrl: string;
+  needsReview?: boolean;
+  source?: string;
 };
 
 export type UploadResponse = {
@@ -21,8 +23,9 @@ export type UploadResponse = {
   count: number;
   positions: Position[];
   skippedVectorImages?: number;
+  scannerVersion?: number;
+  scanRange?: { start: number; end: number; sourceTotal: number };
 };
-
 
 export type BookSummary = {
   jobId: string;
@@ -35,11 +38,16 @@ export type BookListResponse = {
   books: BookSummary[];
 };
 
+export type ScanFailedPage = {
+  page: number;
+  error: string;
+};
 
 export type ScanJob = {
   jobId: string;
   filename: string;
-  status: "queued" | "processing" | "completed" | "failed";
+  status: "queued" | "processing" | "paused" | "completed" | "failed";
+  phase?: "prepare" | "detect" | "paused" | "done" | "failed" | string;
   current: number;
   total: number;
   progress: number;
@@ -47,4 +55,14 @@ export type ScanJob = {
   positions: Position[];
   error?: string | null;
   skippedVectorImages?: number;
+  scannerVersion?: number;
+  pageStart?: number;
+  pageEnd?: number;
+  sourceTotal?: number;
+  currentPage?: number | null;
+  processedPages?: number[];
+  failedPages?: ScanFailedPage[];
+  pageStates?: Record<string, "pending" | "processing" | "completed" | "failed" | string>;
+  reviewCount?: number;
+  retryPage?: number;
 };
