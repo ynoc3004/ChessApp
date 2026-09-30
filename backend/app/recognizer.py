@@ -6,10 +6,12 @@ from pathlib import Path
 
 import chess
 
+from .color_vision import analyze_piece_colors
 from .preprocess import ensure_book_variants
 
 PIECES = set("prnbqkPRNBQK")
 LOW_CONFIDENCE_THRESHOLD = 0.72
+COLOR_FLIP_CONFIDENCE = 0.42
 
 
 def _expand_rank(rank: str) -> list[str]:
@@ -113,12 +115,7 @@ def _pawn_orientation_score(placement: str) -> float:
 
 
 def placement_quality(placement: str) -> dict:
-    """Score chess-specific structural sanity independently from ML confidence.
-
-    A recognizer can be confidently wrong. This score prevents an impossible
-    position (for example a missing king) from beating a lower-confidence but
-    chess-valid candidate.
-    """
+    """Score chess-specific structural sanity independently from ML confidence."""
     try:
         cells = _expand_placement(placement)
     except ValueError:
@@ -200,6 +197,137 @@ def _position_warnings(placement: str) -> list[str]:
             "hãy kiểm tra lại các quân trước khi phân tích."
         )
     return warnings
+
+
+def _oriented_color_map(color_vision: dict, orientation: str) -> tuple[dict[str, float], dict[str, float]]:
+    probabilities = color_vision.get("blackProbability", {})
+    confidence = color_vision.get("colorConfidence", {})
+    if orientation != "black":
+        return probabilities, confidence
+    return (
+        {_rotate_square_180(square): value for square, value in probabilities.items()},
+        {_rotate_square_180(square): value for square, value in confidence.items()},
+    )
+
+
+def piece_color_agreement(placement: str, color_vision: dict | None, orientation: str) -> dict:
+    if not color_vision:
+        return {"agreement": 0.5, "mismatches": [], "uncertain": []}
+
+    probabilities, confidence = _oriented_color_map(color_vision, orientation)
+    cells = _expand_placement(placement)
+    support_values: list[float] = []
+    mismatches: list[str] = []
+    uncertain: list[str] = []
+
+    for index, piece in enumerate(cells):
+        if piece == ".":
+            continue
+        square = _square_for_fen_index(index)
+        black_probability = float(probabilities.get(square, 0.5))
+        color_confidence = float(confidence.get(square, 0.0))
+        support = black_probability if piece.islower() else 1.0 - black_probability
+        support_values.append(support)
+        if color_confidence < COLOR_FLIP_CONFIDENCE:
+            uncertain.append(square)
+        elif support < 0.3:
+            mismatches.append(square)
+
+    agreement = sum(support_values) / len(support_values) if support_values else 0.5
+    return {
+        "agreement": round(agreement, 4),
+        "mismatches": mismatches,
+        "uncertain": uncertain,
+    }
+
+
+def _apply_color_resolution(result: dict, color_vision: dict | None) -> dict:
+    """Correct only piece *color*, never piece type, when visual evidence is strong."""
+    if not color_vision:
+        return result
+
+    orientation = str(result.get("suggestedOrientation", "white"))
+    probabilities, confidence = _oriented_color_map(color_vision, orientation)
+    original = str(result["piecePlacement"])
+    cells = _expand_placement(original)
+    corrected_cells = list(cells)
+    corrected_squares: list[str] = []
+
+    for index, piece in enumerate(cells):
+        if piece == ".":
+            continue
+        square = _square_for_fen_index(index)
+        black_probability = float(probabilities.get(square, 0.5))
+        color_confidence = float(confidence.get(square, 0.0))
+        if color_confidence < COLOR_FLIP_CONFIDENCE:
+            continue
+
+        wants_black = black_probability >= 0.5
+        is_black = piece.islower()
+        if wants_black != is_black:
+            corrected_cells[index] = piece.lower() if wants_black else piece.upper()
+            corrected_squares.append(square)
+
+    corrected = _compress_placement(corrected_cells)
+    before = piece_color_agreement(original, color_vision, orientation)
+    after = piece_color_agreement(corrected, color_vision, orientation)
+    before_sanity = placement_quality(original)
+    after_sanity = placement_quality(corrected)
+
+    accept = bool(corrected_squares) and (
+        (
+            float(after["agreement"]) >= float(before["agreement"]) + 0.08
+            and float(after_sanity["score"]) >= float(before_sanity["score"]) - 0.8
+        )
+        or (bool(after_sanity["valid"]) and not bool(before_sanity["valid"]))
+    )
+
+    output = dict(result)
+    final = corrected if accept else original
+    final_color = after if accept else before
+    final_sanity = after_sanity if accept else before_sanity
+
+    output["piecePlacement"] = final
+    output["validPlacement"] = final_sanity["valid"]
+    output["placementQuality"] = final_sanity["score"]
+    output["qualityReasons"] = final_sanity["reasons"]
+    output["warnings"] = _position_warnings(final)
+    output["pieceColorMethod"] = color_vision.get("method")
+    output["pieceColorAgreement"] = final_color["agreement"]
+    output["pieceColorMismatches"] = final_color["mismatches"]
+    output["uncertainColorSquares"] = final_color["uncertain"]
+    output["colorCorrectedSquares"] = corrected_squares if accept else []
+
+    if orientation == "black":
+        output["candidates"] = {
+            "whiteBottom": flip_piece_placement_180(final),
+            "blackBottom": final,
+        }
+    else:
+        output["candidates"] = {
+            "whiteBottom": final,
+            "blackBottom": flip_piece_placement_180(final),
+        }
+
+    model_confidence = float(output.get("averageConfidence", 0.0))
+    color_agreement = float(final_color["agreement"])
+    # This is now an overall board-recognition confidence: type confidence plus
+    # an independent color agreement signal. It also lets the frontend prefer
+    # the color-aware backend result over an 85%-confident color-wrong browser result.
+    output["averageConfidence"] = round(model_confidence * 0.55 + color_agreement * 0.45, 3)
+    output["qualityScore"] = round(
+        float(output.get("averageConfidence", 0.0))
+        + float(final_sanity["score"]) * 0.24
+        + color_agreement * 0.45
+        - min(0.4, len(final_color["mismatches"]) * 0.05)
+        - min(0.25, len(final_color["uncertain"]) / 64 * 0.25),
+        4,
+    )
+    output["uncertainSquares"] = sorted(
+        set(output.get("uncertainSquares", [])) | set(final_color["uncertain"]) | set(final_color["mismatches"]),
+        key=lambda square: (8 - int(square[1]), square[0]),
+    )
+    return output
 
 
 @lru_cache(maxsize=1)
@@ -398,13 +526,14 @@ def _fuse_results(results: list[dict]) -> dict | None:
 
 
 def recognize_board(image_path: Path) -> dict:
-    """Recognize a board using original + old-book preprocessing candidates.
-
-    Candidate selection is legality-aware. A high-confidence impossible board
-    can no longer beat a structurally valid candidate purely on confidence.
-    """
+    """Recognize a board using type ensemble + independent old-book color vision."""
     if not image_path.exists():
         raise FileNotFoundError(image_path)
+
+    try:
+        color_vision = analyze_piece_colors(image_path)
+    except Exception:
+        color_vision = None
 
     candidates: list[tuple[str, Path]] = [("original", image_path)]
     try:
@@ -415,36 +544,40 @@ def recognize_board(image_path: Path) -> dict:
     results: list[dict] = []
     for variant, path in candidates:
         try:
-            results.append(_recognize_once(path, variant))
+            result = _recognize_once(path, variant)
+            results.append(_apply_color_resolution(result, color_vision))
         except Exception:
             continue
 
     if not results:
-        # Preserve the original error semantics when every candidate fails.
-        return _recognize_once(image_path, "original")
+        result = _recognize_once(image_path, "original")
+        return _apply_color_resolution(result, color_vision)
 
     fused = _fuse_results(results)
     if fused is not None:
-        results.append(fused)
+        results.append(_apply_color_resolution(fused, color_vision))
 
-    # Valid chess placements always outrank invalid ones. Within the same
-    # validity tier, use the combined ML + structural quality score.
     results.sort(
         key=lambda result: (
             bool(result.get("validPlacement")),
             float(result.get("qualityScore", -999)),
+            float(result.get("pieceColorAgreement", 0.5)),
             float(result.get("averageConfidence", 0)),
         ),
         reverse=True,
     )
     winner = dict(results[0])
     winner["ensembleCandidates"] = len(candidates)
+    winner["pieceColorVision"] = color_vision
     winner["candidateSummary"] = [
         {
             "variant": result.get("preprocessVariant"),
             "valid": bool(result.get("validPlacement")),
             "qualityScore": result.get("qualityScore"),
             "averageConfidence": result.get("averageConfidence"),
+            "pieceColorAgreement": result.get("pieceColorAgreement"),
+            "colorCorrectedSquares": result.get("colorCorrectedSquares", []),
+            "uncertainColorSquares": len(result.get("uncertainColorSquares", [])),
             "uncertainSquares": len(result.get("uncertainSquares", [])),
         }
         for result in results
