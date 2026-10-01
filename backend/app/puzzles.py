@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from .academy import public_router as academy_public_router
+from .academy_game_analysis import public_router as academy_game_analysis_router
 from .academy_teacher import public_router as academy_assignment_router
 from .academy_tournament import public_router as academy_tournament_router
 from .academy_training import router as academy_training_router
@@ -55,17 +56,8 @@ def puzzle_session(theme: str = "", minimum: int = Query(800, ge=0, le=4000), ma
         params = (theme, minimum, maximum) if theme else (minimum, maximum)
         total = db.execute(f"SELECT COUNT(*) FROM {table} WHERE {where}", params).fetchone()[0]
         count = min(limit, total)
-        offsets = [
-            random.randrange(index * total // count, (index + 1) * total // count)
-            for index in range(count)
-        ]
-        ids = [
-            db.execute(
-                f"SELECT id FROM {table} WHERE {where} ORDER BY rating,id LIMIT 1 OFFSET ?",
-                (*params, offset),
-            ).fetchone()
-            for offset in offsets
-        ]
+        offsets = [random.randrange(index * total // count, (index + 1) * total // count) for index in range(count)]
+        ids = [db.execute(f"SELECT id FROM {table} WHERE {where} ORDER BY rating,id LIMIT 1 OFFSET ?", (*params, offset)).fetchone() for offset in offsets]
         result = []
         for item in ids:
             row = db.execute("SELECT * FROM puzzles WHERE id=?", (item["id"],)).fetchone()
@@ -135,6 +127,7 @@ router.routes.extend(academy_public_router.routes)
 router.routes.extend(academy_training_router.routes)
 router.routes.extend(academy_assignment_router.routes)
 router.routes.extend(academy_tournament_router.routes)
+router.routes.extend(academy_game_analysis_router.routes)
 # Security routes carry their own authentication dependencies and audit events.
 # Keep them outside wrap_admin_routes so self-service password/session mutations
 # remain available to moderator accounts that only have admin.read.
