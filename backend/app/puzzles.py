@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from .academy import public_router as academy_public_router
+from .academy_teacher import public_router as academy_assignment_router
 from .academy_training import router as academy_training_router
 from .admin import router as admin_router
 from .admin_audit import wrap_admin_routes
@@ -131,6 +132,7 @@ router.routes.extend(admin_auth_public_router.routes)
 # Academy student authentication is deliberately separate from Admin RBAC.
 router.routes.extend(academy_public_router.routes)
 router.routes.extend(academy_training_router.routes)
+router.routes.extend(academy_assignment_router.routes)
 # Security routes carry their own authentication dependencies and audit events.
 # Keep them outside wrap_admin_routes so self-service password/session mutations
 # remain available to moderator accounts that only have admin.read.
