@@ -33,6 +33,11 @@ admin.router.include_router(admin_users_router)
 admin.router.include_router(admin_maintenance_router)
 admin.router.include_router(admin_restore_router)
 
+# Academy v5 keeps practical-game evidence separate from Skill Mastery, but can
+# use repeated high-confidence practical patterns to choose a future Bí Cảnh.
+from .academy_training_bridge import install_practical_training_bridge
+install_practical_training_bridge()
+
 # Recognition v4 is intentionally attached here so the existing public API and
 # scanner routes do not need to change. app.__init__ runs before app.main imports
 # ``recognize_board``; therefore main receives the wrapped pipeline naturally.
