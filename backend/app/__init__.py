@@ -8,6 +8,7 @@ load_env_file()
 from . import admin as admin
 from .academy import admin_router as academy_admin_router
 from .academy_teacher import admin_router as academy_teacher_admin_router
+from .academy_tournament import admin_router as academy_tournament_admin_router
 from .admin_audit import router as admin_audit_router
 from .admin_auth import users_router as admin_users_router
 from .admin_books import router as admin_books_router
@@ -24,6 +25,7 @@ admin.router.include_router(admin_model_router)
 admin.router.include_router(admin_review_router)
 admin.router.include_router(academy_admin_router)
 admin.router.include_router(academy_teacher_admin_router)
+admin.router.include_router(academy_tournament_admin_router)
 admin.router.include_router(admin_audit_router)
 admin.router.include_router(admin_users_router)
 admin.router.include_router(admin_maintenance_router)
