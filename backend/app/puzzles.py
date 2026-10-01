@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from .academy import public_router as academy_public_router
 from .academy_game_analysis import public_router as academy_game_analysis_router
 from .academy_teacher import public_router as academy_assignment_router
+from .academy_teacher_portal import public_router as academy_teacher_portal_router
 from .academy_tournament import public_router as academy_tournament_router
 from .academy_training import router as academy_training_router
 from .admin import router as admin_router
@@ -128,6 +129,8 @@ router.routes.extend(academy_training_router.routes)
 router.routes.extend(academy_assignment_router.routes)
 router.routes.extend(academy_tournament_router.routes)
 router.routes.extend(academy_game_analysis_router.routes)
+# Teacher Portal auth is also independent from Admin RBAC and student sessions.
+router.routes.extend(academy_teacher_portal_router.routes)
 # Security routes carry their own authentication dependencies and audit events.
 # Keep them outside wrap_admin_routes so self-service password/session mutations
 # remain available to moderator accounts that only have admin.read.

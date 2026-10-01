@@ -9,6 +9,7 @@ from . import admin as admin
 from .academy import admin_router as academy_admin_router
 from .academy_game_analysis import admin_router as academy_game_analysis_admin_router
 from .academy_teacher import admin_router as academy_teacher_admin_router
+from .academy_teacher_portal import admin_router as academy_teacher_portal_admin_router
 from .academy_tournament import admin_router as academy_tournament_admin_router
 from .admin_audit import router as admin_audit_router
 from .admin_auth import users_router as admin_users_router
@@ -26,6 +27,7 @@ admin.router.include_router(admin_model_router)
 admin.router.include_router(admin_review_router)
 admin.router.include_router(academy_admin_router)
 admin.router.include_router(academy_teacher_admin_router)
+admin.router.include_router(academy_teacher_portal_admin_router)
 admin.router.include_router(academy_tournament_admin_router)
 admin.router.include_router(academy_game_analysis_admin_router)
 admin.router.include_router(admin_audit_router)
